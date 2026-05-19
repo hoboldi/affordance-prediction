@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+.env
+
+outputs/
+data/cache/
+data/processed/
+data/renders/
+*.pt
+!data/sample.glb
+
+.DS_Store
+.idea/
+.vscode/
+
+# SAM3D checkpoints (large; fetch separately)
+sam-3d-objects/checkpoints/

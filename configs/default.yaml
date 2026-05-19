@@ -1,0 +1,25 @@
+project:
+  seed: 42
+
+paths:
+  data_root: data
+  output_root: outputs
+  cache_root: data/cache
+
+reconstruction:
+  sam3d_config: sam-3d-objects/checkpoints/hf/pipeline.yaml
+  decode_formats:
+    - gaussian
+    - mesh
+  compile: false
+
+rendering:
+  num_views: 6
+
+vlm:
+  model_name: null  # set when VLM module is implemented
+
+training:
+  batch_size: 4
+  learning_rate: 1.0e-4
+  num_epochs: 50

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "affordance-prediction"
+version = "0.1.0"
+description = "Open-vocabulary affordance prediction from SAM3D reconstruction and VLM features"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "torch>=2.0",
+    "Pillow>=10.0",
+    "PyYAML>=6.0",
+    "trimesh>=4.0",
+    "tqdm>=4.65",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
