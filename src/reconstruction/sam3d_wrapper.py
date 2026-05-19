@@ -16,9 +16,10 @@ from utils.config import project_root, resolve_path
 class ReconstructionResult:
     """Outputs from a single SAM3D forward pass."""
 
-    shape_latent: torch.Tensor  # (4096, 8)
-    slat_feats: torch.Tensor  # (N, 8)
-    slat_coords: torch.Tensor  # (N, 3)
+    shape_latent: torch.Tensor   # (4096, 8) dense 16³ SS voxel grid
+    global_latent: torch.Tensor  # (8,) mean-pooled SLAT features over occupied voxels — broadcast to all vertices
+    slat_feats: torch.Tensor     # (N, 8) structured latent per occupied voxel
+    slat_coords: torch.Tensor    # (N, 3) voxel coordinates
     gaussian_splat: Any | None = None
     mesh_scene: Any | None = None
 
@@ -123,10 +124,35 @@ class SAM3DWrapper:
                 use_vertex_color=True,
             )
 
+        global_latent = slat_feats.mean(dim=0)  # (N, 8) occupied voxels → (8,)
+
         return ReconstructionResult(
             shape_latent=shape_latent,
+            global_latent=global_latent,
             slat_feats=slat_feats,
             slat_coords=slat_coords,
             gaussian_splat=outputs.get("gs"),
             mesh_scene=outputs.get("glb"),
         )
+
+
+# ---------------------------------------------------------------------------
+# Latent cache helpers — call once per object, reuse every training iteration
+# ---------------------------------------------------------------------------
+
+def save_global_latent(latent: torch.Tensor, path: str | Path) -> None:
+    """Persist the (8,) global shape latent for one object."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({"global_latent": latent}, path)
+
+
+def load_global_latent(path: str | Path) -> torch.Tensor:
+    """Load a cached (8,) global shape latent."""
+    data = torch.load(path, map_location="cpu", weights_only=True)
+    return data["global_latent"]
+
+
+def latent_cache_path(stem: str, cache_root: str | Path) -> Path:
+    """Canonical path for an object's global latent: <cache_root>/sam3d/<stem>/global_latent.pt"""
+    return Path(cache_root) / "sam3d" / stem / "global_latent.pt"

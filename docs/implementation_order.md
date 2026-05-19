@@ -69,6 +69,7 @@ Per-vertex affordance score
 ### Keep:
 
 * mesh output (required for affordances and projection)
+* **global object latent** — mean-pool the SLAT features over occupied voxels `(N, 8) → (8,)` and save to `data/cache/sam3d/<stem>/global_latent.pt`
 
 ### Optional:
 
@@ -76,12 +77,17 @@ Per-vertex affordance score
 
 ### Ignore for now:
 
-* PointNet global features
 * splat-based semantic accumulation (Phase 2+)
+
+### Latent caching:
+
+SAM3D inference runs once per object. The `(8,)` global latent is written via `save_global_latent()` and read via `load_global_latent()` from `reconstruction.sam3d_wrapper`. The training `Dataset` must load from cache — never call `SAM3DWrapper.reconstruct()` inside the training loop.
+
+Cache location: `data/cache/sam3d/<object_stem>/global_latent.pt` (via `latent_cache_path()`).
 
 ### Goal:
 
-Stable mesh vertices and correspondences. Splats are not required for MVP.
+Stable mesh vertices, correspondences, and a cached global shape latent per object.
 
 ---
 
@@ -159,15 +165,17 @@ Validate semantic grounding onto geometry.
 
 ```python
 vertex_feature = concat(
-    sam3d_feature,
-    vlm_feature,
-    verb_embedding
+    vlm_feature,      # (512,) per-vertex
+    verb_embedding,   # (512,) broadcast
+    sam3d_global,     # (8,)   broadcast — global shape latent, loaded from cache
 )
+# total input dim: 1032 (or 1024 when sam3d_dim=0 / no checkpoints)
 ```
+
+`sam3d_global` is a single vector shared across all vertices of one object.
 
 ### Ignore:
 
-* PointNet globals
 * transformers
 * graph reasoning
 

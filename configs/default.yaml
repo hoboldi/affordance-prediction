@@ -12,6 +12,9 @@ reconstruction:
     - gaussian
     - mesh
   compile: false
+  # Cache the global shape latent per object so it is computed once, not every training step.
+  # Latents are written to: <paths.cache_root>/sam3d/<object_stem>/global_latent.pt
+  cache_latents: true
 
 rendering:
   num_views: 6
@@ -42,6 +45,7 @@ vlm:
 model:
   vlm_dim: 512        # CLIP-ViT-B/32 patch/text feature size
   verb_dim: 512
+  sam3d_dim: 8        # SAM3D global shape latent dim (mean-pooled SS tokens); set 0 to disable
   hidden_dims: [512, 256]
   dropout: 0.1
 

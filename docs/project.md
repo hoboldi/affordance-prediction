@@ -31,12 +31,11 @@ Until SAM3D weights are available, the pipeline can be bootstrapped with a pre-e
 
 When checkpoints are available, SAM3D outputs both mesh and splat; rendering can then use either or both backends (see §3).
 
-In addition to geometry, SAM3D produces latent geometric features associated with mesh vertices or reconstructed points. To obtain stronger global geometric context, these local features can optionally be aggregated using a PointNet-style encoder that produces:
+In addition to geometry, SAM3D's structured latent (SLAT) diffusion stage produces a sparse set of features `(N, 8)` over the N occupied voxels of the reconstructed object, where each voxel carries both geometric and appearance information. These are mean-pooled over occupied voxels to produce a single **global object latent** of shape `(8,)`. This vector captures holistic structure — shape, rough appearance, and object-scale layout — and is broadcast identically to every mesh vertex during feature fusion.
 
-* local geometric features per vertex,
-* and a global object-level latent representation.
+SLAT is preferred over the earlier SS (sparse structure) latent because: (1) it only covers occupied voxels, avoiding dilution from empty space; and (2) it captures geometry-and-appearance jointly, which is more discriminative for affordance prediction than pure occupancy structure alone. The VLM patch features and SLAT are complementary: VLM sees 2D rendered views from fixed viewpoints; SLAT was trained on the full 3D structure.
 
-The global latent is intended to capture object-scale semantic and structural information that may be important for affordances requiring holistic reasoning, such as *sit on* or *pour from*.
+**Latent caching:** Because SAM3D inference is expensive, the `(8,)` global latent is computed once per object and saved to `data/cache/sam3d/<object_stem>/global_latent.pt`. The training loop loads from cache and never re-runs SAM3D. Cache files are written by `reconstruction.sam3d_wrapper.save_global_latent` and read by `load_global_latent`.
 
 ---
 
@@ -118,21 +117,23 @@ Visibility information obtained during rendering is used to ensure that only geo
 
 ## 6. Vertex Feature Fusion
 
-For every mesh vertex, multiple information sources are fused into a joint feature representation:
+For every mesh vertex, three information sources are concatenated into a joint feature vector:
 
-* SAM3D geometric latent,
-* projected VLM semantic latent,
-* optional global PointNet latent,
-* and the verb embedding.
+```
+vertex_feature = concat(
+    vlm_feature,      # (512,) — per-vertex, from 2D→3D projection
+    verb_embedding,   # (512,) — global, broadcast to all vertices
+    sam3d_global,     # (8,)   — global, broadcast to all vertices
+)                     # total: (1032,)
+```
 
-This creates a unified geometric-semantic representation capturing:
+* **`vlm_feature`** carries local visual-semantic information tied to the vertex's surface appearance across rendered views.
+* **`verb_embedding`** encodes the interaction intent (e.g. *grasp*, *pour from*).
+* **`sam3d_global`** encodes the object's overall geometric structure, shared across all vertices.
 
-* local shape information,
-* object-scale context,
-* visual semantics,
-* and interaction intent.
+The two broadcast terms (`verb_embedding`, `sam3d_global`) give every vertex access to global context; the `vlm_feature` distinguishes vertices from one another.
 
-The fused representation forms the basis for downstream affordance prediction.
+**MVP note:** when SAM3D checkpoints are unavailable, `sam3d_dim` is set to `0` in config and `sam3d_global` is omitted, reducing input dim to `1024`. The MLP architecture handles this transparently via `MLPHeadConfig.sam3d_dim`.
 
 ---
 
