@@ -150,11 +150,15 @@ open_vocab_affordance/
 │       ├── visibility_aware/
 │       └── transformer_head/
 │
-├── notebooks/
-│   ├── reconstruction_debug.ipynb
-│   ├── vlm_projection_debug.ipynb
-│   ├── affordance_visualization.ipynb
-│   └── ablation_analysis.ipynb
+├── notebooks/                    # required: one notebook per pipeline stage
+│   ├── 00_mesh_bootstrap.ipynb
+│   ├── 01_reconstruction_debug.ipynb
+│   ├── 02_rendering_debug.ipynb
+│   ├── 03_vlm_features_debug.ipynb
+│   ├── 04_projection_debug.ipynb
+│   ├── 05_affordance_head_debug.ipynb
+│   ├── 06_training_evaluation_debug.ipynb
+│   └── 07_ablation_analysis.ipynb   # Phase 2+ comparisons
 │
 ├── outputs/
 │   ├── checkpoints/
@@ -177,3 +181,40 @@ open_vocab_affordance/
     ├── datasets.md
     ├── evaluation.md
     └── experiments.md
+```
+
+---
+
+## Rendering backends and assets
+
+| File | Role |
+|------|------|
+| `mesh.glb` | Required — affordance field, projection target, mesh renderer input |
+| `gaussian.ply` | Optional — splat renderer input when SAM3D (or other) produces it |
+
+`src/rendering/renderer.py` dispatches to `mesh_renderer.py` and/or `gaussian_renderer.py` according to `configs/default.yaml` → `rendering.backend`.
+
+**Mesh-only development:** `data/sample.glb` is sufficient; leave `data/splats/` empty and `rendering.splat_path: null`.
+
+**Full SAM3D output per sample:**
+
+```text
+outputs/reconstructions/{stem}/
+    mesh.glb
+    gaussian.ply      # optional for rendering; not needed for vertex affordances
+    shape_latent.pt
+    ...
+```
+
+---
+
+## Stage testing notebooks
+
+Notebooks are **required deliverables**, not optional demos. Each implements the same contract:
+
+1. Prerequisites and config at the top.
+2. Call into `src/` modules (not duplicated logic).
+3. Inline visuals + numeric checks.
+4. Pass checklist before the stage is considered done.
+
+Caches and figures: `outputs/notebooks/<stage>/`. Details: [implementation_order.md](implementation_order.md#stage-testing-notebooks-required).

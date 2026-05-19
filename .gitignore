@@ -12,6 +12,7 @@ venv/
 .env
 
 outputs/
+outputs/notebooks/
 data/cache/
 data/processed/
 data/renders/

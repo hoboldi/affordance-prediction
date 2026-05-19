@@ -13,7 +13,7 @@ That means:
 * no learned view selection,
 * no graph networks,
 * no uncertainty modeling,
-* no splat reasoning,
+* no splat-native semantic fusion (splats may still be used as a render backend),
 * no complex losses.
 
 The first version should simply prove:
@@ -42,11 +42,11 @@ Build a working end-to-end pipeline with:
 ```text
 RGB-D image + verb
         ↓
-SAM3D reconstruction
+SAM3D reconstruction (or preloaded mesh.glb)
         ↓
-Mesh generation
+Mesh (+ optional gaussian.ply)
         ↓
-Render 4–8 novel views
+Render 4–8 novel views (mesh and/or splat backend)
         ↓
 Frozen VLM patch embeddings
         ↓
@@ -68,16 +68,20 @@ Per-vertex affordance score
 
 ### Keep:
 
-* mesh output only
+* mesh output (required for affordances and projection)
+
+### Optional:
+
+* `gaussian.ply` when SAM3D checkpoints are available (enables splat rendering)
 
 ### Ignore for now:
 
-* gaussian splats
 * PointNet global features
+* splat-based semantic accumulation (Phase 2+)
 
 ### Goal:
 
-Just get stable vertices and correspondences.
+Stable mesh vertices and correspondences. Splats are not required for MVP.
 
 ---
 
@@ -87,15 +91,27 @@ Just get stable vertices and correspondences.
 
 * fixed spherical camera sampling
 * 4–8 views
+* **mesh renderer** (always — works with `data/sample.glb` alone)
+* **gaussian splat renderer** when a `.ply` exists next to the mesh
+
+### Config:
+
+```yaml
+rendering:
+  backend: mesh          # mesh | gaussian | both
+  mesh_path: data/sample.glb
+  splat_path: null       # optional; e.g. outputs/.../gaussian.ply
+```
 
 ### Ignore:
 
-* visibility confidence
+* visibility confidence weighting
 * adaptive view selection
+* comparing mesh vs splat in training (debug/ablation only)
 
 ### Goal:
 
-Generate enough coverage for semantic projection.
+RGB + depth + vertex correspondences for VLM and projection. Mesh-only is enough until SAM3D outputs splats.
 
 ---
 
@@ -199,6 +215,7 @@ src/
 ├── datasets/
 ├── training/
 └── visualization/
+notebooks/          # required — one debug notebook per pipeline stage (see below)
 ```
 
 You do not yet need:
@@ -211,26 +228,99 @@ You do not yet need:
 
 ---
 
+# Stage testing notebooks (required)
+
+Each pipeline stage must have a **dedicated Jupyter notebook** used to validate that stage in isolation before wiring the full training loop. Notebooks are the primary integration test for geometry and visuals; `tests/` covers unit-level logic.
+
+## Requirements (all stage notebooks)
+
+* Load settings from `configs/default.yaml` (paths, `rendering.backend`, etc.).
+* State **prerequisites** in the first cell (e.g. “needs `data/sample.glb` only” vs “needs SAM3D checkpoints”).
+* Produce **inline figures** (mesh views, render grids, heatmaps) — not only saved files.
+* End with an explicit **pass checklist** (assertions or printed criteria); fail loudly if outputs are empty or degenerate.
+* Write optional caches under `outputs/notebooks/<stage>/` so reruns are fast.
+* Prefer the same APIs as `src/` (import from installed package or `PYTHONPATH=src`).
+
+## Notebook ↔ stage map (current status)
+
+**Legend:** ✅ done · 🟡 in progress / partial · ⬜ not started · 🚫 blocked
+
+| Step | Notebook | `src/` code | Status | Can work on now? | Blocker / notes |
+|------|----------|-------------|--------|------------------|-----------------|
+| 0 | `00_mesh_bootstrap.ipynb` | `datasets/mesh_loading.py`, `utils/config.py` | ✅ | — | Run notebook to confirm on your machine |
+| 1 | `01_reconstruction_debug.ipynb` | `reconstruction/sam3d_wrapper.py`, `mesh_utils.py` | 🟡 | **No** (run) | Code exists; **SAM3D checkpoints** + submodule setup required to execute |
+| 2 | `02_rendering_debug.ipynb` | `rendering/mesh_renderer.py`, `camera_sampling.py` | ✅ | — | Mesh backend; run notebook to confirm |
+| 3 | `03_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run notebook to confirm |
+| 4 | `04_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from 02+03 |
+| 5 | `05_affordance_head_debug.ipynb` | `models/` (stubs only) | ⬜ | **After step 4** | MLP + concat fusion; can use dummy features for API sketch only |
+| 6 | `06_training_evaluation_debug.ipynb` | `training/`, `datasets/agd20k_*` | ⬜ | **No** | **AGD20K** annotations + end-to-end pipeline |
+| — | `07_ablation_analysis.ipynb` | — | ⬜ | **No** | Phase 2+; MVP must pass first |
+
+### Recommended next tasks (no SAM3D checkpoints)
+
+| Priority | Task | Delivers |
+|----------|------|----------|
+| 1 | `05_affordance_head_debug.ipynb` | MLP + concat fusion on `vertex_semantic.pt` |
+
+**Already landed (foundation):** repo scaffold (`src/`, configs), SAM3D wrapper (not runnable without weights), mesh I/O, `scripts/generate_sam3d.py`, `tests/test_mesh_loading.py`.
+
+Later (Phase 2+): `07_ablation_analysis.ipynb` for mesh vs splat rendering and fusion ablations.
+
+**Gate rule:** do not mark a step complete in the timeline until its notebook runs top-to-bottom on the target machine (mesh-only or full SAM3D) and the pass checklist is satisfied.
+
+---
+
 # Recommended MVP Timeline
 
 ---
 
-# Step 1 — Reconstruction Only
+# Step 0 — Bootstrap without SAM3D (current)
 
 ## Goal
 
-Generate meshes from RGB-D inputs.
+Run rendering → VLM → projection using **only** a mesh asset.
+
+## Input
+
+* `data/sample.glb` (no matching splat required)
+
+## Skip
+
+* SAM3D inference until checkpoints are installed
+
+## Verify
+
+* mesh loads and normalizes
+* mesh renderer produces sensible RGB / depth
+* vertex correspondences are non-empty for visible vertices
+
+## Notebook
+
+`notebooks/00_mesh_bootstrap.ipynb` — load `data/sample.glb`, plot mesh, confirm normalization; optionally smoke-test mesh renderer once implemented.
+
+---
+
+# Step 1 — Reconstruction (when checkpoints available)
+
+## Goal
+
+Generate meshes (and optionally splats) from RGB-D inputs.
 
 ## Output
 
-* mesh.obj
-* vertex features
-* camera parameters
+* `mesh.glb` (required)
+* `gaussian.ply` (optional)
+* vertex / SLAT latents
+* camera parameters from SAM3D pose
 
 ## Verify
 
 * reconstruction quality
-* coordinate consistency
+* coordinate consistency between mesh and splat (if both exist)
+
+## Notebook
+
+`notebooks/01_reconstruction_debug.ipynb` — single-image SAM3D run; side-by-side mesh/splat preview; latent shapes documented.
 
 ---
 
@@ -238,20 +328,33 @@ Generate meshes from RGB-D inputs.
 
 ## Goal
 
-Render multiple views.
+Render multiple views from mesh and/or splat.
 
 ## Output
 
-For each view:
+For each view (per active backend):
 
 * RGB
 * depth
-* vertex correspondences
+* vertex correspondences (from mesh rasterization; splat path may use mesh depth for projection)
+
+## Modes
+
+| Mode | When |
+|------|------|
+| `mesh` | No splat file — default for `sample.glb` |
+| `gaussian` | `gaussian.ply` present |
+| `both` | Ablation: same poses, two RGB sources |
 
 ## Verify
 
 * view coverage
 * visibility correctness
+* mesh-only path works without any `.ply`
+
+## Notebook
+
+`notebooks/02_rendering_debug.ipynb` — grid of views; depth overlays; correspondence heatmap; compare `backend: mesh` vs `gaussian` when `.ply` exists.
 
 ---
 
@@ -271,6 +374,10 @@ patch_features: [N_patches, D]
 
 * spatial alignment
 * semantic consistency
+
+## Notebook
+
+`notebooks/03_vlm_features_debug.ipynb` — patch map dimensions; example patches on RGB; verb vector norm/similarity smoke test.
 
 ---
 
@@ -295,6 +402,10 @@ Color mesh by:
 
 This debugging stage is extremely important.
 
+## Notebook
+
+`notebooks/04_projection_debug.ipynb` — **required** visual gate: PCA-colored mesh, verb-conditioned similarity map, before any training.
+
 ---
 
 # Step 5 — Basic Affordance Head
@@ -311,6 +422,10 @@ MLP(vertex_feature) -> affordance
 
 * overfit tiny subset first
 * inspect heatmaps
+
+## Notebook
+
+`notebooks/05_affordance_head_debug.ipynb` — train on ≤10 samples; loss curve; predicted affordance on mesh vs GT.
 
 ---
 
@@ -329,6 +444,10 @@ Run on AGD20K.
 ## Important
 
 Only after this stage should you consider architectural complexity.
+
+## Notebook
+
+`notebooks/06_training_evaluation_debug.ipynb` — val metrics table; failure cases gallery; export paths for report figures.
 
 ---
 
@@ -423,10 +542,10 @@ Potentially more geometry-aware.
 
 ## Extension G — Gaussian Splat Semantic Fusion
 
-Use splats directly for:
+Beyond using splats as an RGB render backend (MVP), use splats directly for:
 
-* semantic accumulation
-* differentiable rendering.
+* semantic accumulation on splat primitives
+* differentiable rendering end-to-end.
 
 ---
 
@@ -472,19 +591,20 @@ Finetune reconstruction jointly.
 This is likely the safest order:
 
 ```text
-1. Mesh reconstruction
-2. Multi-view rendering
-3. Frozen VLM extraction
-4. Patch-to-vertex projection
-5. MLP affordance prediction
-6. AGD20K training
-7. Visualization/debugging
+0. Mesh-only bootstrap (sample.glb) + notebooks/00_mesh_bootstrap.ipynb
+1. Mesh reconstruction (+ optional gaussian.ply) + notebooks/01_reconstruction_debug.ipynb
+2. Multi-view rendering + notebooks/02_rendering_debug.ipynb
+3. Frozen VLM extraction + notebooks/03_vlm_features_debug.ipynb
+4. Patch-to-vertex projection + notebooks/04_projection_debug.ipynb
+5. MLP affordance prediction + notebooks/05_affordance_head_debug.ipynb
+6. AGD20K training + notebooks/06_training_evaluation_debug.ipynb
+7. Report figures / interactive demos (reuse notebook outputs)
 8. Intermediate VLM features
 9. Attention fusion
 10. PointNet global latent
 11. Visibility-aware fusion
 12. Transformer/GNN head
-13. Gaussian splat integration
+13. Splat-native semantic fusion (Extension G)
 14. Open-vocabulary evaluation
 ```
 

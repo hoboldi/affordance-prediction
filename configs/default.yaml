@@ -15,9 +15,35 @@ reconstruction:
 
 rendering:
   num_views: 6
+  image_size: 512
+  fov_deg: 60.0
+  camera_radius: 2.0
+  elevation_deg: 30.0
+  depth_tolerance: 0.05
+  depth_relative_tolerance: 0.03
+  # mesh | gaussian | both — gaussian/both require splat_path
+  backend: mesh
+  mesh_path: data/sample.glb
+  splat_path: null  # e.g. outputs/reconstructions/{stem}/gaussian.ply
+
+projection:
+  clip_image_size: 224  # CLIP input side length (ViT-B/32)
 
 vlm:
-  model_name: null  # set when VLM module is implemented
+  model_name: openai/clip-vit-base-patch32
+  device: null  # auto: cuda / mps / cpu
+  max_batch_size: 8
+  sample_verbs:
+    - grasp
+    - sit on
+    - open
+    - pour from
+
+model:
+  vlm_dim: 512        # CLIP-ViT-B/32 patch/text feature size
+  verb_dim: 512
+  hidden_dims: [512, 256]
+  dropout: 0.1
 
 training:
   batch_size: 4

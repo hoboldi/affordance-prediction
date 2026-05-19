@@ -14,12 +14,22 @@ The goal is to infer a probabilistic affordance value in the range ([0,1]) for e
 
 ## 2. 3D Reconstruction using SAM3D
 
-The RGB-D image is processed using SAM3D to generate a dense 3D representation of the scene or object. The reconstruction consists of:
+The RGB-D image is processed using SAM3D to generate a dense 3D representation of the scene or object. The reconstruction can produce:
 
-* a textured mesh representation,
-* and a Gaussian splatting representation used for high-quality rendering and view synthesis.
+* a textured **mesh** (`.glb` / `.obj`) — required; this is the canonical geometry for affordance prediction and projection,
+* an optional **Gaussian splat** (`.ply`) — used when available for higher-fidelity novel-view rendering.
 
-The mesh representation serves as the primary structure for affordance prediction, while Gaussian splats provide improved rendering consistency and richer view-dependent appearance information during multi-view feature extraction.
+**Affordance prediction always lives on mesh vertices.** Splats are a rendering backend for VLM input images, not a separate affordance representation.
+
+### Development without SAM3D checkpoints
+
+Until SAM3D weights are available, the pipeline can be bootstrapped with a pre-exported mesh only (e.g. `data/sample.glb`). In that mode:
+
+* skip reconstruction,
+* use **mesh rendering** for novel views,
+* omit splat files entirely — no paired `.ply` is required.
+
+When checkpoints are available, SAM3D outputs both mesh and splat; rendering can then use either or both backends (see §3).
 
 In addition to geometry, SAM3D produces latent geometric features associated with mesh vertices or reconstructed points. To obtain stronger global geometric context, these local features can optionally be aggregated using a PointNet-style encoder that produces:
 
@@ -34,16 +44,30 @@ The global latent is intended to capture object-scale semantic and structural in
 
 To obtain richer semantic coverage than available from the original observation, multiple novel viewpoints are sampled around the reconstructed object.
 
-The reconstructed mesh and Gaussian splats are rendered from these viewpoints to produce:
+### Dual rendering backends
 
-* RGB renderings,
-* depth maps,
-* visibility masks,
-* and camera correspondences.
+Novel views for the VLM are produced by one or both of:
 
-Initially, viewpoint sampling can be implemented using simple uniform spherical sampling around the object. Later iterations may explore more advanced visibility-aware or coverage-optimized view selection strategies.
+| Backend | Input | Typical use |
+|--------|--------|-------------|
+| **Mesh renderer** | `.glb` / `.obj` | Always available; provides depth + per-vertex 2D correspondences via rasterization |
+| **Gaussian splat renderer** | `.ply` from SAM3D | Optional; often sharper RGB when a splat exists |
 
-The Gaussian splatting representation is primarily used during rendering to improve visual fidelity and preserve fine-grained appearance information for downstream VLM processing.
+Configuration selects the active backend(s), e.g. `mesh`, `gaussian`, or `both`. When `both` is set, the same camera poses can render two RGB streams (mesh vs splat) for comparison or ablation; projection still targets **mesh vertices**.
+
+If only a mesh is present (no splat file), the pipeline runs in **mesh-only** mode — this is the expected setup for local development with `data/sample.glb`.
+
+Each rendered view provides:
+
+* RGB image (for the frozen VLM),
+* depth map,
+* visibility / foreground mask,
+* camera intrinsics and extrinsics,
+* **vertex correspondences** (mesh UV/barycentric or projected vertex indices) for 2D→3D projection.
+
+Initially, viewpoint sampling uses simple uniform spherical sampling around the object. Later iterations may explore visibility-aware or coverage-optimized view selection.
+
+**MVP note:** mesh rendering is sufficient to validate projection and affordance heads; splat rendering is added when `gaussian.ply` exists alongside `mesh.glb`.
 
 ---
 
@@ -150,3 +174,15 @@ The initial training setup will likely use binary cross-entropy loss on per-vert
 The final output is a dense, verb-conditioned affordance field defined over the reconstructed 3D mesh.
 
 Each vertex receives a continuous affordance score representing the predicted likelihood that the queried interaction can be performed at that location. High-scoring regions correspond to semantically and geometrically plausible interaction areas, enabling fine-grained 3D reasoning about object affordances in an open-vocabulary setting.
+
+---
+
+## 10. Stage testing notebooks
+
+The pipeline is developed and validated **stage by stage** using Jupyter notebooks under `notebooks/`. Each major step (mesh bootstrap, reconstruction, rendering, VLM, projection, affordance head, evaluation) has a dedicated notebook that:
+
+* runs that stage in isolation using `configs/default.yaml`,
+* visualizes intermediate results (meshes, render grids, feature-colored surfaces, affordance heatmaps),
+* and documents pass/fail criteria before the next stage starts.
+
+Unit tests in `tests/` complement notebooks but do not replace visual inspection of geometry and semantics. See [implementation_order.md](implementation_order.md) for the full notebook ↔ stage mapping and gate rule.

@@ -1,10 +1,18 @@
+# 1) PyTorch first (matched pair):  pip install -r requirements-pytorch.txt
+# 2) Then the rest:                 pip install -r requirements.txt
+# Or in one go after PyTorch:       pip install -e ".[notebooks,dev]"
+
 numpy>=1.24
-torch>=2.0
 Pillow>=10.0
 PyYAML>=6.0
 trimesh>=4.0
+pyrender>=0.1.45
+PyOpenGL>=3.1.0
 tqdm>=4.65
 loguru>=0.7
+transformers>=4.36
+safetensors>=0.4
 
-# SAM3D (install submodule separately: git submodule update --init)
-# See sam-3d-objects for additional CUDA / model dependencies.
+# torch + torchvision are in requirements-pytorch.txt (install separately)
+
+# SAM3D (optional): git submodule update --init sam-3d-objects
