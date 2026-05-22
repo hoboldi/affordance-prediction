@@ -4,7 +4,15 @@
 #SBATCH --time=01:00:00
 #SBATCH --output=logs/%j.out
 
-source ~/affordance-prediction/sam-3d-objects/.venv/bin/activate
+VENV=~/affordance-prediction/sam-3d-objects/.venv
+REQUIREMENTS=~/affordance-prediction/sam-3d-objects/requirements.only_inference.txt
+
+if [ ! -f "$VENV/bin/activate" ] || ! uv pip check --python "$VENV/bin/python" > /dev/null 2>&1; then
+    uv venv "$VENV"
+    uv pip install --python "$VENV/bin/python" -r "$REQUIREMENTS"
+fi
+
+source "$VENV/bin/activate"
 python ~/affordance-prediction/dataset_pipeline.py \
   --dataset_dir ~/affordance-prediction/dataset \
   --output_dir ~/affordance-prediction/output \
