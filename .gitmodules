@@ -1,3 +1,4 @@
 [submodule "sam-3d-objects"]
 	path = sam-3d-objects
-	url = https://github.com/facebookresearch/sam-3d-objects.git
+	url = git@github.com:hoboldi/sam-3d-objects.git
+
