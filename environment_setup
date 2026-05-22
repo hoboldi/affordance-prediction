@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+VENV=~/affordance-prediction/sam-3d-objects/.venv
+PKG=~/affordance-prediction/sam-3d-objects
+
+# Create venv
+uv venv "$VENV" --python 3.11
+source "$VENV/bin/activate"
+
+# Install PyTorch with cu118 first — must come before anything that builds against torch
+uv pip install \
+  torch==2.5.1+cu118 \
+  torchvision==0.20.1+cu118 \
+  torchaudio==2.5.1+cu118 \
+  --extra-index-url https://download.pytorch.org/whl/cu118
+
+# Core + dev dependencies
+# --index-strategy unsafe-best-match lets uv find cuda-python==12.1.0 on PyPI
+# even though a different (wrong) version appears first on the PyTorch wheel index
+uv pip install -e "$PKG[dev]" \
+  --extra-index-url https://pypi.ngc.nvidia.com \
+  --extra-index-url https://download.pytorch.org/whl/cu118 \
+  --index-strategy unsafe-best-match
+
+# PyTorch3D — needs torch at build time, so skip build isolation
+uv pip install -e "$PKG[p3d]" \
+  --extra-index-url https://pypi.ngc.nvidia.com \
+  --extra-index-url https://download.pytorch.org/whl/cu118 \
+  --no-build-isolation
+
+# Kaolin for cu118
+uv pip install kaolin==0.17.0 \
+  --find-links https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_cu118.html
+
+# Inference dependencies — gsplat needs torch at build time, so skip build isolation
+uv pip install -e "$PKG[inference]" \
+  --extra-index-url https://pypi.ngc.nvidia.com \
+  --extra-index-url https://download.pytorch.org/whl/cu118 \
+  --find-links https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_cu118.html \
+  --no-build-isolation
+
+uv pip install loguru==0.7.3 omegaconf hydra-core==1.3.2
