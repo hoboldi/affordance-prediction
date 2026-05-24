@@ -1,0 +1,16 @@
+[project]
+name = "affordance-prediction"
+version = "0.1.0"
+description = "Affordance prediction pipeline with point cloud utilities"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "matplotlib>=3.10.9",
+    "numpy",
+]
+
+[project.scripts]
+npy-to-obj = "utils.npy_to_obj:main"
+
+[tool.uv]
+package = false

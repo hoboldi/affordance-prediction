@@ -1,3 +1,3 @@
-[submodule "sam-3d-objects"]
-	path = sam-3d-objects
-	url = https://github.com/facebookresearch/sam-3d-objects.git
+[submodule "trellis-mac"]
+	path = trellis-mac
+	url = https://github.com/shivampkumar/trellis-mac.git
