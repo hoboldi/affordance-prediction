@@ -36,7 +36,7 @@ build/
 *.glb
 *.obj
 *.mtl
-PIADv2
+data
 
 # Logs
 *.log
@@ -53,4 +53,3 @@ outputs/
 
 # Submodule build artifacts (not the submodules themselves)
 trellis-mac/.venv/
-PIADv2/__pycache__/

@@ -2,15 +2,60 @@
 name = "affordance-prediction"
 version = "0.1.0"
 description = "Affordance prediction pipeline with point cloud utilities"
-readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    # Core
     "matplotlib>=3.10.9",
     "numpy",
+    # Trellis
+    "torch>=2.1",
+    "torchvision",
+    "torchaudio",
+    "transformers",
+    "accelerate",
+    "huggingface_hub",
+    "safetensors",
+    "pillow",
+    "trimesh",
+    "scipy",
+    "tqdm",
+    "easydict",
+    "kornia",
+    "timm",
+    "imageio",
+    "opencv-python-headless",
+    "xatlas",
+    "fast-simplification",
+    "setuptools",
+    "wheel",
+    "pybind11",
+    # Trellis local deps
+    "utils3d",
+    "mtlbvh",
+    "mtldiffrast",
+    "cumesh",
+    "flex_gemm",
+    "o_voxel",
 ]
 
 [project.scripts]
-npy-to-obj = "utils.npy_to_obj:main"
+visualize-pointcloud = "utils.visualize_pointcloud:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["utils"]
 
 [tool.uv]
-package = false
+package = true
+no-build-isolation-package = ["mtlbvh", "mtldiffrast", "cumesh", "flex_gemm", "o_voxel"]
+
+[tool.uv.sources]
+utils3d    = { path = "trellis-mac/deps/utils3d" }
+mtlbvh     = { path = "trellis-mac/deps/mtlbvh" }
+mtldiffrast = { path = "trellis-mac/deps/mtldiffrast" }
+cumesh     = { path = "trellis-mac/deps/mtlmesh" }
+flex_gemm  = { path = "trellis-mac/deps/mtlgemm" }
+o_voxel    = { path = "trellis-mac/deps/trellis2-apple/o-voxel" }
