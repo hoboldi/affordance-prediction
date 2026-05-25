@@ -12,6 +12,49 @@ import torch
 from utils.config import project_root, resolve_path
 
 
+def resolve_sam3d_objects_root(project_root_path: Path | None = None) -> Path:
+    """
+    Locate the **facebookresearch/sam-3d-objects** checkout where ``notebook/inference.py`` lives.
+
+    Search order:
+
+    1. ``SAM3D_OBJECTS_ROOT`` or ``SAM3D_ROOT`` (absolute path to repo root)
+    2. ``<project_root>/sam-3d-objects``
+    3. ``<project_root>/../sam-3d-objects`` (sibling clone)
+
+    Raises ``FileNotFoundError`` with a short checklist if nothing matches.
+    """
+    root = project_root_path or project_root()
+    tried: list[str] = []
+
+    for env_key in ("SAM3D_OBJECTS_ROOT", "SAM3D_ROOT"):
+        raw = os.environ.get(env_key, "").strip()
+        if not raw:
+            continue
+        p = Path(raw).expanduser().resolve()
+        tried.append(f"{env_key}={p}")
+        if (p / "notebook" / "inference.py").is_file():
+            return p
+
+    for label, p in (
+        ("<project_root>/sam-3d-objects", root / "sam-3d-objects"),
+        ("<project_root>/../sam-3d-objects", root.parent / "sam-3d-objects"),
+    ):
+        tried.append(f"{label} -> {p}")
+        if (p / "notebook" / "inference.py").is_file():
+            return p
+
+    lines = "\n  - ".join(tried) if tried else "(no env override; checked default paths)"
+    raise FileNotFoundError(
+        "SAM3D code not found (need notebook/inference.py inside sam-3d-objects). Checked:\n  - "
+        f"{lines}\n"
+        "Fix: run `git submodule update --init sam-3d-objects`, or clone "
+        "https://github.com/facebookresearch/sam-3d-objects next to this repo, "
+        "or set SAM3D_OBJECTS_ROOT to that checkout. "
+        "Docker: image bundles under /workspace/sam-3d-objects; bind-mount must not hide it with an empty folder."
+    )
+
+
 @dataclass
 class ReconstructionResult:
     """Outputs from a single SAM3D forward pass."""
@@ -31,7 +74,7 @@ def configure_sam3d_environment(root: Path | None = None) -> Path:
     Returns the sam-3d-objects directory path.
     """
     root = root or project_root()
-    sam3d_root = root / "sam-3d-objects"
+    sam3d_root = resolve_sam3d_objects_root(root)
     notebook_dir = sam3d_root / "notebook"
 
     for path in (sam3d_root, notebook_dir):
@@ -42,6 +85,25 @@ def configure_sam3d_environment(root: Path | None = None) -> Path:
     os.environ.setdefault("CUDA_HOME", os.environ.get("CONDA_PREFIX", ""))
     os.environ["LIDRA_SKIP_INIT"] = "true"
     return sam3d_root
+
+
+def _require_sam3d_pipeline_file(path: Path, *, sam3d_repo_root: Path) -> None:
+    """Raise a clear error when ``pipeline.yaml`` (HF weights) is missing."""
+    if path.is_file():
+        return
+    ck_root = sam3d_repo_root / "checkpoints"
+    raise FileNotFoundError(
+        f"SAM3D pipeline config not found: {path}\n"
+        "Model weights are not in git; download them after Hugging Face access is granted for "
+        "facebook/sam-3d-objects, then authenticate (e.g. `hf auth login` or HF_TOKEN). "
+        "From the sam-3d-objects repository root, follow doc/setup.md section 2, e.g.:\n"
+        "  pip install 'huggingface-hub[cli]<1.0'\n"
+        "  TAG=hf && hf download --repo-type model --local-dir checkpoints/${TAG}-download "
+        "--max-workers 1 facebook/sam-3d-objects\n"
+        "  mv checkpoints/${TAG}-download/checkpoints checkpoints/${TAG} && rm -rf checkpoints/${TAG}-download\n"
+        f"Expected directory after download: {ck_root / 'hf'}. "
+        "Override path via reconstruction.sam3d_config in your YAML if you store weights elsewhere."
+    )
 
 
 class SAM3DWrapper:
@@ -57,9 +119,23 @@ class SAM3DWrapper:
         root = project_root_path or project_root()
         configure_sam3d_environment(root)
 
-        from inference import Inference  # noqa: E402
+        try:
+            from inference import Inference  # noqa: E402
+        except ModuleNotFoundError as exc:
+            if exc.name == "inference":
+                sam = resolve_sam3d_objects_root(root)
+                raise ModuleNotFoundError(
+                    "Python could not import `inference` even though "
+                    f"{sam / 'notebook' / 'inference.py'} exists — check sys.path and that you run "
+                    "the same interpreter/env as SAM3D (e.g. conda env `sam3d` in Docker). "
+                    "Original error: "
+                    f"{exc}"
+                ) from exc
+            raise
 
         resolved = resolve_path(config_path, root=root)
+        sam_repo = resolve_sam3d_objects_root(root)
+        _require_sam3d_pipeline_file(resolved, sam3d_repo_root=sam_repo)
         self._inference = Inference(str(resolved), compile=compile_model)
         self.config_path = resolved
 

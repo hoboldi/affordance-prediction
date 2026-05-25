@@ -54,6 +54,8 @@ git submodule update --init sam-3d-objects
 
 Checkpoints and extra CUDA deps: see the `sam-3d-objects` submodule.
 
+`ModuleNotFoundError: No module named 'inference'` means Python cannot see **`sam-3d-objects/notebook/inference.py`** (submodule not inited, wrong `SAM3D_OBJECTS_ROOT`, or an **empty** `sam-3d-objects/` on the host **overwriting** the Docker image’s clone). It is not fixed by `pip install gsplat` alone.
+
 ### Docker (SAM3D + full pipeline on NVIDIA GPU)
 
 Use this when you want a Linux + CUDA 12.1 environment aligned with Meta’s SAM3D install without touching your host Python. The image **clones `sam-3d-objects` during the build** (no submodule required). If you use a submodule locally, the repo bind mount still replaces `/workspace/sam-3d-objects` at runtime.
@@ -77,6 +79,8 @@ Training samples are listed in **`data/manifest.jsonl`** (or `AFFORDANCE_DATA_RO
 | `torch.load` / need torch ≥2.6 | Same as above; CLIP uses `use_safetensors=True` but transformers still imports torchvision |
 | `libjpeg.9.dylib` warning (macOS) | `conda install -c conda-forge libjpeg-turbo jpeg -y` |
 | `zsh: 0.4 not found` on pip install | Quote specs: `pip install "safetensors>=0.4"` |
+| `No module named 'inference'` (SAM3D) | `git submodule update --init sam-3d-objects`, or set `SAM3D_OBJECTS_ROOT`; in Docker, remove an empty host `sam-3d-objects/` so the image clone is visible |
+| `checkpoints/hf/pipeline.yaml` missing (SAM3D) | Weights are on Hugging Face ([facebook/sam-3d-objects](https://huggingface.co/facebook/sam-3d-objects)); after access, run `sam-3d-objects/doc/setup.md` §2 (`hf download` …) inside `sam-3d-objects/`; use `HF_TOKEN` or `hf auth login` |
 
 ## Development without SAM3D checkpoints
 
@@ -109,9 +113,17 @@ PYTHONPATH=src python scripts/render_gaussian_views.py \
   --output_dir outputs/gaussian_renders/demo
 ```
 
+**gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`):
+
+```bash
+PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py \
+  --splat_path /path/to/scene.ply \
+  --run_dir exports/gsplat_sam3d/my_run
+```
+
 - **Centre preview only (pyrender):** `--backend preview` (no `gsplat`; draws Gaussian means as points/icospheres).
 
-Visual walkthrough: `notebooks/03_rendering_gaussian_splat.ipynb` (**gsplat** RGB → **`exports/gaussian_splat/`**; set **`SPLAT_PLY`** in the notebook). Details: [docs/data_layout.md](docs/data_layout.md).
+Visual walkthrough: `notebooks/03_rendering_gaussian_splat.ipynb` (**gsplat** RGB → **`exports/gaussian_splat/`**; set **`SPLAT_PLY`** in the notebook). SAM3D from gsplat: **`notebooks/10_sam3d_from_gsplat.ipynb`**. Details: [docs/data_layout.md](docs/data_layout.md), [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md).
 
 ## Stage testing notebooks
 
@@ -131,14 +143,14 @@ jupyter lab notebooks/00_mesh_bootstrap.ipynb
 
 ```
 src/
-├── reconstruction/   # SAM3D wrapper, mesh I/O
+├── reconstruction/   # SAM3D wrapper, mesh I/O, gsplat→SAM3D (`gsplat_to_sam3d.py`)
 ├── rendering/
 ├── vlm/
 ├── projection/
 ├── models/
-├── datasets/         # mesh loading; 3DAffordSplat / AffordSplat (planned)
+├── datasets/         # DataRootDataset, AffordSplatLocalDataset
 ├── training/
 ├── visualization/
 └── utils/
-notebooks/            # 00–08 per-stage validation (required)
+notebooks/            # 00–08 + 10 per-stage validation
 ```

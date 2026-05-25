@@ -57,7 +57,7 @@ These are engineering decisions, not fixed by the paper:
 
 Planned additions (names may evolve):
 
-* `src/datasets/` — loaders for on-disk **AffordSplat** / manifest data. **Implemented:** [`DataRootDataset`](../src/datasets/data_root_dataset.py) (JSONL manifest under `paths.data_root`) and [`AffordSplatLocalDataset`](../src/datasets/affordsplat_local_dataset.py) for a local HF mirror (`AFFORDANCE_AFFORDSPLAT_ROOT`, e.g. `/data`) — see [data_layout.md](data_layout.md).
+* `src/datasets/` — loaders for on-disk **AffordSplat** / manifest data. **Implemented:** [`DataRootDataset`](../src/datasets/data_root_dataset.py) (JSONL manifest under `paths.data_root`) and [`AffordSplatLocalDataset`](../src/datasets/affordsplat_local_dataset.py) for a local HF mirror (`AFFORDANCE_AFFORDSPLAT_ROOT`, e.g. `/data`) — see [data_layout.md](data_layout.md). **`reconstruction/gsplat_to_sam3d.py`** — gsplat multi-view prerender → SAM3D on one view; see [pipeline_gsplat_sam3d.md](pipeline_gsplat_sam3d.md).
 * `scripts/` — e.g. batch **render views from GS** (`scripts/render_gaussian_views.py`), batch **invoke SAM3D** into `data/cache/sam3d/…`, export a **training manifest** (image paths, cameras, mesh path, verb, vertex label path).
 * `configs/` — `configs/affordsplat.yaml` (or similar) pointing at `data/` roots and split JSONs from the upstream repo (`obj_aff_structure.json`, Seen/Unseen JSONs per 3DAffordSplat docs).
 * `notebooks/07_training_evaluation_debug.ipynb` — end-to-end train/eval on this manifest instead of AGD20K.

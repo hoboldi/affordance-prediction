@@ -262,6 +262,7 @@ Each pipeline stage must have a **dedicated Jupyter notebook** used to validate 
 | 1 | `01_reconstruction_debug.ipynb` | `reconstruction/sam3d_wrapper.py`, `mesh_utils.py` | 🟡 | **No** (run) | Code exists; **SAM3D checkpoints** + submodule setup required to execute |
 | 2 | `02_rendering_mesh_debug.ipynb` | `rendering/mesh_renderer.py`, `camera_sampling.py` | ✅ | — | Mesh backend; run notebook to confirm |
 | 3 | `03_rendering_gaussian_splat.ipynb` | `rendering/gaussian_gsplat_renderer.py`, `gaussian_point_renderer.py` | ✅ | — | True 3DGS via **gsplat** (CUDA); centre preview fallback |
+| 3.5 | `10_sam3d_from_gsplat.ipynb` | `reconstruction/gsplat_to_sam3d.py`, `scripts/render_gsplat_and_sam3d.py` | 🟡 | **GPU + gsplat + SAM3D ckpts** | Renders views then SAM3D on `view_000` (single-image API) |
 | 4 | `04_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run after **02** renders |
 | 5 | `05_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from **02** + **04** |
 | 6 | `06_affordance_head_debug.ipynb` | `models/` (stubs only) | ⬜ | **After step 5** | MLP + concat fusion; can use dummy features for API sketch only |

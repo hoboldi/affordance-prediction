@@ -18,6 +18,7 @@ dataset:
   load_vertex_labels_eager: true
 
 reconstruction:
+  # Requires HF download into sam-3d-objects/checkpoints/hf/ — see sam-3d-objects/doc/setup.md §2
   sam3d_config: sam-3d-objects/checkpoints/hf/pipeline.yaml
   decode_formats:
     - gaussian

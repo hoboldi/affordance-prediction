@@ -59,6 +59,7 @@ open_vocab_affordance/
 │   │   ├── __init__.py
 │   │   ├── sam3d_wrapper.py
 │   │   ├── mesh_utils.py
+│   │   ├── gsplat_to_sam3d.py
 │   │   ├── splat_utils.py
 │   │   ├── pointnet_encoder.py
 │   │   └── geometry_features.py
@@ -163,7 +164,8 @@ open_vocab_affordance/
 │   ├── 05_projection_debug.ipynb
 │   ├── 06_affordance_head_debug.ipynb
 │   ├── 07_training_evaluation_debug.ipynb
-│   └── 08_ablation_analysis.ipynb   # Phase 2+ comparisons
+│   ├── 08_ablation_analysis.ipynb   # Phase 2+ comparisons
+│   └── 10_sam3d_from_gsplat.ipynb
 │
 ├── outputs/
 │   ├── checkpoints/
