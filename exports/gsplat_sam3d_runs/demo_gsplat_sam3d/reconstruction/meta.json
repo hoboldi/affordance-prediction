@@ -1,5 +1,5 @@
 {
-  "stem": "GS_0080_view_000",
+  "stem": "GS_0580_view_000",
   "seed": 42,
   "image_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/images/view_000.png",
   "mask_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/masks/view_000.png",
@@ -7,9 +7,9 @@
     4096,
     8
   ],
-  "slat_voxel_count": 1468,
+  "slat_voxel_count": 11508,
   "slat_feats_shape": [
-    1468,
+    11508,
     8
   ],
   "mesh_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/reconstruction/mesh.glb"
