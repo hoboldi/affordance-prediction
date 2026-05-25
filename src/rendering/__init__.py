@@ -1,4 +1,11 @@
-from rendering.camera_sampling import CameraPose, look_at_pose, spherical_camera_poses
+from rendering.camera_sampling import (
+    CameraPose,
+    POLICY_ELEVATION_MAX_DEG,
+    POLICY_ELEVATION_MIN_DEG,
+    clamp_elevation_deg,
+    look_at_pose,
+    spherical_camera_poses,
+)
 from rendering.demo_pitcher import build_demo_pitcher_mesh
 from rendering.gaussian_gsplat_renderer import render_gaussian_splat_gsplat_views
 from rendering.gaussian_ply import load_gaussian_splat_ply
@@ -9,6 +16,9 @@ from rendering.renderer import build_render_config, render_mesh_views
 __all__ = [
     "build_demo_pitcher_mesh",
     "CameraPose",
+    "POLICY_ELEVATION_MAX_DEG",
+    "POLICY_ELEVATION_MIN_DEG",
+    "clamp_elevation_deg",
     "look_at_pose",
     "spherical_camera_poses",
     "render_gaussian_splat_gsplat_views",

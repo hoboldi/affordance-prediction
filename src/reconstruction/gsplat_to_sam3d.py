@@ -1,6 +1,9 @@
 """
 Render **true gsplat** multi-view RGB from a 3DGS ``.ply``, then run **SAM3D** on one reference view.
 
+**You cannot use this module outside the `sam3d-pipeline` Docker container** in a supported way:
+SAM3D’s upstream stack (torch/CUDA, ``flash-attn``, ``sam-3d-objects``) is only guaranteed there.
+
 SAM3D’s public ``reconstruct`` API is **single-image + mask**; extra rendered views are written for
 debugging, future fusion, or feeding ``scripts/generate_sam3d.py`` directly.
 """

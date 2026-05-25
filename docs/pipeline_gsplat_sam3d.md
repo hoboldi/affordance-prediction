@@ -1,5 +1,7 @@
 # Pipeline: gsplat views → SAM3D
 
+> **You cannot use this outside the container** in a supported way. The gsplat → SAM3D path is pinned and tested only in the **`sam3d-pipeline` Docker** image (CUDA, `gsplat`, `flash-attn`, `sam-3d-objects`). Use `docker compose run --rm sam3d-pipeline bash` and run from `/workspace`; see [docker/README.md](../docker/README.md).
+
 This connects **dataset 3D Gaussians** (e.g. AffordSplat `Gaussian/GS_*.ply`) to the repo’s **SAM3D** wrapper:
 
 1. **Rasterise** the splat with **true `gsplat`** (`render_gaussian_splat_gsplat_views`) using the same orbit cameras as mesh rendering (`configs/default.yaml` → `rendering`).
@@ -23,6 +25,14 @@ This connects **dataset 3D Gaussians** (e.g. AffordSplat `Gaussian/GS_*.ply`) to
 If you see **`ModuleNotFoundError: No module named 'inference'`**, that is this missing or hidden SAM3D tree — not a missing `pip install gsplat`.
 
 If you see **`No such file or directory: …/checkpoints/hf/pipeline.yaml`**, run the HF download steps in that same doc section; `HF_TOKEN` / `hf auth login` is usually required.
+
+## Downstream (rendering → VLM → projection)
+
+After a successful run, **`RUN_DIR`** (notebook 10) is the value to pass everywhere as **`SAM3D_RUN_DIR`**: the folder that contains **`reconstruction/mesh.glb`**.
+
+Use **`reconstruction.mesh_utils.cfg_with_sam3d_reconstruction(cfg, RUN_DIR)`** (or set the same `SAM3D_RUN_DIR` in notebooks **02**, **04**, **05**, **06**) so `rendering.mesh_path` points at that mesh (and `gaussian.ply` when present). Then **delete** `outputs/notebooks/02_rendering/` if you previously cached renders for another mesh, and rerun **02 → 04 → 05 → 06** so vertex counts match.
+
+**Global latent in the affordance head:** with `reconstruction.cache_latents: true` (default), notebook 10 writes **`paths.cache_root/sam3d/<stem>/global_latent.pt`**. Notebook **06** loads it via **`reconstruction.sam3d_wrapper.try_load_cached_global_latent`** when **`SAM3D_RUN_DIR`** (and `reconstruction/meta.json`) or **`SAM3D_GLOBAL_LATENT_PATH`** / **`SAM3D_OBJECT_STEM`** is set.
 
 ## Limitations
 

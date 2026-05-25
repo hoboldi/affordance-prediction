@@ -152,6 +152,8 @@ def main() -> None:
         "fov_deg": mrc.fov_deg,
         "camera_radius": mrc.camera_radius,
         "elevation_deg": mrc.elevation_deg,
+        "elevation_min_deg": mrc.elevation_min_deg,
+        "elevation_max_deg": mrc.elevation_max_deg,
         "max_points": args.max_points,
         "normalize_scene": not args.no_normalize_scene,
         "backend": args.backend,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,51 @@ def reconstruction_paths(out_dir: Path) -> dict[str, Path]:
         "mesh": out_dir / artifacts.mesh,
         "meta": out_dir / artifacts.meta,
     }
+
+
+def sam3d_run_reconstruction_paths(run_dir: str | Path) -> dict[str, Path]:
+    """
+    Artifact paths for a pipeline run that wrote SAM3D under ``<run_dir>/reconstruction/``.
+
+    ``run_dir`` is the same directory as ``RUN_DIR`` in ``notebooks/10_sam3d_from_gsplat.ipynb``
+    (the parent of ``reconstruction/``, not the ``reconstruction`` folder itself).
+    """
+    return reconstruction_paths(Path(run_dir).expanduser().resolve() / "reconstruction")
+
+
+def cfg_with_sam3d_reconstruction(
+    cfg: dict[str, Any],
+    run_dir: str | Path,
+    *,
+    link_gaussian_splat: bool = True,
+) -> dict[str, Any]:
+    """
+    Deep-copy ``cfg`` and point ``rendering.mesh_path`` at SAM3D's ``mesh.glb``.
+
+    Optionally sets ``rendering.splat_path`` to ``gaussian.ply`` when present and bumps
+    ``rendering.backend`` from ``mesh`` → ``gaussian`` so splat RGB is used with the SAM3D mesh
+    correspondences (see ``rendering.renderer.render_mesh_views``).
+    """
+    out = copy.deepcopy(cfg)
+    paths = sam3d_run_reconstruction_paths(run_dir)
+    mesh = paths["mesh"]
+    if not mesh.is_file():
+        raise FileNotFoundError(
+            f"SAM3D mesh not found at {mesh}. Use the same RUN_DIR as notebook 10 "
+            "(parent of reconstruction/ containing mesh.glb)."
+        )
+    rendering = out.setdefault("rendering", {})
+    rendering["mesh_path"] = str(mesh.resolve())
+    gaussian = paths["gaussian"]
+    if link_gaussian_splat and gaussian.is_file():
+        rendering["splat_path"] = str(gaussian.resolve())
+        if rendering.get("backend") == "mesh":
+            rendering["backend"] = "gaussian"
+    else:
+        rendering["splat_path"] = None
+    if rendering.get("backend") in ("gaussian", "both") and not rendering.get("splat_path"):
+        rendering["backend"] = "mesh"
+    return out
 
 
 def ensure_decode_formats(decode_formats: list[str]) -> list[str]:

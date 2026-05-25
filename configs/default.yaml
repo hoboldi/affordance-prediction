@@ -33,13 +33,21 @@ rendering:
   image_size: 512
   fov_deg: 60.0
   camera_radius: 2.0
-  elevation_deg: 30.0
+  # Pitch above XZ (Y-up). Policy: effective orbit band is always intersected with [30°, 50°]
+  # (no ~0° horizon-grazing; moderate downward views for interiors / tops / handles).
+  elevation_deg: 40.0
+  elevation_min_deg: 30.0
+  elevation_max_deg: 50.0
+  # Second pyrender pass: world normals as RGB + 3-channel depth visualization (uint8) for SAM/VLM aux.
+  render_geometry_aux: true
   depth_tolerance: 0.05
   depth_relative_tolerance: 0.03
-  # mesh | gaussian | both — gaussian/both require splat_path
-  backend: mesh
+  # mesh | gaussian | both — gaussian/both use splat RGB when splat_path exists (else mesh RGB).
+  # For coherent appearance + vertex projection, point mesh_path and splat_path at the same
+  # SAM3D reconstruction (see cfg_with_sam3d_reconstruction). Example ply alone is for smoke tests.
+  backend: gaussian
   mesh_path: data/sample.glb
-  splat_path: null  # e.g. outputs/reconstructions/{stem}/gaussian.ply
+  splat_path: examples/gaussian_splat/tiny_gaussians.ply
 
 projection:
   clip_image_size: 224  # CLIP input side length (ViT-B/32)

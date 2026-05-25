@@ -199,9 +199,9 @@ open_vocab_affordance/
 | `mesh.glb` | Required — affordance field, projection target, mesh renderer input |
 | `gaussian.ply` | Optional — splat renderer input when SAM3D (or other) produces it |
 
-`src/rendering/renderer.py` dispatches mesh rendering; **3DGS .ply** previews use `gaussian_point_renderer.py` (see `scripts/render_gaussian_views.py`).
+`src/rendering/renderer.py` renders mesh depth + vertex correspondences, and replaces **RGB** from a 3DGS `.ply` when `rendering.backend` is `gaussian` or `both` and `splat_path` is set (gsplat with CUDA, else pyrender preview). Standalone `.ply` renders: `scripts/render_gaussian_views.py` / `gaussian_point_renderer.py`.
 
-**Mesh-only development:** `data/sample.glb` is sufficient; leave `data/splats/` empty and `rendering.splat_path: null`.
+**Mesh-only development:** `data/sample.glb` is sufficient; set `rendering.backend: mesh` or `rendering.splat_path: null` for mesh-colour RGB without a paired splat.
 
 **Full SAM3D output per sample:**
 

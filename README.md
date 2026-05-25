@@ -86,11 +86,11 @@ Training samples are listed in **`data/manifest.jsonl`** (or `AFFORDANCE_DATA_RO
 
 You can work on rendering, VLM features, and projection using a mesh only:
 
-- Asset: `data/sample.glb` (no paired Gaussian splat required)
-- Set `rendering.backend: mesh` in `configs/default.yaml`
+- Asset: `data/sample.glb`
+- Set `rendering.backend: mesh` or `rendering.splat_path: null` in `configs/default.yaml` if you want **mesh-colour** RGB without a paired `.ply` (the repo default is `backend: gaussian` with `examples/gaussian_splat/tiny_gaussians.ply` for smoke tests — appearance may not match `sample.glb` until you use a SAM3D `reconstruction/` with aligned `mesh.glb` + `gaussian.ply`).
 - Affordance labels and projection always use mesh vertices
 
-When SAM3D is available, each sample may include `mesh.glb` and `gaussian.ply`; set `backend` to `gaussian` or `both` to use splat rendering for novel views.
+When SAM3D is available, each sample includes `mesh.glb` and usually `gaussian.ply`; `cfg_with_sam3d_reconstruction` sets `splat_path` and `backend: gaussian` so **splat RGB** is used with **mesh** depth and vertex correspondences.
 
 ## SAM3D batch reconstruction
 
@@ -102,7 +102,7 @@ python dataset_pipeline.py \
 
 ## 3D Gaussian splat → multi-view RGB (SAM3D-style inputs)
 
-From a **3DGS `.ply`** (Inria / Nerfstudio layout), render an orbit of RGB + depth:
+From a **3DGS `.ply`** (Inria / Nerfstudio layout), render an **azimuth-only** orbit of RGB + depth at a fixed pitch in **`[elevation_min_deg, elevation_max_deg]`** intersected with the project band **`[30°, 50°]`** above the ground plane (no horizon-grazing; see `configs/default.yaml` → `rendering`):
 
 - **True splat (CUDA + `gsplat`):** `pip install -e ".[gsplat]"` (or SAM3D Docker `[inference]`), then:
 
@@ -113,12 +113,10 @@ PYTHONPATH=src python scripts/render_gaussian_views.py \
   --output_dir outputs/gaussian_renders/demo
 ```
 
-**gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`):
+**gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`). **You cannot use this path outside the `sam3d-pipeline` Docker container** in a supported way — run inside `docker compose run --rm sam3d-pipeline bash` (see [docker/README.md](docker/README.md)):
 
 ```bash
-PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py \
-  --splat_path /path/to/scene.ply \
-  --run_dir exports/gsplat_sam3d/my_run
+docker compose run --rm sam3d-pipeline bash -lc 'cd /workspace && PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py --splat_path data/Seen/train/bag/Gaussian/GS_0017.ply --run_dir exports/gsplat_sam3d/my_run'
 ```
 
 - **Centre preview only (pyrender):** `--backend preview` (no `gsplat`; draws Gaussian means as points/icospheres).
@@ -131,9 +129,9 @@ Each pipeline stage has a required debug notebook under `notebooks/`. See [noteb
 
 | Next up (no SAM3D checkpoints) | Blocked |
 |----------------------------------|---------|
-| `06_affordance_head_debug.ipynb` | SAM3D run (`01_…`), full training (`07_…` needs **3DAffordSplat** pipeline) |
+| `06_affordance_head_debug.ipynb` | Single-mesh head debug (`05` caches); **`07_training_evaluation_debug.ipynb`** uses **manifest** + optional `vertex_semantics_path` (toy `examples/data_manifest` + fixture script) |
 
-Steps **0–5** implemented. Run notebooks `00` → `02` → `04` → `05` in order (add `03` for gsplat, `06` for affordance head).
+Steps **0–7** scaffolding is in place. Run notebooks `00` → `02` → `04` → `05` → `06` → `07` in order (add `03` for gsplat, **`10`** before **`02`** when using SAM3D meshes + `manifest_training` / fixture script for **07**).
 
 ```bash
 jupyter lab notebooks/00_mesh_bootstrap.ipynb
@@ -147,9 +145,9 @@ src/
 ├── rendering/
 ├── vlm/
 ├── projection/
-├── models/
+├── models/           # AffordanceMLP (`mlp_head.py`)
 ├── datasets/         # DataRootDataset, AffordSplatLocalDataset
-├── training/
+├── training/         # `affordance_fit.fit_affordance_mlp_simple`
 ├── visualization/
 └── utils/
 notebooks/            # 00–08 + 10 per-stage validation

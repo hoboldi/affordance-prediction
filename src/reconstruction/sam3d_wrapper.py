@@ -232,3 +232,70 @@ def load_global_latent(path: str | Path) -> torch.Tensor:
 def latent_cache_path(stem: str, cache_root: str | Path) -> Path:
     """Canonical path for an object's global latent: <cache_root>/sam3d/<stem>/global_latent.pt"""
     return Path(cache_root) / "sam3d" / stem / "global_latent.pt"
+
+
+def resolve_global_latent_cache_path(
+    cfg: dict[str, Any],
+    *,
+    sam3d_run_dir: str | Path | None = None,
+    object_stem: str | None = None,
+    latent_path: str | Path | None = None,
+    project_root_path: Path | None = None,
+) -> Path | None:
+    """
+    Resolve where ``global_latent.pt`` should live for the given hints (file may be absent).
+
+    Priority:
+
+    1. ``latent_path`` — absolute or repo-relative (via :func:`utils.config.resolve_path`).
+    2. ``object_stem`` + ``paths.cache_root`` from ``cfg``.
+    3. ``sam3d_run_dir`` + ``reconstruction/meta.json`` ``stem`` + ``paths.cache_root``.
+    """
+    root = project_root_path or project_root()
+    if latent_path is not None:
+        return resolve_path(latent_path, root=root)
+
+    paths_cfg = cfg.get("paths") or {}
+    cache_root = resolve_path(str(paths_cfg.get("cache_root", "data/cache")), root=root)
+
+    if object_stem is not None:
+        return latent_cache_path(object_stem, cache_root)
+
+    if sam3d_run_dir is not None:
+        from utils.io import load_json
+
+        meta_path = Path(sam3d_run_dir).expanduser().resolve() / "reconstruction" / "meta.json"
+        if not meta_path.is_file():
+            return None
+        meta = load_json(meta_path)
+        stem = meta.get("stem")
+        if not stem:
+            return None
+        return latent_cache_path(str(stem), cache_root)
+
+    return None
+
+
+def try_load_cached_global_latent(
+    cfg: dict[str, Any],
+    *,
+    sam3d_run_dir: str | Path | None = None,
+    object_stem: str | None = None,
+    latent_path: str | Path | None = None,
+    project_root_path: Path | None = None,
+) -> tuple[torch.Tensor | None, Path | None]:
+    """
+    Load the ``(sam3d_dim,)`` cached global latent when the file exists.
+
+    Returns ``(tensor, path)`` on success, or ``(None, path_or_none)`` when missing / not resolvable.
+    """
+    p = resolve_global_latent_cache_path(
+        cfg,
+        sam3d_run_dir=sam3d_run_dir,
+        object_stem=object_stem,
+        latent_path=latent_path,
+        project_root_path=project_root_path,
+    )
+    if p is None or not p.is_file():
+        return None, p
+    return load_global_latent(p), p

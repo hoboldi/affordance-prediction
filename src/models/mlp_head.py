@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -88,3 +89,44 @@ def affordance_bce_loss(
         logits = logits[mask]
         targets = targets[mask]
     return nn.functional.binary_cross_entropy_with_logits(logits, targets)
+
+
+def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
+    """Build :class:`MLPHeadConfig` from a ``configs/*.yaml`` ``model:`` block."""
+    hd = model_cfg.get("hidden_dims", [512, 256])
+    return MLPHeadConfig(
+        vlm_dim=int(model_cfg.get("vlm_dim", 512)),
+        verb_dim=int(model_cfg.get("verb_dim", 512)),
+        sam3d_dim=int(model_cfg.get("sam3d_dim", 0)),
+        hidden_dims=tuple(int(x) for x in hd),
+        dropout=float(model_cfg.get("dropout", 0.1)),
+    )
+
+
+def build_affordance_mlp(
+    cfg: dict[str, Any] | None = None,
+    *,
+    include_sam3d: bool | None = None,
+) -> AffordanceMLP:
+    """
+    Instantiate :class:`AffordanceMLP` from merged project config (``model.*`` keys).
+
+    If ``cfg`` is omitted, loads ``configs/default.yaml`` via :func:`utils.config.load_config`.
+
+    ``include_sam3d``:
+        * ``False`` — force ``sam3d_dim=0`` (e.g. debug notebooks without ``global_latent.pt``).
+        * ``True`` — ensure ``sam3d_dim`` is positive (default 8 if unset in cfg).
+        * ``None`` — use ``model.sam3d_dim`` from YAML as-is.
+    """
+    if cfg is None:
+        from utils.config import load_config
+
+        cfg = load_config()
+    m_raw = dict(cfg.get("model", {}))
+    if include_sam3d is False:
+        m_raw["sam3d_dim"] = 0
+    elif include_sam3d is True:
+        if int(m_raw.get("sam3d_dim", 0)) <= 0:
+            m_raw["sam3d_dim"] = 8
+    mcfg = mlp_head_config_from_model_cfg(m_raw)
+    return AffordanceMLP(mcfg)

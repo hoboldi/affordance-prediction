@@ -97,19 +97,22 @@ Stable mesh vertices, correspondences, and a cached global shape latent per obje
 
 ### Keep:
 
-* fixed spherical camera sampling
+* fixed orbit cameras: **azimuth-only** sweep at one pitch; effective pitch is the intersection of config with **`[30°, 50°]`** above the ground plane (avoids ~0° flat horizons; favors tops, openings, handles for SAM & VLMs)
 * 4–8 views
-* **mesh renderer** (always — works with `data/sample.glb` alone)
-* **gaussian splat renderer** when a `.ply` exists next to the mesh
+* **mesh renderer** (always for depth + per-vertex correspondences when a mesh is loaded)
+* **Gaussian splat RGB** when `rendering.backend` is `gaussian` or `both` and `splat_path` points at a valid `.ply` (gsplat when CUDA is available, else pyrender preview)
+* **auxiliary geometry maps** (optional, default on): second mesh pass encodes **world normals as RGB**, plus a **3-channel depth visualization** (`RenderView.normal_rgb`, `RenderView.depth_vis_rgb`) for SAM / VLM when splat RGB is low-contrast — disable with `rendering.render_geometry_aux: false`
 
 ### Config:
 
 ```yaml
 rendering:
-  backend: mesh          # mesh | gaussian | both
+  backend: gaussian      # mesh | gaussian | both — default uses splat RGB when splat_path exists
   mesh_path: data/sample.glb
-  splat_path: null       # optional; e.g. outputs/.../gaussian.ply
+  splat_path: examples/gaussian_splat/tiny_gaussians.ply  # null → mesh RGB only
 ```
+
+For **coherent** splat appearance with SAM3D geometry, set both paths from the same `reconstruction/` folder (see `cfg_with_sam3d_reconstruction`).
 
 ### Ignore:
 
@@ -119,7 +122,7 @@ rendering:
 
 ### Goal:
 
-RGB + depth + vertex correspondences for VLM and projection. Mesh-only is enough until SAM3D outputs splats.
+RGB + depth + vertex correspondences for VLM and projection. **Default:** splat RGB on top of mesh depth/UV when a `.ply` is configured; pure mesh when `backend: mesh` or when `splat_path` is unset / splat render fails.
 
 ---
 
@@ -265,8 +268,8 @@ Each pipeline stage must have a **dedicated Jupyter notebook** used to validate 
 | 3.5 | `10_sam3d_from_gsplat.ipynb` | `reconstruction/gsplat_to_sam3d.py`, `scripts/render_gsplat_and_sam3d.py` | 🟡 | **GPU + gsplat + SAM3D ckpts** | Renders views then SAM3D on `view_000` (single-image API) |
 | 4 | `04_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run after **02** renders |
 | 5 | `05_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from **02** + **04** |
-| 6 | `06_affordance_head_debug.ipynb` | `models/` (stubs only) | ⬜ | **After step 5** | MLP + concat fusion; can use dummy features for API sketch only |
-| 7 | `07_training_evaluation_debug.ipynb` | `training/`, `datasets/affordsplat_*` (planned) | ⬜ | **No** | **3DAffordSplat** manifest + SAM3D meshes + end-to-end pipeline |
+| 6 | `06_affordance_head_debug.ipynb` | `models/mlp_head.py`, `training/affordance_fit.py`, `sam3d_wrapper.try_load_cached_global_latent` | 🟡 | **After step 5** | `build_affordance_mlp` + optional `global_latent.pt` (notebook 10 cache + `meta.json` stem) |
+| 7 | `07_training_evaluation_debug.ipynb` | `training/vertex_affordance_train.py`, `datasets/data_root_dataset.py` | 🟡 | **Yes** | Manifest + `vertex_semantics_path`; toy `examples/data_manifest` + `scripts/build_example_training_fixtures.py` |
 | — | `08_ablation_analysis.ipynb` | — | ⬜ | **No** | Phase 2+; MVP must pass first |
 
 ### Recommended next tasks (no SAM3D checkpoints)
@@ -355,9 +358,9 @@ For each view (per active backend):
 
 | Mode | When |
 |------|------|
-| `mesh` | No splat file — default for `sample.glb` |
-| `gaussian` | `gaussian.ply` present |
-| `both` | Ablation: same poses, two RGB sources |
+| `mesh` | Force mesh RGB (and correspondences) |
+| `gaussian` | Mesh pass for depth + `vertex_uv`; **RGB** from `splat_path` when valid |
+| `both` | Same hybrid behaviour as `gaussian` (alias) |
 
 ## Verify
 

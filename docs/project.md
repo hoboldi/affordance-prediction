@@ -47,30 +47,34 @@ SLAT is preferred over the earlier SS (sparse structure) latent because: (1) it 
 
 To obtain richer semantic coverage than available from the original observation, multiple novel viewpoints are sampled around the reconstructed object.
 
-### Dual rendering backends
+### Rendering modes
 
-Novel views for the VLM are produced by one or both of:
+Novel views for the VLM use a **hybrid** path by default (`rendering.backend: gaussian` or `both`):
 
-| Backend | Input | Typical use |
-|--------|--------|-------------|
-| **Mesh renderer** | `.glb` / `.obj` | Always available; provides depth + per-vertex 2D correspondences via rasterization |
-| **Gaussian splat renderer** | `.ply` from SAM3D | Optional; often sharper RGB when a splat exists |
+| Piece | Source |
+|--------|--------|
+| Depth, `vertex_uv`, `vertex_visible` | Mesh rasterization (pyrender) |
+| RGB | 3DGS `.ply` via **gsplat** when CUDA + `gsplat` are available; otherwise pyrender **centre preview** |
+| `normal_rgb`, `depth_vis_rgb` (optional) | Extra **mesh** passes: world normals as RGB + depth as 3× grayscale (`render_geometry_aux`, default **true**) — sharp edges for SAM when splat RGB is muddy |
 
-Configuration selects the active backend(s), e.g. `mesh`, `gaussian`, or `both`. When `both` is set, the same camera poses can render two RGB streams (mesh vs splat) for comparison or ablation; projection still targets **mesh vertices**.
+Orbit pitch is enforced in **`[30°, 50°]`** above the ground plane (intersection with YAML bounds): no near-horizon cameras, moderate downward views toward the asset center.
 
-If only a mesh is present (no splat file), the pipeline runs in **mesh-only** mode — this is the expected setup for local development with `data/sample.glb`.
+With `backend: mesh`, RGB also comes from the mesh. If `splat_path` is missing or splat rendering fails, `gaussian` / `both` **fall back** to mesh RGB (warning). Projection always targets **mesh vertices**.
+
+For local work with only `data/sample.glb`, set `backend: mesh` or `splat_path: null` if you want mesh-colour RGB without pairing a splat file.
 
 Each rendered view provides:
 
-* RGB image (for the frozen VLM),
-* depth map,
+* RGB image (for the frozen VLM or SAM-style models),
+* linear **depth** map (float32, mesh-aligned in hybrid mode),
+* optional **`normal_rgb`** / **`depth_vis_rgb`** (uint8 RGB) from the mesh for boundary cues,
 * visibility / foreground mask,
 * camera intrinsics and extrinsics,
 * **vertex correspondences** (mesh UV/barycentric or projected vertex indices) for 2D→3D projection.
 
-Initially, viewpoint sampling uses simple uniform spherical sampling around the object. Later iterations may explore visibility-aware or coverage-optimized view selection.
+Initially, viewpoint sampling uses uniform azimuth on a fixed-elevation ring around the object, with elevation restricted to **[30°, 50°]** (see `rendering/camera_sampling.py`). Later iterations may explore visibility-aware or coverage-optimized view selection.
 
-**MVP note:** mesh rendering is sufficient to validate projection and affordance heads; splat rendering is added when `gaussian.ply` exists alongside `mesh.glb`.
+**MVP note:** vertex affordances remain mesh-based; splats supply **RGB** for VLMs when configured, not per-Gaussian labels.
 
 ---
 

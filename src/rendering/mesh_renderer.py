@@ -20,17 +20,25 @@ class RenderView:
     vertex_visible: np.ndarray  # (V,) bool
     camera_pose: np.ndarray  # (4, 4) camera-to-world
     intrinsics: np.ndarray  # (3, 3) pinhole K
+    # Optional geometry channels for muddy / low-texture RGB (e.g. splats): SAM-friendly edges.
+    normal_rgb: np.ndarray | None = None  # (H, W, 3) uint8 — mesh world normals as RGB
+    depth_vis_rgb: np.ndarray | None = None  # (H, W, 3) uint8 — depth as 3× grayscale
 
 
 @dataclass
 class MeshRenderConfig:
+    """Orbit camera layout: fixed pitch in ``[elevation_min_deg, elevation_max_deg]``, azimuth-only sweep."""
+
     image_size: int = 512
     fov_deg: float = 60.0
     num_views: int = 6
     camera_radius: float = 2.0
-    elevation_deg: float = 30.0
+    elevation_deg: float = 40.0  # pitch above XZ; intersected with policy band [30°, 50°]
+    elevation_min_deg: float = 30.0
+    elevation_max_deg: float = 50.0
     depth_tolerance: float = 0.05
     depth_relative_tolerance: float = 0.03
+    render_geometry_aux: bool = True  # world normal RGB + depth visualization (uint8)
 
 
 class MeshRenderer:
@@ -49,10 +57,17 @@ class MeshRenderer:
             self.config.num_views,
             radius=self.config.camera_radius,
             elevation_deg=self.config.elevation_deg,
+            elevation_min_deg=self.config.elevation_min_deg,
+            elevation_max_deg=self.config.elevation_max_deg,
         )
         trimesh_mesh = self._to_trimesh(mesh)
         vertex_normals = np.asarray(trimesh_mesh.vertex_normals, dtype=np.float64)
         py_mesh = pyrender.Mesh.from_trimesh(trimesh_mesh, smooth=False)
+        py_mesh_normal = (
+            pyrender.Mesh.from_trimesh(_trimesh_vertex_normals_as_colors(trimesh_mesh), smooth=False)
+            if self.config.render_geometry_aux
+            else None
+        )
 
         width = height = self.config.image_size
         yfov = np.deg2rad(self.config.fov_deg)
@@ -65,7 +80,7 @@ class MeshRenderer:
 
         try:
             for pose in poses:
-                scene = pyrender.Scene(bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=[0.45, 0.45, 0.45, 1.0])
+                scene = pyrender.Scene(bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=[0.55, 0.55, 0.55, 1.0])
                 scene.add(py_mesh)
 
                 camera = pyrender.PerspectiveCamera(
@@ -94,6 +109,23 @@ class MeshRenderer:
                     depth_relative_tolerance=self.config.depth_relative_tolerance,
                 )
 
+                normal_rgb: np.ndarray | None = None
+                depth_vis_rgb: np.ndarray | None = None
+                if self.config.render_geometry_aux and py_mesh_normal is not None:
+                    scene_n = pyrender.Scene(
+                        bg_color=[0.06, 0.06, 0.08, 1.0],
+                        ambient_light=[1.0, 1.0, 1.0, 1.0],
+                    )
+                    scene_n.add(py_mesh_normal)
+                    camera_n = pyrender.PerspectiveCamera(
+                        yfov=yfov, aspectRatio=aspect, znear=znear, zfar=zfar
+                    )
+                    cam_n2 = scene_n.add(camera_n, pose=pose.matrix)
+                    nbuf, _ = renderer.render(scene_n)
+                    normal_rgb = nbuf[:, :, :3].astype(np.uint8)
+                    scene_n.remove_node(cam_n2)
+                    depth_vis_rgb = _depth_buffer_to_vis_rgb(depth)
+
                 views.append(
                     RenderView(
                         rgb=rgb,
@@ -102,6 +134,8 @@ class MeshRenderer:
                         vertex_visible=vertex_visible,
                         camera_pose=pose.matrix.astype(np.float64),
                         intrinsics=intrinsics,
+                        normal_rgb=normal_rgb,
+                        depth_vis_rgb=depth_vis_rgb,
                     )
                 )
                 scene.remove_node(cam_node)
@@ -127,6 +161,42 @@ class MeshRenderer:
             vertex_colors=vertex_colors,
             process=False,
         )
+
+
+def _trimesh_vertex_normals_as_colors(tm: trimesh.Trimesh) -> trimesh.Trimesh:
+    """Encode unit **world** mesh normals as RGB (0.5 * n + 0.5) for an unlit diagnostic pass."""
+    vn = np.asarray(tm.vertex_normals, dtype=np.float64)
+    norms = np.linalg.norm(vn, axis=1, keepdims=True)
+    norms = np.maximum(norms, 1e-8)
+    vn = vn / norms
+    rgb = np.clip((vn * 0.5 + 0.5) * 255.0, 0.0, 255.0).astype(np.uint8)
+    return trimesh.Trimesh(
+        vertices=tm.vertices,
+        faces=tm.faces,
+        vertex_colors=rgb,
+        process=False,
+    )
+
+
+def _depth_buffer_to_vis_rgb(depth: np.ndarray, *, valid_eps: float = 1e-6) -> np.ndarray:
+    """Map linear depth to uint8 RGB (3× grayscale) for aux inputs alongside muddy RGB."""
+    d = np.asarray(depth, dtype=np.float64)
+    mask = d > valid_eps
+    out = np.zeros((*d.shape, 3), dtype=np.uint8)
+    if not np.any(mask):
+        return out
+    vals = d[mask]
+    lo, hi = np.percentile(vals, [2.0, 98.0])
+    if hi <= lo + 1e-8:
+        hi = lo + 1e-6
+    t = (d - lo) / (hi - lo)
+    t = np.clip(t, 0.0, 1.0)
+    t[~mask] = 0.0
+    g = (t * 255.0 + 0.5).astype(np.uint8)
+    out[..., 0] = g
+    out[..., 1] = g
+    out[..., 2] = g
+    return out
 
 
 def _perspective_intrinsics(width: int, height: int, yfov: float) -> np.ndarray:

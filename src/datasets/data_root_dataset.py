@@ -32,6 +32,7 @@ class ManifestRow:
     reference_rgb_path: Path | None = None
     mask_path: Path | None = None
     vertex_affordance_path: Path | None = None
+    vertex_semantics_path: Path | None = None
     sam3d_global_latent_path: Path | None = None
     split: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
@@ -49,6 +50,7 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         "reference_rgb_path",
         "mask_path",
         "vertex_affordance_path",
+        "vertex_semantics_path",
         "sam3d_global_latent_path",
         "split",
     }
@@ -68,6 +70,7 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         reference_rgb_path=p("reference_rgb_path"),
         mask_path=p("mask_path"),
         vertex_affordance_path=p("vertex_affordance_path"),
+        vertex_semantics_path=p("vertex_semantics_path"),
         sam3d_global_latent_path=p("sam3d_global_latent_path"),
         split=raw.get("split") if raw.get("split") is not None else None,
         extras=extras,
@@ -108,6 +111,22 @@ def load_manifest_rows(
     split: str | None = None,
 ) -> list[ManifestRow]:
     return list(iter_manifest_rows(manifest_path, data_root=data_root, split=split))
+
+
+def _load_vertex_semantics_bundle(path: Path) -> dict[str, torch.Tensor]:
+    """Load ``vertex_semantic.pt``-style dict: ``features`` (V, D), ``visible_in_any_view`` (V,)."""
+    data = torch.load(path, map_location="cpu", weights_only=True)
+    if not isinstance(data, dict) or "features" not in data:
+        raise ValueError(
+            f"Expected dict with 'features' tensor from projection cache, got keys {set(data) if isinstance(data, dict) else type(data)}: {path}"
+        )
+    feats = data["features"].float()
+    vis = data.get("visible_in_any_view")
+    if vis is None:
+        mask = torch.ones(feats.shape[0], dtype=torch.bool)
+    else:
+        mask = torch.from_numpy(np.asarray(vis, dtype=bool))
+    return {"vertex_features": feats, "vertex_visible_mask": mask}
 
 
 def _load_vertex_affordance(path: Path) -> torch.Tensor:
@@ -159,7 +178,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
     PyTorch ``Dataset`` backed by JSONL manifest under ``data_root``.
 
     Each ``__getitem__`` returns a dict with string keys suitable for training loops.
-    Heavy fields (mesh, labels) load lazily depending on constructor flags.
+    Heavy fields (mesh, labels, vertex semantics, SAM3D latent) load lazily depending on constructor flags.
     """
 
     def __init__(
@@ -171,6 +190,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         split: str | None = None,
         load_mesh_eager: bool | None = None,
         load_vertex_labels_eager: bool | None = None,
+        load_vertex_semantics_eager: bool | None = None,
         row_filter: Callable[[ManifestRow], bool] | None = None,
     ) -> None:
         cfg = cfg if cfg is not None else load_config()
@@ -187,9 +207,14 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             load_mesh_eager = bool(ds.get("load_mesh_eager", False))
         if load_vertex_labels_eager is None:
             load_vertex_labels_eager = bool(ds.get("load_vertex_labels_eager", True))
+        if load_vertex_semantics_eager is None:
+            load_vertex_semantics_eager = ds.get("load_vertex_semantics_eager", True)
+        if isinstance(load_vertex_semantics_eager, str):
+            load_vertex_semantics_eager = load_vertex_semantics_eager.lower() in ("1", "true", "yes")
 
         self._load_mesh_eager = load_mesh_eager
         self._load_vertex_labels_eager = load_vertex_labels_eager
+        self._load_vertex_semantics_eager = bool(load_vertex_semantics_eager)
         self._row_filter = row_filter
 
         rows = load_manifest_rows(self._manifest_path, data_root=self._data_root, split=split)
@@ -246,6 +271,20 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             out["vertex_affordance_path"] = None
             out["vertex_affordance"] = None
 
+        if row.vertex_semantics_path is not None:
+            out["vertex_semantics_path"] = row.vertex_semantics_path
+            if self._load_vertex_semantics_eager:
+                sem = _load_vertex_semantics_bundle(row.vertex_semantics_path)
+                out["vertex_features"] = sem["vertex_features"]
+                out["vertex_visible_mask"] = sem["vertex_visible_mask"]
+            else:
+                out["vertex_features"] = None
+                out["vertex_visible_mask"] = None
+        else:
+            out["vertex_semantics_path"] = None
+            out["vertex_features"] = None
+            out["vertex_visible_mask"] = None
+
         if row.sam3d_global_latent_path is not None:
             out["sam3d_global_latent_path"] = row.sam3d_global_latent_path
             latent = torch.load(row.sam3d_global_latent_path, map_location="cpu", weights_only=True)
@@ -255,5 +294,8 @@ class DataRootDataset(Dataset[dict[str, Any]]):
                 out["sam3d_global_latent"] = latent
             else:
                 raise ValueError(f"Unexpected SAM3D latent file layout: {row.sam3d_global_latent_path}")
+        else:
+            out["sam3d_global_latent_path"] = None
+            out["sam3d_global_latent"] = None
 
         return out

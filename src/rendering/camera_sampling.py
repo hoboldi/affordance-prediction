@@ -50,23 +50,58 @@ def look_at_pose(
     return CameraPose(matrix=pose, eye=eye.copy(), target=target.copy(), up=cam_up.copy())
 
 
+def clamp_elevation_deg(
+    elevation_deg: float,
+    *,
+    lo: float = 30.0,
+    hi: float = 50.0,
+) -> float:
+    """
+    Clamp pitch (degrees above the XZ / ground plane in the Y-up convention) to ``[lo, hi]``.
+
+    Callers should keep ``lo``/``hi`` inside the project policy band (default **30°–50°**): moderate
+    downward views so interiors, rims, handles, and tops are visible — not horizon-grazing
+    (``~0°``) or top-down.
+    """
+    if lo > hi:
+        raise ValueError(f"elevation_min_deg ({lo}) must be <= elevation_max_deg ({hi})")
+    return float(min(max(elevation_deg, lo), hi))
+
+
+# Strict orbit policy: pitch (degrees above XZ) never leaves this band — avoids ~0° “flat”
+# horizon views and extreme top-down; exposes tops, openings, and handles for VLMs / SAM.
+POLICY_ELEVATION_MIN_DEG = 30.0
+POLICY_ELEVATION_MAX_DEG = 50.0
+
+
 def spherical_camera_poses(
     num_views: int,
     *,
     radius: float = 2.0,
-    elevation_deg: float = 30.0,
+    elevation_deg: float = 40.0,
+    elevation_min_deg: float = 30.0,
+    elevation_max_deg: float = 50.0,
     target: np.ndarray | None = None,
 ) -> list[CameraPose]:
     """
-    Uniform azimuth on a cone at fixed elevation (degrees above the XZ plane).
+    Uniform azimuth (yaw) on a horizontal ring; pitch (elevation) is **fixed** for all views.
 
-    Assumes the mesh is centered at the origin.
+    The camera orbits at one elevation angle (``elevation_deg`` clamped after intersecting the
+    requested band with ``[30°, 50°]`` above the XZ plane — enforced policy, not optional).
+    Only azimuth changes between views.
     """
     if num_views < 1:
         raise ValueError("num_views must be >= 1")
 
     target = np.zeros(3, dtype=np.float64) if target is None else np.asarray(target, dtype=np.float64)
-    elev = math.radians(elevation_deg)
+    raw_lo = float(elevation_min_deg)
+    raw_hi = float(elevation_max_deg)
+    el_lo = max(POLICY_ELEVATION_MIN_DEG, min(raw_lo, POLICY_ELEVATION_MAX_DEG))
+    el_hi = min(POLICY_ELEVATION_MAX_DEG, max(raw_hi, POLICY_ELEVATION_MIN_DEG))
+    if el_lo > el_hi:
+        el_lo, el_hi = POLICY_ELEVATION_MIN_DEG, POLICY_ELEVATION_MAX_DEG
+    elev_deg = clamp_elevation_deg(elevation_deg, lo=el_lo, hi=el_hi)
+    elev = math.radians(elev_deg)
     y = radius * math.sin(elev)
     ring = radius * math.cos(elev)
 

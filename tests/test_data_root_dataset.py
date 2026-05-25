@@ -151,3 +151,23 @@ def test_example_pack_in_repo() -> None:
     item = ds[0]
     assert item["mesh"].num_vertices == 3
     assert item["vertex_affordance"].shape == (3,)
+
+
+def test_training_manifest_with_fixtures() -> None:
+    """Optional: full training row when fixture binaries exist (CI can run the script first)."""
+    root = Path(__file__).resolve().parents[1] / "examples" / "data_manifest"
+    feat = root / "features" / "tiny_vertex_semantic.pt"
+    mt = root / "manifest_training.jsonl"
+    if not (feat.is_file() and mt.is_file()):
+        pytest.skip("run: python scripts/build_example_training_fixtures.py")
+    ds = DataRootDataset(
+        data_root=root,
+        manifest_path=mt,
+        cfg={},
+        split="train",
+        load_mesh_eager=False,
+        load_vertex_labels_eager=True,
+    )
+    item = ds[0]
+    assert item["vertex_features"].shape == (3, 512)
+    assert item["sam3d_global_latent"].shape == (8,)

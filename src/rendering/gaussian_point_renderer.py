@@ -177,6 +177,8 @@ def render_gaussian_splat_views(
         cfg.num_views,
         radius=cfg.camera_radius,
         elevation_deg=cfg.elevation_deg,
+        elevation_min_deg=cfg.elevation_min_deg,
+        elevation_max_deg=cfg.elevation_max_deg,
     )
 
     width = height = cfg.image_size

@@ -2,6 +2,11 @@
 """
 True **gsplat** multi-view render from a 3DGS ``.ply``, then **SAM3D** on ``view_000`` (or ``--reference_view``).
 
+**You cannot use this outside the container** in a supported way: SAM3D + ``gsplat`` expect the
+pinned CUDA / torch / ``flash-attn`` / ``sam-3d-objects`` layout from the ``sam3d-pipeline``
+Docker image. Run this script inside ``docker compose run --rm sam3d-pipeline bash`` (repo at
+``/workspace``); see ``docker/README.md``.
+
 Writes::
 
     <run_dir>/sam3d_dataset/images, masks, meta_prerender.json
@@ -9,10 +14,10 @@ Writes::
 
 Optional: cache ``global_latent.pt`` under ``paths.cache_root/sam3d/<stem>/`` (see ``configs/default.yaml``).
 
-Example::
+Example (inside the container, from ``/workspace``)::
 
     PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py \\
-        --splat_path /workspace/data/Seen/train/bag/Gaussian/GS_0017.ply \\
+        --splat_path data/Seen/train/bag/Gaussian/GS_0017.ply \\
         --run_dir exports/gsplat_sam3d/bag_gs0017
 """
 
@@ -71,6 +76,11 @@ def main() -> None:
     logger.info("Reconstruction dir: {}", out["reconstruction_dir"])
     if "global_latent_path" in out:
         logger.info("Cached global latent: {}", out["global_latent_path"])
+    run_root = Path(out["reconstruction_dir"]).parent
+    logger.info(
+        "Wire rendering/VLM/projection: export SAM3D_RUN_DIR={} (see notebooks 02,04,05,06).",
+        run_root,
+    )
 
 
 if __name__ == "__main__":

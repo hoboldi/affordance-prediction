@@ -21,6 +21,7 @@ One JSON object per line (JSONL). Paths are **relative to the data root** unless
 | `reference_rgb_path` | no | RGB image for SAM3D-style reconstruction |
 | `mask_path` | no | Foreground / instance mask aligned with reference RGB |
 | `vertex_affordance_path` | no | Per-vertex supervision: `.npy` (float32 vector) or `.pt` (tensor or dict with `vertex_affordance`) |
+| `vertex_semantics_path` | no | Per-vertex VLM features (``.pt`` with ``features``, ``visible_in_any_view`` — same as notebook **05** ``vertex_semantic.pt``) |
 | `sam3d_global_latent_path` | no | Cached `(8,)` latent from `reconstruction.sam3d_wrapper` (`.pt` with `global_latent` key or raw tensor) |
 | `split` | no | `train` / `val` / … — filter with `DataRootDataset(..., split="train")` |
 
@@ -29,10 +30,10 @@ Any other keys are passed through as `extras` on each sample dict.
 ## Example line
 
 ```json
-{"sample_id": "chair_01", "verb": "sit on", "split": "train", "mesh_path": "meshes/chair_01.glb", "vertex_affordance_path": "labels/chair_01.npy", "sam3d_global_latent_path": "cache/sam3d/chair_01/global_latent.pt"}
+{"sample_id": "chair_01", "verb": "sit on", "split": "train", "mesh_path": "meshes/chair_01.glb", "vertex_affordance_path": "labels/chair_01.npy", "vertex_semantics_path": "cache/vertex_sem/chair_01.pt", "sam3d_global_latent_path": "cache/sam3d/chair_01/global_latent.pt"}
 ```
 
-A tracked example lives at [`examples/data_manifest/manifest.jsonl`](../examples/data_manifest/manifest.jsonl) (with `meshes/tiny.obj` and `labels/tiny_vertex_affordance.npy`).
+A tracked **minimal** example lives at [`examples/data_manifest/manifest.jsonl`](../examples/data_manifest/manifest.jsonl) (mesh + labels only). For **notebook 07**, use [`manifest_training.jsonl`](../examples/data_manifest/manifest_training.jsonl) after running `scripts/build_example_training_fixtures.py`.
 
 ## Recommended directories
 
