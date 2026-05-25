@@ -1,5 +1,7 @@
 # Stage 0 — Minimal Research Goal
 
+**Dataset direction:** supervised training and full evaluation are planned around **[3DAffordSplat](https://arxiv.org/abs/2504.11218)** — multi-view **renders from dataset 3D Gaussians** as SAM3D input, with affordance labels from the dataset mapped onto SAM3D meshes. Rationale and citations: [data_strategy_3daffordsplat.md](data_strategy_3daffordsplat.md).
+
 The first prototype should answer only one question:
 
 > “Can VLM semantic features projected onto a reconstructed 3D mesh help predict verb-conditioned affordances?”
@@ -40,7 +42,7 @@ Build a working end-to-end pipeline with:
 # MVP Pipeline
 
 ```text
-RGB-D image + verb
+RGB-D image + verb   ← often: synthetic views from 3DAffordSplat 3DGS (see docs/data_strategy_3daffordsplat.md)
         ↓
 SAM3D reconstruction (or preloaded mesh.glb)
         ↓
@@ -199,7 +201,7 @@ vertex_feature = concat(
 ### Keep:
 
 * BCE loss
-* AGD20K supervision
+* **3DAffordSplat / AffordSplat** affordance supervision (vertex labels after transfer from dataset geometry to SAM3D mesh — see `docs/data_strategy_3daffordsplat.md`)
 
 ### Ignore:
 
@@ -256,23 +258,25 @@ Each pipeline stage must have a **dedicated Jupyter notebook** used to validate 
 | Step | Notebook | `src/` code | Status | Can work on now? | Blocker / notes |
 |------|----------|-------------|--------|------------------|-----------------|
 | 0 | `00_mesh_bootstrap.ipynb` | `datasets/mesh_loading.py`, `utils/config.py` | ✅ | — | Run notebook to confirm on your machine |
+| 0.5 | `01_affordsplat_dataloader.ipynb` | `datasets/affordsplat_local_dataset.py` | ✅ | — | Local AffordSplat mirror (`/data/Seen` or `AFFORDANCE_AFFORDSPLAT_ROOT`); auto `Dataset` + optional `DataLoader` |
 | 1 | `01_reconstruction_debug.ipynb` | `reconstruction/sam3d_wrapper.py`, `mesh_utils.py` | 🟡 | **No** (run) | Code exists; **SAM3D checkpoints** + submodule setup required to execute |
-| 2 | `02_rendering_debug.ipynb` | `rendering/mesh_renderer.py`, `camera_sampling.py` | ✅ | — | Mesh backend; run notebook to confirm |
-| 3 | `03_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run notebook to confirm |
-| 4 | `04_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from 02+03 |
-| 5 | `05_affordance_head_debug.ipynb` | `models/` (stubs only) | ⬜ | **After step 4** | MLP + concat fusion; can use dummy features for API sketch only |
-| 6 | `06_training_evaluation_debug.ipynb` | `training/`, `datasets/agd20k_*` | ⬜ | **No** | **AGD20K** annotations + end-to-end pipeline |
-| — | `07_ablation_analysis.ipynb` | — | ⬜ | **No** | Phase 2+; MVP must pass first |
+| 2 | `02_rendering_mesh_debug.ipynb` | `rendering/mesh_renderer.py`, `camera_sampling.py` | ✅ | — | Mesh backend; run notebook to confirm |
+| 3 | `03_rendering_gaussian_splat.ipynb` | `rendering/gaussian_gsplat_renderer.py`, `gaussian_point_renderer.py` | ✅ | — | True 3DGS via **gsplat** (CUDA); centre preview fallback |
+| 4 | `04_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run after **02** renders |
+| 5 | `05_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from **02** + **04** |
+| 6 | `06_affordance_head_debug.ipynb` | `models/` (stubs only) | ⬜ | **After step 5** | MLP + concat fusion; can use dummy features for API sketch only |
+| 7 | `07_training_evaluation_debug.ipynb` | `training/`, `datasets/affordsplat_*` (planned) | ⬜ | **No** | **3DAffordSplat** manifest + SAM3D meshes + end-to-end pipeline |
+| — | `08_ablation_analysis.ipynb` | — | ⬜ | **No** | Phase 2+; MVP must pass first |
 
 ### Recommended next tasks (no SAM3D checkpoints)
 
 | Priority | Task | Delivers |
 |----------|------|----------|
-| 1 | `05_affordance_head_debug.ipynb` | MLP + concat fusion on `vertex_semantic.pt` |
+| 1 | `06_affordance_head_debug.ipynb` | MLP + concat fusion on `vertex_semantic.pt` |
 
-**Already landed (foundation):** repo scaffold (`src/`, configs), SAM3D wrapper (not runnable without weights), mesh I/O, `scripts/generate_sam3d.py`, `tests/test_mesh_loading.py`.
+**Already landed (foundation):** repo scaffold (`src/`, configs), SAM3D wrapper (not runnable without weights), mesh I/O, `scripts/generate_sam3d.py`, `tests/test_mesh_loading.py`, data plan for **3DAffordSplat** (`docs/data_strategy_3daffordsplat.md`).
 
-Later (Phase 2+): `07_ablation_analysis.ipynb` for mesh vs splat rendering and fusion ablations.
+Later (Phase 2+): `08_ablation_analysis.ipynb` for mesh vs splat rendering and fusion ablations.
 
 **Gate rule:** do not mark a step complete in the timeline until its notebook runs top-to-bottom on the target machine (mesh-only or full SAM3D) and the pass checklist is satisfied.
 
@@ -362,11 +366,19 @@ For each view (per active backend):
 
 ## Notebook
 
-`notebooks/02_rendering_debug.ipynb` — grid of views; depth overlays; correspondence heatmap; compare `backend: mesh` vs `gaussian` when `.ply` exists.
+`notebooks/02_rendering_mesh_debug.ipynb` — grid of views; depth overlays; correspondence heatmap.
+
+`notebooks/03_rendering_gaussian_splat.ipynb` — true **gsplat** RGB from `.ply` (or centre preview fallback); compare with mesh path when both exist.
 
 ---
 
-# Step 3 — VLM Feature Extraction
+# Step 3 — Gaussian splat rendering (gsplat)
+
+See `notebooks/03_rendering_gaussian_splat.ipynb` (true ellipsoidal rasterisation when CUDA + `gsplat` available).
+
+---
+
+# Step 4 — VLM Feature Extraction
 
 ## Goal
 
@@ -385,11 +397,11 @@ patch_features: [N_patches, D]
 
 ## Notebook
 
-`notebooks/03_vlm_features_debug.ipynb` — patch map dimensions; example patches on RGB; verb vector norm/similarity smoke test.
+`notebooks/04_vlm_features_debug.ipynb` — patch map dimensions; example patches on RGB; verb vector norm/similarity smoke test.
 
 ---
 
-# Step 4 — 2D-to-3D Projection
+# Step 5 — 2D-to-3D Projection
 
 ## Goal
 
@@ -412,11 +424,11 @@ This debugging stage is extremely important.
 
 ## Notebook
 
-`notebooks/04_projection_debug.ipynb` — **required** visual gate: PCA-colored mesh, verb-conditioned similarity map, before any training.
+`notebooks/05_projection_debug.ipynb` — **required** visual gate: PCA-colored mesh, verb-conditioned similarity map, before any training.
 
 ---
 
-# Step 5 — Basic Affordance Head
+# Step 6 — Basic Affordance Head
 
 ## Goal
 
@@ -433,15 +445,15 @@ MLP(vertex_feature) -> affordance
 
 ## Notebook
 
-`notebooks/05_affordance_head_debug.ipynb` — train on ≤10 samples; loss curve; predicted affordance on mesh vs GT.
+`notebooks/06_affordance_head_debug.ipynb` — train on ≤10 samples; loss curve; predicted affordance on mesh vs GT.
 
 ---
 
-# Step 6 — Full MVP Evaluation
+# Step 7 — Full MVP Evaluation
 
 ## Goal
 
-Run on AGD20K.
+Run training and evaluation on **3DAffordSplat / AffordSplat**: synthetic multi-view renders from each 3DGS, SAM3D reconstruction to mesh, then vertex affordance metrics against labels transferred from the dataset geometry.
 
 ## Metrics
 
@@ -455,7 +467,7 @@ Only after this stage should you consider architectural complexity.
 
 ## Notebook
 
-`notebooks/06_training_evaluation_debug.ipynb` — val metrics table; failure cases gallery; export paths for report figures.
+`notebooks/07_training_evaluation_debug.ipynb` — val metrics table; failure cases gallery; export paths for report figures.
 
 ---
 
@@ -601,11 +613,12 @@ This is likely the safest order:
 ```text
 0. Mesh-only bootstrap (sample.glb) + notebooks/00_mesh_bootstrap.ipynb
 1. Mesh reconstruction (+ optional gaussian.ply) + notebooks/01_reconstruction_debug.ipynb
-2. Multi-view rendering + notebooks/02_rendering_debug.ipynb
-3. Frozen VLM extraction + notebooks/03_vlm_features_debug.ipynb
-4. Patch-to-vertex projection + notebooks/04_projection_debug.ipynb
-5. MLP affordance prediction + notebooks/05_affordance_head_debug.ipynb
-6. AGD20K training + notebooks/06_training_evaluation_debug.ipynb
+2. Multi-view mesh rendering + notebooks/02_rendering_mesh_debug.ipynb
+3. Multi-view Gaussian splat (gsplat) + notebooks/03_rendering_gaussian_splat.ipynb
+4. Frozen VLM extraction + notebooks/04_vlm_features_debug.ipynb
+5. Patch-to-vertex projection + notebooks/05_projection_debug.ipynb
+6. MLP affordance prediction + notebooks/06_affordance_head_debug.ipynb
+7. **3DAffordSplat** train/eval + notebooks/07_training_evaluation_debug.ipynb
 7. Report figures / interactive demos (reuse notebook outputs)
 8. Intermediate VLM features
 9. Attention fusion

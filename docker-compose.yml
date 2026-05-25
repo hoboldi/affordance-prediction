@@ -1,0 +1,40 @@
+# GPU + SAM3D + pipeline (see docker/README.md)
+services:
+  sam3d-pipeline:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        MAX_JOBS: "4"
+        SAM3D_REPO: ${SAM3D_REPO:-https://github.com/facebookresearch/sam-3d-objects.git}
+        SAM3D_REF: ${SAM3D_REF:-}
+        # gsplat CUDA build during image build (no GPU): see docker/README.md
+        TORCH_CUDA_ARCH_LIST: "${TORCH_CUDA_ARCH_LIST:-7.5;8.0;8.6;8.9+PTX}"
+    image: affordance-sam3d:cu121
+    working_dir: /workspace
+    # Mount the repo so you can edit code and attach HF checkpoints without rebuilding.
+    volumes:
+      - .:/workspace
+      # Host dataset tree → project data dir (overlays ./data from the repo bind mount)
+      - /data/customDatasets/inNet:/workspace/data
+      # Optional: persist Hugging Face cache for checkpoint downloads
+      - huggingface-cache:/root/.cache/huggingface
+    environment:
+      # VS Code / tasks sometimes spawn shells without full login PATH — keep conda first.
+      PATH: /opt/conda/envs/sam3d/bin:/opt/conda/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      CONDA_PREFIX: /opt/conda/envs/sam3d
+      CONDA_DEFAULT_ENV: sam3d
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
+      PYTHONPATH: /workspace/src
+      # Headless pyrender / OpenGL in containers (override on host if needed)
+      PYOPENGL_PLATFORM: egl
+      # Hugging Face token for gated facebook/sam-3d-objects (optional; can use `hf auth login` in container)
+      HF_TOKEN: ${HF_TOKEN:-}
+    gpus: all
+    stdin_open: true
+    tty: true
+    shm_size: "4gb"
+
+volumes:
+  huggingface-cache:

@@ -47,6 +47,11 @@ def load_mesh(path: str | Path, *, process: bool = True) -> MeshData:
     return _trimesh_to_mesh_data(mesh)
 
 
+def mesh_data_from_trimesh(mesh: trimesh.Trimesh) -> MeshData:
+    """Convert a single ``trimesh.Trimesh`` (already merged / processed) to :class:`MeshData`."""
+    return _trimesh_to_mesh_data(mesh)
+
+
 def normalize_mesh(
     mesh: MeshData,
     *,

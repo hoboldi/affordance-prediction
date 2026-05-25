@@ -2,9 +2,20 @@ project:
   seed: 42
 
 paths:
+  # Repo-relative data directory (Docker: mount host data at /workspace/data)
   data_root: data
   output_root: outputs
   cache_root: data/cache
+  # Local Hugging Face mirror of Weizm/AffordSplat (3DAffordSplat). If null, use
+  # AFFORDANCE_AFFORDSPLAT_ROOT, or auto-detect when <root>/Seen exists:
+  # AFFORDANCE_DATA_ROOT, paths.data_root, /workspace/data, /data (in that order).
+  affordsplat_root: null
+
+dataset:
+  # JSONL manifest under data_root — see docs/data_layout.md
+  manifest_filename: manifest.jsonl
+  load_mesh_eager: false
+  load_vertex_labels_eager: true
 
 reconstruction:
   sam3d_config: sam-3d-objects/checkpoints/hf/pipeline.yaml

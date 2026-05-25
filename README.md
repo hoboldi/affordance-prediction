@@ -2,7 +2,7 @@
 
 Open-vocabulary affordance prediction by combining SAM3D reconstruction with frozen VLM semantic features.
 
-See [docs/project.md](docs/project.md) for the full pipeline and [docs/implementation_order.md](docs/implementation_order.md) for the MVP development plan.
+See [docs/project.md](docs/project.md) for the full pipeline, [docs/data_strategy_3daffordsplat.md](docs/data_strategy_3daffordsplat.md) for the **3DAffordSplat** data plan (synthetic views → SAM3D), and [docs/implementation_order.md](docs/implementation_order.md) for the MVP development plan.
 
 ## Setup
 
@@ -54,6 +54,21 @@ git submodule update --init sam-3d-objects
 
 Checkpoints and extra CUDA deps: see the `sam-3d-objects` submodule.
 
+### Docker (SAM3D + full pipeline on NVIDIA GPU)
+
+Use this when you want a Linux + CUDA 12.1 environment aligned with Meta’s SAM3D install without touching your host Python. The image **clones `sam-3d-objects` during the build** (no submodule required). If you use a submodule locally, the repo bind mount still replaces `/workspace/sam-3d-objects` at runtime.
+
+```bash
+docker compose build
+docker compose run --rm sam3d-pipeline bash
+```
+
+Details, VRAM expectations, Jupyter, Hugging Face checkpoints, and optional `SAM3D_REF` / `SAM3D_REPO` build args: [docker/README.md](docker/README.md).
+
+### On-disk dataset (`data/`)
+
+Training samples are listed in **`data/manifest.jsonl`** (or `AFFORDANCE_DATA_ROOT`, e.g. `/workspace/data`). See [docs/data_layout.md](docs/data_layout.md) and `datasets.DataRootDataset`. For a **local AffordSplat / 3DAffordSplat** tree (e.g. under **`/data/Seen/...`**), use `datasets.AffordSplatLocalDataset` and `AFFORDANCE_AFFORDSPLAT_ROOT`.
+
 ### Troubleshooting
 
 | Symptom | Fix |
@@ -81,15 +96,32 @@ python dataset_pipeline.py \
   --output_dir outputs/reconstructions
 ```
 
+## 3D Gaussian splat → multi-view RGB (SAM3D-style inputs)
+
+From a **3DGS `.ply`** (Inria / Nerfstudio layout), render an orbit of RGB + depth:
+
+- **True splat (CUDA + `gsplat`):** `pip install -e ".[gsplat]"` (or SAM3D Docker `[inference]`), then:
+
+```bash
+PYTHONPATH=src python scripts/render_gaussian_views.py \
+  --backend gsplat \
+  --splat_path examples/gaussian_splat/tiny_gaussians.ply \
+  --output_dir outputs/gaussian_renders/demo
+```
+
+- **Centre preview only (pyrender):** `--backend preview` (no `gsplat`; draws Gaussian means as points/icospheres).
+
+Visual walkthrough: `notebooks/03_rendering_gaussian_splat.ipynb` (**gsplat** RGB → **`exports/gaussian_splat/`**; set **`SPLAT_PLY`** in the notebook). Details: [docs/data_layout.md](docs/data_layout.md).
+
 ## Stage testing notebooks
 
 Each pipeline stage has a required debug notebook under `notebooks/`. See [notebooks/README.md](notebooks/README.md) and [implementation_order.md](docs/implementation_order.md#notebook--stage-map-current-status) for **what you can work on now**.
 
 | Next up (no SAM3D checkpoints) | Blocked |
 |----------------------------------|---------|
-| `05_affordance_head_debug.ipynb` | SAM3D run (`01_…`), full training (`06_…` needs AGD20K) |
+| `06_affordance_head_debug.ipynb` | SAM3D run (`01_…`), full training (`07_…` needs **3DAffordSplat** pipeline) |
 
-Steps **0–4** implemented. Run notebooks `00` → `02` → `03` → `04` in order.
+Steps **0–5** implemented. Run notebooks `00` → `02` → `04` → `05` in order (add `03` for gsplat, `06` for affordance head).
 
 ```bash
 jupyter lab notebooks/00_mesh_bootstrap.ipynb
@@ -104,9 +136,9 @@ src/
 ├── vlm/
 ├── projection/
 ├── models/
-├── datasets/         # mesh loading, AGD20K (later)
+├── datasets/         # mesh loading; 3DAffordSplat / AffordSplat (planned)
 ├── training/
 ├── visualization/
 └── utils/
-notebooks/            # 00–06 per-stage validation (required)
+notebooks/            # 00–08 per-stage validation (required)
 ```

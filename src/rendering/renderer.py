@@ -24,8 +24,10 @@ def render_mesh_views(mesh: MeshData, cfg: dict[str, Any]) -> list[RenderView]:
     backend = cfg.get("rendering", {}).get("backend", "mesh")
     if backend not in ("mesh", "both"):
         raise NotImplementedError(
-            f"rendering.backend={backend!r} requires a Gaussian splat renderer (not implemented). "
-            "Use backend: mesh for development with sample.glb."
+            f"rendering.backend={backend!r} requires a full Gaussian **raster** pipeline. "
+            "For multi-view **RGB from a 3DGS .ply** (point-centre preview), use "
+            "`rendering.render_gaussian_splat_views` or `scripts/render_gaussian_views.py`. "
+            "Use backend: mesh for mesh-only development."
         )
     renderer = MeshRenderer(build_render_config(cfg))
     return renderer.render(mesh)

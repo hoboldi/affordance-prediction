@@ -4,21 +4,26 @@ Full requirements: [docs/implementation_order.md](../docs/implementation_order.m
 
 **Legend:** ✅ done · 🟡 partial · ⬜ not started · 🚫 blocked
 
-| Notebook | Stage | Code ready | Status | Work on now? |
-|----------|--------|------------|--------|--------------|
-| `00_mesh_bootstrap.ipynb` | Mesh load / normalize | `datasets/mesh_loading.py` | ✅ | Run to verify locally |
-| `01_reconstruction_debug.ipynb` | SAM3D | `reconstruction/sam3d_wrapper.py` | 🟡 | **No** — SAM3D checkpoints |
-| `02_rendering_debug.ipynb` | Novel views (mesh) | `rendering/mesh_renderer.py` | ✅ | Run to verify locally |
-| `03_vlm_features_debug.ipynb` | VLM patches | `vlm/` (CLIP) | ✅ | Run locally (downloads CLIP weights on first run) |
-| `04_projection_debug.ipynb` | 2D→3D | `projection/project_to_mesh.py` | ✅ | Run after 02+03 caches |
-| `05_affordance_head_debug.ipynb` | MLP head | `models/` stubs | ⬜ | **Yes** — uses `04_projection/vertex_semantic.pt` |
-| `06_training_evaluation_debug.ipynb` | AGD20K eval | not started | ⬜ | AGD20K + full pipeline |
-| `07_ablation_analysis.ipynb` | Ablations | — | ⬜ | Phase 2+ |
+| # | Notebook | Stage | Code ready | Status | Work on now? |
+|---|----------|--------|------------|--------|--------------|
+| 0 | `00_mesh_bootstrap.ipynb` | Mesh load / normalize | `datasets/mesh_loading.py` | ✅ | Run to verify locally |
+| 1 | `01_affordsplat_dataloader.ipynb` | AffordSplat / 3DAffordSplat (local) | `datasets/affordsplat_local_dataset.py` | ✅ | **Yes** — auto root + `AffordSplatLocalDataset` |
+| 2 | `02_rendering_mesh_debug.ipynb` | Novel views (mesh) | `rendering/mesh_renderer.py` | ✅ | Run to verify locally |
+| 3 | `03_rendering_gaussian_splat.ipynb` | Novel views (3DGS / gsplat) | `gaussian_gsplat_renderer.py` | ✅ | PNG/JPEG → **`exports/gaussian_splat/`** (visible; `outputs/` is gitignored) |
+| 4 | `04_vlm_features_debug.ipynb` | VLM patches | `vlm/` (CLIP) | ✅ | After **02** caches (or re-render inline) |
+| 5 | `05_projection_debug.ipynb` | 2D→3D | `projection/project_to_mesh.py` | ✅ | After **02** + **04** caches |
+| 6 | `06_affordance_head_debug.ipynb` | MLP head | `models/` stubs | ⬜ | **Yes** — uses `05_projection/vertex_semantic.pt` |
+| 7 | `07_training_evaluation_debug.ipynb` | 3DAffordSplat train/eval | not started | ⬜ | AffordSplat data + full pipeline |
+
+**Note:** SAM3D reconstruction (`01_reconstruction_debug.ipynb`) is still planned once checkpoints are available. **`01_affordsplat_dataloader.ipynb`** covers the local Hugging Face mirror under `/data`.
+| 8 | `08_ablation_analysis.ipynb` | Ablations | — | ⬜ | Phase 2+ |
+
+**Typical run order (MVP):** `00` → **`01`** (AffordSplat auto-load, if you use `/data`) → `02` → `03` (optional gsplat) → `04` → `05` → `06`.
 
 ```bash
 pip install -e ".[notebooks]"
 jupyter lab notebooks/00_mesh_bootstrap.ipynb
-jupyter lab notebooks/02_rendering_debug.ipynb
+jupyter lab notebooks/02_rendering_mesh_debug.ipynb
 ```
 
-Caches: `outputs/notebooks/<stage>/`.
+Caches: `outputs/notebooks/<stage>/` (e.g. `02_rendering`, `04_vlm`, `05_projection`).

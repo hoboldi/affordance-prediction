@@ -21,7 +21,7 @@ open_vocab_affordance/
 │   │   └── visibility_aware.yaml
 │   │
 │   └── dataset/
-│       ├── agd20k.yaml
+│       ├── affordsplat.yaml
 │       └── custom.yaml
 │
 ├── data/
@@ -34,8 +34,9 @@ open_vocab_affordance/
 │   └── annotations/
 │
 ├── scripts/
-│   ├── preprocess_agd20k.py
+│   ├── preprocess_affordsplat.py
 │   ├── generate_sam3d.py
+│   ├── render_gaussian_views.py
 │   ├── render_views.py
 │   ├── extract_vlm_features.py
 │   ├── train.py
@@ -48,7 +49,7 @@ open_vocab_affordance/
 │   │
 │   ├── datasets/
 │   │   ├── __init__.py
-│   │   ├── agd20k_dataset.py
+│   │   ├── affordsplat_dataset.py
 │   │   ├── transforms.py
 │   │   ├── mesh_loading.py
 │   │   ├── view_sampling.py
@@ -67,6 +68,8 @@ open_vocab_affordance/
 │   │   ├── renderer.py
 │   │   ├── gaussian_renderer.py
 │   │   ├── mesh_renderer.py
+│   │   ├── gaussian_ply.py
+│   │   ├── gaussian_point_renderer.py
 │   │   ├── camera_sampling.py
 │   │   ├── visibility.py
 │   │   └── rasterization.py
@@ -152,13 +155,15 @@ open_vocab_affordance/
 │
 ├── notebooks/                    # required: one notebook per pipeline stage
 │   ├── 00_mesh_bootstrap.ipynb
+│   ├── 01_affordsplat_dataloader.ipynb
 │   ├── 01_reconstruction_debug.ipynb
-│   ├── 02_rendering_debug.ipynb
-│   ├── 03_vlm_features_debug.ipynb
-│   ├── 04_projection_debug.ipynb
-│   ├── 05_affordance_head_debug.ipynb
-│   ├── 06_training_evaluation_debug.ipynb
-│   └── 07_ablation_analysis.ipynb   # Phase 2+ comparisons
+│   ├── 02_rendering_mesh_debug.ipynb
+│   ├── 03_rendering_gaussian_splat.ipynb
+│   ├── 04_vlm_features_debug.ipynb
+│   ├── 05_projection_debug.ipynb
+│   ├── 06_affordance_head_debug.ipynb
+│   ├── 07_training_evaluation_debug.ipynb
+│   └── 08_ablation_analysis.ipynb   # Phase 2+ comparisons
 │
 ├── outputs/
 │   ├── checkpoints/
@@ -192,7 +197,7 @@ open_vocab_affordance/
 | `mesh.glb` | Required — affordance field, projection target, mesh renderer input |
 | `gaussian.ply` | Optional — splat renderer input when SAM3D (or other) produces it |
 
-`src/rendering/renderer.py` dispatches to `mesh_renderer.py` and/or `gaussian_renderer.py` according to `configs/default.yaml` → `rendering.backend`.
+`src/rendering/renderer.py` dispatches mesh rendering; **3DGS .ply** previews use `gaussian_point_renderer.py` (see `scripts/render_gaussian_views.py`).
 
 **Mesh-only development:** `data/sample.glb` is sufficient; leave `data/splats/` empty and `rendering.splat_path: null`.
 
