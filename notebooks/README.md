@@ -16,6 +16,7 @@ Full requirements: [docs/implementation_order.md](../docs/implementation_order.m
 | 7 | `07_training_evaluation_debug.ipynb` | Train/val loop | `training/vertex_affordance_train.py`, `DataRootDataset` | 🟡 | **Yes** — toy `examples/data_manifest` + `scripts/build_example_training_fixtures.py` |
 | 8 | `08_ablation_analysis.ipynb` | Ablations | — | ⬜ | Phase 2+ |
 | 10 | `10_sam3d_from_gsplat.ipynb` | gsplat views → SAM3D | `reconstruction/gsplat_to_sam3d.py` | 🟡 | **GPU + gsplat + SAM3D weights**; **run inside `sam3d-pipeline` Docker** — not supported on arbitrary host conda (see `scripts/render_gsplat_and_sam3d.py`, `docs/pipeline_gsplat_sam3d.md`) |
+| 11 | `11_gsplat_view_selection_vs_gt.ipynb` | Pick best orbit view vs GT cloud | `rendering/gsplat_viewpoint_selection.py` | 🟡 | **GPU + gsplat**; grid of all candidates + winner (see `docs/gsplat_gt_view_selection.md`) |
 
 **Note:** SAM3D reconstruction (`01_reconstruction_debug.ipynb`) is still planned once checkpoints are available. **`01_affordsplat_dataloader.ipynb`** covers the local Hugging Face mirror under `/data`.
 

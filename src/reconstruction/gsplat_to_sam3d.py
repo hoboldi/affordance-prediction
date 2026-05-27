@@ -22,8 +22,10 @@ from reconstruction.sam3d_wrapper import (
     ReconstructionResult,
     SAM3DWrapper,
     latent_cache_path,
+    sam3d_environment,
     save_global_latent,
 )
+from rendering.camera_sampling import rotation_matrix_from_axis_angle_deg
 from rendering.gaussian_gsplat_renderer import render_gaussian_splat_gsplat_views
 from rendering.mesh_renderer import MeshRenderConfig, RenderView
 from rendering.renderer import build_render_config
@@ -35,13 +37,32 @@ def _view_stem(index: int) -> str:
     return f"view_{index:03d}"
 
 
+def _vertex_world_rotation_inverse_orbit_ring(
+    mrc: MeshRenderConfig | None,
+    cfg: dict[str, Any],
+) -> np.ndarray | None:
+    """
+    When cameras use :func:`~rendering.camera_sampling.resolve_spherical_orbit_axis` with a
+    non-zero ``orbit_ring_rotation_deg``, splat means stay in the **original** normalized frame
+    while SAM3D geometry is easier to interpret in the **tilted** camera convention — apply the
+    inverse ring rotation to exports so ``mesh.glb`` / ``gaussian.ply`` match AffordSplat / GT axes.
+    """
+    eff = mrc if mrc is not None else build_render_config(cfg)
+    if abs(eff.orbit_ring_rotation_deg) < 1e-8:
+        return None
+    return rotation_matrix_from_axis_angle_deg(
+        eff.orbit_ring_rotation_axis,
+        -float(eff.orbit_ring_rotation_deg),
+    )
+
+
 def export_gsplat_views_for_sam3d(
     ply_path: str | Path,
     dataset_dir: str | Path,
     *,
     mrc: MeshRenderConfig | None = None,
     cfg: dict[str, Any] | None = None,
-    max_points: int = 200_000,
+    max_points: int = 500_000,
     gsplat_seed: int | None = None,
     convert_pyrender_camera_to_gsplat: bool = True,
 ) -> tuple[list[Path], list[RenderView]]:
@@ -109,11 +130,15 @@ def run_sam3d_on_prerendered_view(
     decode_formats: list[str] | None = None,
     image_path: Path | None = None,
     mask_path: Path | None = None,
+    vertex_world_rotation: np.ndarray | None = None,
 ) -> ReconstructionResult:
     """
     Load ``view_{reference_view_index:03d}.png`` (+ mask) from ``dataset_dir`` and run ``wrapper.reconstruct``.
 
     ``recon_out_dir`` receives ``save_reconstruction`` outputs (``mesh.glb``, latents, …).
+
+    ``vertex_world_rotation`` — optional 3×3 applied to decoded mesh / Gaussian before export
+    (see :func:`_vertex_world_rotation_inverse_orbit_ring`).
     """
     root = Path(dataset_dir)
     images_dir = root / "images"
@@ -140,6 +165,7 @@ def run_sam3d_on_prerendered_view(
         seed=seed if seed is not None else 0,
         image_path=img_path,
         mask_path=m_path,
+        vertex_world_rotation=vertex_world_rotation,
     )
     return result
 
@@ -151,7 +177,7 @@ def gsplat_ply_to_sam3d_reconstruction(
     cfg: dict[str, Any] | None = None,
     object_stem: str | None = None,
     mrc: MeshRenderConfig | None = None,
-    max_points: int = 200_000,
+    max_points: int = 500_000,
     gsplat_seed: int | None = None,
     reference_view_index: int = 0,
     sam3d_seed: int | None = 42,
@@ -201,17 +227,19 @@ def gsplat_ply_to_sam3d_reconstruction(
     if compile_model is None:
         compile_model = bool(recon_cfg.get("compile", False))
     resolved_config = resolve_path(str(config_path), root=project_root())
-    wrapper = SAM3DWrapper(resolved_config, compile_model=compile_model)
-
-    result = run_sam3d_on_prerendered_view(
-        dataset_dir,
-        recon_dir,
-        wrapper,
-        reference_view_index=reference_view_index,
-        object_stem=stem,
-        seed=sam3d_seed,
-        decode_formats=decode_formats,
-    )
+    v_rot = _vertex_world_rotation_inverse_orbit_ring(mrc, cfg)
+    with sam3d_environment(project_root()):
+        wrapper = SAM3DWrapper(resolved_config, compile_model=compile_model)
+        result = run_sam3d_on_prerendered_view(
+            dataset_dir,
+            recon_dir,
+            wrapper,
+            reference_view_index=reference_view_index,
+            object_stem=stem,
+            seed=sam3d_seed,
+            decode_formats=decode_formats,
+            vertex_world_rotation=v_rot,
+        )
 
     paths = reconstruction_paths(recon_dir)
     out: dict[str, Any] = {

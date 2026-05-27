@@ -3,7 +3,11 @@ from rendering.camera_sampling import (
     POLICY_ELEVATION_MAX_DEG,
     POLICY_ELEVATION_MIN_DEG,
     clamp_elevation_deg,
+    infer_orbit_axis_from_points,
     look_at_pose,
+    orbit_plane_basis,
+    resolve_spherical_orbit_axis,
+    rotate_vector_about_axis,
     spherical_camera_poses,
 )
 from rendering.demo_pitcher import build_demo_pitcher_mesh
@@ -19,7 +23,11 @@ __all__ = [
     "POLICY_ELEVATION_MAX_DEG",
     "POLICY_ELEVATION_MIN_DEG",
     "clamp_elevation_deg",
+    "infer_orbit_axis_from_points",
     "look_at_pose",
+    "orbit_plane_basis",
+    "resolve_spherical_orbit_axis",
+    "rotate_vector_about_axis",
     "spherical_camera_poses",
     "render_gaussian_splat_gsplat_views",
     "load_gaussian_splat_ply",

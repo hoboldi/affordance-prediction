@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import numpy as np
 import torch
@@ -67,24 +68,82 @@ class ReconstructionResult:
     mesh_scene: Any | None = None
 
 
-def configure_sam3d_environment(root: Path | None = None) -> Path:
-    """
-    Add sam-3d-objects to ``sys.path`` and set env vars required by the submodule.
+@dataclass(frozen=True)
+class _Sam3DEnvPatch:
+    """State to undo :func:`_apply_sam3d_environment` mutations (``sys.path`` + ``LIDRA_SKIP_INIT``)."""
 
-    Returns the sam-3d-objects directory path.
-    """
+    inserted_path_strs: tuple[str, ...]
+    lidra_skip_init_before: str | None
+
+
+def _apply_sam3d_environment(root: Path | None = None) -> tuple[Path, _Sam3DEnvPatch]:
     root = root or project_root()
     sam3d_root = resolve_sam3d_objects_root(root)
     notebook_dir = sam3d_root / "notebook"
 
+    inserted: list[str] = []
     for path in (sam3d_root, notebook_dir):
         path_str = str(path)
         if path.exists() and path_str not in sys.path:
             sys.path.insert(0, path_str)
+            inserted.append(path_str)
 
     os.environ.setdefault("CUDA_HOME", os.environ.get("CONDA_PREFIX", ""))
+    lidra_before = os.environ.get("LIDRA_SKIP_INIT")
     os.environ["LIDRA_SKIP_INIT"] = "true"
+    return sam3d_root, _Sam3DEnvPatch(
+        inserted_path_strs=tuple(inserted),
+        lidra_skip_init_before=lidra_before,
+    )
+
+
+def _restore_sam3d_environment(patch: _Sam3DEnvPatch) -> None:
+    """
+    Remove inserted ``sys.path`` entries and restore ``LIDRA_SKIP_INIT``.
+
+    ``CUDA_HOME`` is left as set by :func:`_apply_sam3d_environment` (typically defaulted from
+    ``CONDA_PREFIX``) so CUDA tooling stays stable after the cell.
+    """
+    for path_str in reversed(patch.inserted_path_strs):
+        try:
+            sys.path.remove(path_str)
+        except ValueError:
+            pass
+    if patch.lidra_skip_init_before is None:
+        os.environ.pop("LIDRA_SKIP_INIT", None)
+    else:
+        os.environ["LIDRA_SKIP_INIT"] = patch.lidra_skip_init_before
+
+
+def configure_sam3d_environment(root: Path | None = None) -> Path:
+    """
+    Add sam-3d-objects to ``sys.path`` and set env vars required by the submodule.
+
+    This leaves ``sys.path`` and ``os.environ`` changed for the rest of the process.
+    Prefer :func:`sam3d_environment` in notebooks so later imports in the same cell
+    still resolve against the project.
+
+    Returns the sam-3d-objects directory path.
+    """
+    sam3d_root, _patch = _apply_sam3d_environment(root)
     return sam3d_root
+
+
+@contextmanager
+def sam3d_environment(root: Path | None = None) -> Iterator[Path]:
+    """
+    Prepend ``sam-3d-objects`` on ``sys.path`` and set SAM3D env vars for the block, then
+    on exit **remove those ``sys.path`` entries** and restore ``LIDRA_SKIP_INIT`` to its prior
+    value (SAM3D only needs it while the submodule loads).
+
+    ``CUDA_HOME`` is still defaulted from ``CONDA_PREFIX`` when unset and is **not** removed
+    afterward so CUDA tooling does not lose that hint after the cell.
+    """
+    sam3d_root, patch = _apply_sam3d_environment(root)
+    try:
+        yield sam3d_root
+    finally:
+        _restore_sam3d_environment(patch)
 
 
 def _require_sam3d_pipeline_file(path: Path, *, sam3d_repo_root: Path) -> None:
@@ -107,7 +166,12 @@ def _require_sam3d_pipeline_file(path: Path, *, sam3d_repo_root: Path) -> None:
 
 
 class SAM3DWrapper:
-    """Thin wrapper around the SAM3D ``Inference`` class."""
+    """
+    Thin wrapper around the SAM3D ``Inference`` class.
+
+    Construct this only while :func:`sam3d_environment` is active (or after a one-off
+    :func:`configure_sam3d_environment` call), so ``from inference import Inference`` resolves.
+    """
 
     def __init__(
         self,
@@ -117,7 +181,6 @@ class SAM3DWrapper:
         project_root_path: Path | None = None,
     ) -> None:
         root = project_root_path or project_root()
-        configure_sam3d_environment(root)
 
         try:
             from inference import Inference  # noqa: E402
@@ -126,9 +189,10 @@ class SAM3DWrapper:
                 sam = resolve_sam3d_objects_root(root)
                 raise ModuleNotFoundError(
                     "Python could not import `inference` even though "
-                    f"{sam / 'notebook' / 'inference.py'} exists — check sys.path and that you run "
-                    "the same interpreter/env as SAM3D (e.g. conda env `sam3d` in Docker). "
-                    "Original error: "
+                    f"{sam / 'notebook' / 'inference.py'} exists — use "
+                    "`with sam3d_environment():` (or `configure_sam3d_environment()` once), "
+                    "the same interpreter/env as SAM3D (e.g. conda env `sam3d` in Docker), "
+                    "and a correct ``sys.path``. Original error: "
                     f"{exc}"
                 ) from exc
             raise

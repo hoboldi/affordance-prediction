@@ -2,6 +2,16 @@
 
 This image follows [SAM 3D Objects setup](https://github.com/facebookresearch/sam-3d-objects/blob/main/doc/setup.md): CUDA **12.1**, conda env from `sam-3d-objects/environments/default.yml`, then `pip install -e '.[dev]'`, `'.[p3d]'`, `'.[inference]'`, and the Hydra patch. The affordance repo is installed with **`--no-deps`** so PyTorch stays on SAM3D’s **torch 2.5.1+cu121** stack (do not run a plain `pip install -e .` in `sam3d` without `--no-deps`, or pip may still try to “fix” pins and break **xformers** / **torchaudio**).
 
+- **Single GPU (default):** Compose passes **only one** GPU into `sam3d-pipeline`. Set on the host before `docker compose` / Dev Container:
+
+  ```bash
+  export AFFORDANCE_CUDA_DEVICE=2   # physical GPU index (default: 0)
+  ```
+
+  This sets both **`gpus.device_ids`** (Docker only injects that device) and **`NVIDIA_VISIBLE_DEVICES`** (CUDA / `nvidia-smi` inside the container). PyTorch then uses **`cuda:0`**, which is that physical GPU.
+
+  To expose **all** GPUs again (not recommended unless you know you need it), edit `docker-compose.yml`: restore `gpus: all` and `NVIDIA_VISIBLE_DEVICES: all`.
+
 ## Requirements
 
 - **Linux** host with [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) and a recent driver.
@@ -79,6 +89,32 @@ DOCKER_BUILDKIT=1 docker compose build --build-arg TORCH_CUDA_ARCH_LIST="8.6+PTX
 ```
 
 For **Hopper (H100)**, you may need `9.0a+PTX` or `9.0+PTX` depending on your PyTorch / nvcc pair (check [CUDA arch list](https://developer.nvidia.com/cuda-gpus)).
+
+## Develop in VS Code / Cursor (container + notebooks)
+
+**Recommended:** use the **Dev Container** so the editor runs *inside* the same environment as SAM3D / gsplat (no host conda mismatch).
+
+1. Install the **Dev Containers** extension (VS Code) or use Cursor’s built-in dev-container support.
+2. From the repo root: Command Palette → **Dev Containers: Reopen in Container** (or **Rebuild and Reopen in Container** after a Dockerfile change).
+3. Wait for Compose to start the **`sam3d-pipeline`** service; the workspace folder is **`/workspace`** (your bind-mounted repo).
+4. Open a notebook under **`notebooks/`** → **Select Kernel** → **`/opt/conda/envs/sam3d/bin/python`** (or *Python Environments…* → that interpreter). `.vscode/settings.json` already points `python.defaultInterpreterPath` there when you are inside the container.
+5. Optional: start Jupyter in a terminal and use port **8888** (forwarded by `.devcontainer/devcontainer.json`):
+
+   ```bash
+   jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+   ```
+
+   Then open the printed URL in a browser, or use the **Jupyter** view in VS Code with the **same** conda interpreter as the kernel.
+
+**Alternative (no Dev Container):** start a long-lived container, then **Attach to Running Container**:
+
+```bash
+docker compose run --rm --name sam3d-dev -p 8888:8888 sam3d-pipeline bash -lc 'sleep infinity'
+```
+
+In VS Code: Command Palette → **Dev Containers: Attach to Running Container** → pick `sam3d-dev`. Open folder **`/workspace`**. Same interpreter path as above.
+
+---
 
 ## VS Code / Cursor: “Python not found” in the container
 

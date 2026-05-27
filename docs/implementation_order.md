@@ -97,7 +97,7 @@ Stable mesh vertices, correspondences, and a cached global shape latent per obje
 
 ### Keep:
 
-* fixed orbit cameras: **azimuth-only** sweep at one pitch; effective pitch is the intersection of config with **`[30°, 50°]`** above the ground plane (avoids ~0° flat horizons; favors tops, openings, handles for SAM & VLMs)
+* fixed orbit cameras: **azimuth-only** sweep at one pitch; effective pitch is the intersection of config with **`[25°, 60°]`** above the ground plane (avoids ~0° flat horizons; favors tops, openings, handles for SAM & VLMs)
 * 4–8 views
 * **mesh renderer** (always for depth + per-vertex correspondences when a mesh is loaded)
 * **Gaussian splat RGB** when `rendering.backend` is `gaussian` or `both` and `splat_path` points at a valid `.ply` (gsplat when CUDA is available, else pyrender preview)
@@ -108,6 +108,9 @@ Stable mesh vertices, correspondences, and a cached global shape latent per obje
 ```yaml
 rendering:
   backend: gaussian      # mesh | gaussian | both — default uses splat RGB when splat_path exists
+  elevation_deg: 42.5
+  elevation_min_deg: 25.0
+  elevation_max_deg: 60.0
   mesh_path: data/sample.glb
   splat_path: examples/gaussian_splat/tiny_gaussians.ply  # null → mesh RGB only
 ```

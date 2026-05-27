@@ -1,16 +1,33 @@
 {
-  "stem": "GS_1617_view_000",
+  "stem": "GS_7603_view_002",
   "seed": 42,
-  "image_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/images/view_000.png",
-  "mask_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/masks/view_000.png",
+  "image_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/images/view_002.png",
+  "mask_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/sam3d_dataset/masks/view_002.png",
   "shape_latent_shape": [
     4096,
     8
   ],
-  "slat_voxel_count": 5303,
+  "slat_voxel_count": 18664,
   "slat_feats_shape": [
-    5303,
+    18664,
     8
   ],
-  "mesh_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/reconstruction/mesh.glb"
+  "mesh_path": "/workspace/exports/gsplat_sam3d_runs/demo_gsplat_sam3d/reconstruction/mesh.glb",
+  "vertex_world_rotation": [
+    [
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.1102230246251565e-16,
+      1.0
+    ],
+    [
+      0.0,
+      -1.0,
+      1.1102230246251565e-16
+    ]
+  ]
 }

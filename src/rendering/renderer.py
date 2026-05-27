@@ -14,14 +14,27 @@ logger = logging.getLogger(__name__)
 
 def build_render_config(cfg: dict[str, Any]) -> MeshRenderConfig:
     r = cfg.get("rendering", {})
+    oa = r.get("orbit_axis")
+    orbit_axis: tuple[float, float, float] | None = None
+    if isinstance(oa, (list, tuple)) and len(oa) == 3:
+        orbit_axis = (float(oa[0]), float(oa[1]), float(oa[2]))
+    rot_ax_raw = r.get("orbit_ring_rotation_axis", (1.0, 0.0, 0.0))
+    if isinstance(rot_ax_raw, (list, tuple)) and len(rot_ax_raw) == 3:
+        rot_axis = (float(rot_ax_raw[0]), float(rot_ax_raw[1]), float(rot_ax_raw[2]))
+    else:
+        rot_axis = (1.0, 0.0, 0.0)
     return MeshRenderConfig(
         image_size=int(r.get("image_size", 512)),
         fov_deg=float(r.get("fov_deg", 60.0)),
         num_views=int(r.get("num_views", 6)),
         camera_radius=float(r.get("camera_radius", 2.0)),
-        elevation_deg=float(r.get("elevation_deg", 40.0)),
-        elevation_min_deg=float(r.get("elevation_min_deg", 30.0)),
-        elevation_max_deg=float(r.get("elevation_max_deg", 50.0)),
+        elevation_deg=float(r.get("elevation_deg", 42.5)),
+        elevation_min_deg=float(r.get("elevation_min_deg", 25.0)),
+        elevation_max_deg=float(r.get("elevation_max_deg", 60.0)),
+        orbit_axis=orbit_axis,
+        orbit_axis_mode=str(r.get("orbit_axis_mode", "world")),
+        orbit_ring_rotation_deg=float(r.get("orbit_ring_rotation_deg", 0.0)),
+        orbit_ring_rotation_axis=rot_axis,
         depth_tolerance=float(r.get("depth_tolerance", 0.05)),
         depth_relative_tolerance=float(r.get("depth_relative_tolerance", 0.03)),
         render_geometry_aux=bool(r.get("render_geometry_aux", True)),

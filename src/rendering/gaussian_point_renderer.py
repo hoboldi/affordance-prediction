@@ -13,7 +13,7 @@ import numpy as np
 import pyrender
 import trimesh
 
-from rendering.camera_sampling import spherical_camera_poses
+from rendering.camera_sampling import resolve_spherical_orbit_axis, spherical_camera_poses
 from rendering.gaussian_ply import GaussianSplatPLY, load_gaussian_splat_ply, sh_dc_to_rgb, sigmoid
 from rendering.mesh_renderer import MeshRenderConfig, RenderView
 
@@ -173,12 +173,21 @@ def render_gaussian_splat_views(
         ply, max_points=max_points, seed=seed, normalize_scene=normalize_scene
     )
 
+    axis = resolve_spherical_orbit_axis(
+        means.astype(np.float64),
+        orbit_axis=cfg.orbit_axis,
+        orbit_axis_mode=cfg.orbit_axis_mode,
+        ring_rotation_deg=cfg.orbit_ring_rotation_deg,
+        ring_rotation_axis=cfg.orbit_ring_rotation_axis,
+    )
     poses = spherical_camera_poses(
         cfg.num_views,
         radius=cfg.camera_radius,
         elevation_deg=cfg.elevation_deg,
         elevation_min_deg=cfg.elevation_min_deg,
         elevation_max_deg=cfg.elevation_max_deg,
+        orbit_axis=axis,
+        azimuth_offsets_deg=cfg.orbit_azimuth_offsets_deg,
     )
 
     width = height = cfg.image_size

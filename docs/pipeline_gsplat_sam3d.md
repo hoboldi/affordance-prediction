@@ -4,17 +4,23 @@
 
 This connects **dataset 3D Gaussians** (e.g. AffordSplat `Gaussian/GS_*.ply`) to the repo’s **SAM3D** wrapper:
 
-1. **Rasterise** the splat with **true `gsplat`** (`render_gaussian_splat_gsplat_views`) using the same orbit cameras as mesh rendering (`configs/default.yaml` → `rendering`).
+1. **Rasterise** the splat with **true `gsplat`** (`render_gaussian_splat_gsplat_views`) using the same orbit cameras as mesh rendering (`MeshRenderConfig` / `configs/default.yaml` → `rendering`).
 2. Write **`images/`** + **`masks/`** in the layout expected by `scripts/generate_sam3d.py` (full-foreground masks; SAM3D still uses **one** RGB for inference).
 3. Call **`SAM3DWrapper.reconstruct`** on `view_{REFERENCE:03d}.png` (default `view_000.png`).
 4. Persist **`mesh.glb`**, **`gaussian.ply`**, latents, and `meta.json` under the run’s `reconstruction/` directory; optionally cache **`global_latent.pt`** under `paths.cache_root/sam3d/<stem>/` when `reconstruction.cache_latents` is true.
 
-## Code entry points
+`gsplat_ply_to_sam3d_reconstruction` (and `scripts/generate_sam3d.py`) run SAM3D inside **`sam3d_environment()`** in [`sam3d_wrapper.py`](../src/reconstruction/sam3d_wrapper.py): it prepends the `sam-3d-objects` tree to `sys.path` for that block, then **removes those prefixes** and restores **`LIDRA_SKIP_INIT`** so later code (including `gsplat`) does not keep SAM3D’s skip flag. **`CUDA_HOME`** is still defaulted from `CONDA_PREFIX` when unset and is left in place afterward so CUDA tooling stays stable.
+
+When **`orbit_ring_rotation_deg`** is non-zero on the render config used for prerender, **gsplat → SAM3D** applies the **inverse** of that same fixed-axis rotation to the decoded mesh (and to SAM3D Gaussian means + quaternions when `pytorch3d` is available) before writing files, so artifacts stay in the **same normalized splat frame** as AffordSplat / GT (cameras were tilted via the ring; splat means were not).
+
+**gsplat colour looks grey with rare coloured specks?** Large PLYs are **subsampled** to `max_points` (default **500 000** in `gsplat_ply_to_sam3d_reconstruction` / CLIs; raise further if needed). Subsampling defaults to **voxel stratification** so every occupied region of the bbox contributes Gaussians (uniform random oversamples small high-contrast parts like knobs). Set `AFFORDANCE_GSPLAT_SUBSAMPLE=uniform` to revert. Optional: `AFFORDANCE_GSPLAT_F_REST_LAYOUT=rgb_interleaved` for non-Inria `f_rest_*` order; `AFFORDANCE_GSPLAT_SH_DEGREE_CAP=0` forces DC-only tint (see `rendering/gaussian_gsplat_renderer.py`).
 
 | Location | Role |
 |----------|------|
 | [`src/reconstruction/gsplat_to_sam3d.py`](../src/reconstruction/gsplat_to_sam3d.py) | `export_gsplat_views_for_sam3d`, `run_sam3d_on_prerendered_view`, `gsplat_ply_to_sam3d_reconstruction` |
+| [`src/reconstruction/gsplat_sam3d_batch.py`](../src/reconstruction/gsplat_sam3d_batch.py) | `ensure_sam3d_reconstruction_for_splat`, `batch_ensure_sam3d_reconstructions` — **idempotent** runs (skip if `mesh.glb` + matching `meta_prerender.json` exist) for pipelines / notebooks |
 | [`scripts/render_gsplat_and_sam3d.py`](../scripts/render_gsplat_and_sam3d.py) | CLI: `--splat_path`, `--run_dir`, `--reference_view`, … |
+| [`scripts/batch_gsplat_sam3d.py`](../scripts/batch_gsplat_sam3d.py) | CLI: many `.ply` paths, `--splat_paths_file`, or `--affordsplat_random_n` under one `--output_root` (default `exports/gsplat_sam3d_runs`) |
 | [`notebooks/10_sam3d_from_gsplat.ipynb`](../notebooks/10_sam3d_from_gsplat.ipynb) | Interactive run + error hints |
 
 ## Requirements

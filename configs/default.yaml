@@ -33,11 +33,16 @@ rendering:
   image_size: 512
   fov_deg: 60.0
   camera_radius: 2.0
-  # Pitch above XZ (Y-up). Policy: effective orbit band is always intersected with [30°, 50°]
-  # (no ~0° horizon-grazing; moderate downward views for interiors / tops / handles).
-  elevation_deg: 40.0
-  elevation_min_deg: 30.0
-  elevation_max_deg: 50.0
+  # Pitch above XZ (Y-up). Policy: effective orbit band is intersected with [25°, 60°]
+  # (broader than a narrow band; still avoids ~0° horizon-grazing and near–top-down extremes).
+  elevation_deg: 42.5
+  elevation_min_deg: 25.0
+  elevation_max_deg: 60.0
+  # Orbit pole (⟂ azimuth ring): null + orbit_axis_mode, or explicit [x,y,z] in mesh/splat frame.
+  orbit_axis: null
+  orbit_axis_mode: world
+  orbit_ring_rotation_deg: 0.0
+  orbit_ring_rotation_axis: [1.0, 0.0, 0.0]
   # Second pyrender pass: world normals as RGB + 3-channel depth visualization (uint8) for SAM/VLM aux.
   render_geometry_aux: true
   depth_tolerance: 0.05

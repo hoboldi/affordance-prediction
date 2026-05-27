@@ -24,8 +24,8 @@ if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from reconstruction.mesh_utils import ensure_decode_formats, reconstruction_paths, save_reconstruction
-from reconstruction.sam3d_wrapper import SAM3DWrapper
-from utils.config import load_config, resolve_path
+from reconstruction.sam3d_wrapper import SAM3DWrapper, sam3d_environment
+from utils.config import load_config, project_root, resolve_path
 from utils.io import (
     find_mask_file,
     full_image_mask,
@@ -88,52 +88,53 @@ def main() -> None:
     decode_formats = ensure_decode_formats(decode_formats)
 
     logger.info(f"Found {len(image_paths)} image(s); decode_formats={decode_formats}")
-    wrapper = SAM3DWrapper(
-        config_path,
-        compile_model=recon_cfg.get("compile", False),
-    )
-    logger.info(f"SAM3D loaded from {resolve_path(config_path)}")
-
     errors: list[tuple[str, str]] = []
-    for img_path in tqdm(image_paths, desc="SAM3D reconstruction"):
-        stem = img_path.stem
-        out_dir = output_dir / stem
+    with sam3d_environment(project_root()):
+        wrapper = SAM3DWrapper(
+            config_path,
+            compile_model=recon_cfg.get("compile", False),
+        )
+        logger.info(f"SAM3D loaded from {resolve_path(config_path)}")
 
-        if args.skip_existing and reconstruction_paths(out_dir)["meta"].exists():
-            logger.info(f"[{stem}] Skipping (already done)")
-            continue
+        for img_path in tqdm(image_paths, desc="SAM3D reconstruction"):
+            stem = img_path.stem
+            out_dir = output_dir / stem
 
-        mask_path: Path | None = None
-        if not args.no_masks:
-            mask_path = find_mask_file(masks_dir, stem)
-            if mask_path is None:
-                logger.warning(f"[{stem}] No mask found — skipping")
-                errors.append((stem, "mask not found"))
+            if args.skip_existing and reconstruction_paths(out_dir)["meta"].exists():
+                logger.info(f"[{stem}] Skipping (already done)")
                 continue
 
-        try:
-            image = load_rgb_image(img_path)
-            mask = full_image_mask(image) if mask_path is None else load_binary_mask(mask_path)
+            mask_path: Path | None = None
+            if not args.no_masks:
+                mask_path = find_mask_file(masks_dir, stem)
+                if mask_path is None:
+                    logger.warning(f"[{stem}] No mask found — skipping")
+                    errors.append((stem, "mask not found"))
+                    continue
 
-            result = wrapper.reconstruct(
-                image,
-                mask,
-                seed=seed,
-                decode_formats=decode_formats,
-            )
-            save_reconstruction(
-                result,
-                out_dir,
-                stem=stem,
-                seed=seed,
-                image_path=img_path,
-                mask_path=mask_path,
-            )
-            logger.info(f"[{stem}] Done — SLAT voxels: {result.slat_coords.shape[0]}")
-        except Exception:
-            tb = traceback.format_exc()
-            logger.error(f"[{stem}] Failed:\n{tb}")
-            errors.append((stem, tb))
+            try:
+                image = load_rgb_image(img_path)
+                mask = full_image_mask(image) if mask_path is None else load_binary_mask(mask_path)
+
+                result = wrapper.reconstruct(
+                    image,
+                    mask,
+                    seed=seed,
+                    decode_formats=decode_formats,
+                )
+                save_reconstruction(
+                    result,
+                    out_dir,
+                    stem=stem,
+                    seed=seed,
+                    image_path=img_path,
+                    mask_path=mask_path,
+                )
+                logger.info(f"[{stem}] Done — SLAT voxels: {result.slat_coords.shape[0]}")
+            except Exception:
+                tb = traceback.format_exc()
+                logger.error(f"[{stem}] Failed:\n{tb}")
+                errors.append((stem, tb))
 
     total = len(image_paths)
     failed = len(errors)

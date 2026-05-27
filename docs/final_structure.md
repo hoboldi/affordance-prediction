@@ -37,6 +37,9 @@ open_vocab_affordance/
 │   ├── preprocess_affordsplat.py
 │   ├── generate_sam3d.py
 │   ├── render_gaussian_views.py
+│   ├── render_gsplat_and_sam3d.py
+│   ├── batch_gsplat_sam3d.py
+│   ├── select_best_gsplat_view_for_gt.py
 │   ├── render_views.py
 │   ├── extract_vlm_features.py
 │   ├── train.py
@@ -70,7 +73,8 @@ open_vocab_affordance/
 │   │   ├── gaussian_renderer.py
 │   │   ├── mesh_renderer.py
 │   │   ├── gaussian_ply.py
-│   │   ├── gaussian_point_renderer.py
+│   │   ├── gaussian_gsplat_renderer.py
+│   │   ├── gsplat_viewpoint_selection.py
 │   │   ├── camera_sampling.py
 │   │   ├── visibility.py
 │   │   └── rasterization.py
@@ -165,7 +169,8 @@ open_vocab_affordance/
 │   ├── 06_affordance_head_debug.ipynb
 │   ├── 07_training_evaluation_debug.ipynb
 │   ├── 08_ablation_analysis.ipynb   # Phase 2+ comparisons
-│   └── 10_sam3d_from_gsplat.ipynb
+│   ├── 10_sam3d_from_gsplat.ipynb
+│   └── 11_gsplat_view_selection_vs_gt.ipynb
 │
 ├── outputs/
 │   ├── checkpoints/
@@ -199,7 +204,7 @@ open_vocab_affordance/
 | `mesh.glb` | Required — affordance field, projection target, mesh renderer input |
 | `gaussian.ply` | Optional — splat renderer input when SAM3D (or other) produces it |
 
-`src/rendering/renderer.py` renders mesh depth + vertex correspondences, and replaces **RGB** from a 3DGS `.ply` when `rendering.backend` is `gaussian` or `both` and `splat_path` is set (gsplat with CUDA, else pyrender preview). Standalone `.ply` renders: `scripts/render_gaussian_views.py` / `gaussian_point_renderer.py`.
+`src/rendering/renderer.py` renders mesh depth + vertex correspondences, and replaces **RGB** from a 3DGS `.ply` when `rendering.backend` is `gaussian` or `both` and `splat_path` is set (gsplat with CUDA, else pyrender preview). Standalone `.ply` renders: `scripts/render_gaussian_views.py` / `gaussian_point_renderer.py`. **Best single view vs GT point cloud:** `scripts/select_best_gsplat_view_for_gt.py` and [docs/gsplat_gt_view_selection.md](gsplat_gt_view_selection.md).
 
 **Mesh-only development:** `data/sample.glb` is sufficient; set `rendering.backend: mesh` or `rendering.splat_path: null` for mesh-colour RGB without a paired splat.
 

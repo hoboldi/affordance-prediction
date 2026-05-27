@@ -102,7 +102,7 @@ python dataset_pipeline.py \
 
 ## 3D Gaussian splat → multi-view RGB (SAM3D-style inputs)
 
-From a **3DGS `.ply`** (Inria / Nerfstudio layout), render an **azimuth-only** orbit of RGB + depth at a fixed pitch in **`[elevation_min_deg, elevation_max_deg]`** intersected with the project band **`[30°, 50°]`** above the ground plane (no horizon-grazing; see `configs/default.yaml` → `rendering`):
+From a **3DGS `.ply`** (Inria / Nerfstudio layout), render an **azimuth-only** orbit of RGB + depth at a fixed pitch in **`[elevation_min_deg, elevation_max_deg]`** intersected with the project band **`[25°, 60°]`** above the ground plane (no horizon-grazing; see `configs/default.yaml` → `rendering`):
 
 - **True splat (CUDA + `gsplat`):** `pip install -e ".[gsplat]"` (or SAM3D Docker `[inference]`), then:
 
@@ -113,11 +113,24 @@ PYTHONPATH=src python scripts/render_gaussian_views.py \
   --output_dir outputs/gaussian_renders/demo
 ```
 
+**Best single RGB vs GT point cloud:** score orbit views with depth unprojection + k-NN alignment, export one PNG for MLLM / SAM3D (CUDA + `gsplat`; see [docs/gsplat_gt_view_selection.md](docs/gsplat_gt_view_selection.md)):
+
+```bash
+PYTHONPATH=src python scripts/select_best_gsplat_view_for_gt.py \
+  --splat_path examples/gaussian_splat/tiny_gaussians.ply \
+  --gt_path path/to/gt.ply \
+  --output_png exports/best_view/best_rgb.png
+```
+
+Visual walkthrough (all candidates + winner): **`notebooks/11_gsplat_view_selection_vs_gt.ipynb`**.
+
 **gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`). **You cannot use this path outside the `sam3d-pipeline` Docker container** in a supported way — run inside `docker compose run --rm sam3d-pipeline bash` (see [docker/README.md](docker/README.md)):
 
 ```bash
 docker compose run --rm sam3d-pipeline bash -lc 'cd /workspace && PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py --splat_path data/Seen/train/bag/Gaussian/GS_0017.ply --run_dir exports/gsplat_sam3d/my_run'
 ```
+
+**Batch / idempotent SAM3D** (same on-disk layout; skips objects that already have `mesh.glb` + matching `meta_prerender.json`): run `PYTHONPATH=src python scripts/batch_gsplat_sam3d.py` inside the same container — see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md) for flags (`--splat_paths_file`, `--affordsplat_random_n`, …).
 
 - **Centre preview only (pyrender):** `--backend preview` (no `gsplat`; draws Gaussian means as points/icospheres).
 

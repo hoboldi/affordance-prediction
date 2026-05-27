@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
+import trimesh
 
+from utils.config import project_root
 from utils.io import save_json
 
 
@@ -44,6 +48,93 @@ def sam3d_run_reconstruction_paths(run_dir: str | Path) -> dict[str, Path]:
     (the parent of ``reconstruction/``, not the ``reconstruction`` folder itself).
     """
     return reconstruction_paths(Path(run_dir).expanduser().resolve() / "reconstruction")
+
+
+def _dataset_path_tail_key(path: Path) -> str | None:
+    """
+    Return a lowercase ``Seen/...`` or ``UnSeen/...`` tail so we can match Docker vs host paths.
+
+    Falls back to ``None`` when the path does not contain those markers (e.g. tiny examples).
+    """
+    parts = tuple(x.lower() for x in path.parts)
+    for marker in ("seen", "unseen"):
+        if marker in parts:
+            i = parts.index(marker)
+            return "/".join(path.parts[i:]).lower()
+    return None
+
+
+def _paths_refer_to_same_splat(recorded: str, want: Path) -> bool:
+    """Whether ``meta_prerender.json`` ``splat_path`` refers to the same on-disk Gaussian as ``want``."""
+    want_p = Path(want).expanduser().resolve()
+    rec_p = Path(recorded).expanduser()
+    try:
+        rp = rec_p.resolve()
+        if rp.exists() and want_p.exists() and rp.samefile(want_p):
+            return True
+        if rp == want_p:
+            return True
+    except OSError:
+        pass
+    tail_w = _dataset_path_tail_key(want_p)
+    try:
+        tail_r = _dataset_path_tail_key(rec_p)
+    except OSError:
+        tail_r = None
+    if tail_w and tail_r and tail_w == tail_r:
+        return rec_p.name.lower() == want_p.name.lower()
+    return False
+
+
+def prerender_meta_matches_splat(meta_prerender_json: Path | str, splat_ply: str | Path) -> bool:
+    """
+    Return whether ``sam3d_dataset/meta_prerender.json`` lists ``splat_path`` consistent with ``splat_ply``.
+
+    Used to skip redundant SAM3D runs and to validate cached exports.
+    """
+    meta_path = Path(meta_prerender_json).expanduser()
+    if not meta_path.is_file():
+        return False
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    rec = meta.get("splat_path")
+    if not isinstance(rec, str) or not rec.strip():
+        return False
+    return _paths_refer_to_same_splat(rec, splat_ply)
+
+
+def find_sam3d_reconstruction_mesh_for_splat(
+    splat_ply: str | Path,
+    *,
+    search_under: Path | str | None = None,
+) -> Path | None:
+    """
+    Find ``<run_dir>/reconstruction/mesh.glb`` produced by :func:`reconstruction.gsplat_to_sam3d.gsplat_ply_to_sam3d_reconstruction`
+    for **this** splat file.
+
+    Each run writes ``<run_dir>/sam3d_dataset/meta_prerender.json`` with a ``splat_path`` field.
+    If several runs match (re-runs), returns the **newest** ``mesh.glb`` by mtime.
+
+    Returns ``None`` when no matching run exists under ``<search_under>/exports`` (not an error).
+    """
+    root = Path(search_under).expanduser().resolve() if search_under is not None else project_root()
+    exports = root / "exports"
+    if not exports.is_dir():
+        return None
+    want = Path(splat_ply).expanduser().resolve()
+    candidates: list[Path] = []
+    for meta_path in exports.glob("**/sam3d_dataset/meta_prerender.json"):
+        mesh = meta_path.parent.parent / "reconstruction" / "mesh.glb"
+        if not mesh.is_file():
+            continue
+        if not prerender_meta_matches_splat(meta_path, want):
+            continue
+        candidates.append(mesh)
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def cfg_with_sam3d_reconstruction(
@@ -91,6 +182,57 @@ def ensure_decode_formats(decode_formats: list[str]) -> list[str]:
     return formats
 
 
+def _apply_world_rotation_to_trimesh_export(obj: Any, R: np.ndarray) -> None:
+    """Apply ``R @ v`` to every ``Trimesh`` vertex (in-place). ``obj`` is a ``Trimesh`` or ``Scene``."""
+    if isinstance(obj, trimesh.Trimesh):
+        v = np.asarray(obj.vertices, dtype=np.float64)
+        obj.vertices = (R @ v.T).T.astype(np.float32, copy=False)
+        return
+    if isinstance(obj, trimesh.Scene):
+        for g in obj.geometry.values():
+            if isinstance(g, trimesh.Trimesh):
+                _apply_world_rotation_to_trimesh_export(g, R)
+        return
+    raise TypeError(f"expected trimesh.Trimesh or Scene for mesh export; got {type(obj).__name__}")
+
+
+def _apply_world_rotation_to_sam3d_gaussian(gs: Any, R: np.ndarray) -> None:
+    """
+    Rotate decoded 3DGS means and orientations into the same frame as ``mesh.glb``.
+
+    Uses ``pytorch3d`` when available (SAM3D Docker); otherwise is a no-op so the mesh-only
+    correction still runs in lightweight environments.
+    """
+    try:
+        from pytorch3d.transforms import matrix_to_quaternion, quaternion_to_matrix
+    except ImportError:
+        return
+
+    R_t = torch.as_tensor(R, dtype=torch.float32, device=gs.get_xyz.device)
+    xyz = gs.get_xyz
+    gs.from_xyz((R_t @ xyz.T).T)
+    q = gs.get_rotation
+    M = quaternion_to_matrix(q)
+    M_new = torch.einsum("ij,njk->nik", R_t, M)
+    gs.from_rotation(matrix_to_quaternion(M_new))
+
+
+def apply_vertex_world_rotation_to_sam3d_result(result: Any, R: np.ndarray | None) -> None:
+    """
+    Mutate ``result`` mesh / gaussian assets in-place before :func:`save_reconstruction`.
+
+    ``R`` is an orthogonal 3×3 acting on **column** vertex vectors ``p' = R @ p``, matching
+    :func:`rendering.camera_sampling.rotation_matrix_from_axis_angle_deg`.
+    """
+    if R is None:
+        return
+    R = np.asarray(R, dtype=np.float64)
+    if result.mesh_scene is not None:
+        _apply_world_rotation_to_trimesh_export(result.mesh_scene, R)
+    if result.gaussian_splat is not None:
+        _apply_world_rotation_to_sam3d_gaussian(result.gaussian_splat, R)
+
+
 def save_reconstruction(
     result: Any,
     out_dir: Path,
@@ -99,9 +241,14 @@ def save_reconstruction(
     seed: int,
     image_path: Path | None = None,
     mask_path: Path | None = None,
+    vertex_world_rotation: np.ndarray | None = None,
 ) -> dict[str, Path]:
     """
     Persist a :class:`~reconstruction.sam3d_wrapper.ReconstructionResult` to disk.
+
+    When ``vertex_world_rotation`` is a 3×3 matrix, it is applied to the decoded mesh (and SAM3D
+    Gaussian means + rotations when ``pytorch3d`` is importable) **before** writing ``mesh.glb`` /
+    ``gaussian.ply``. Used to undo a fixed orbit-ring tilt of cameras vs the normalized splat frame.
 
     Returns the artifact paths written.
     """
@@ -111,6 +258,8 @@ def save_reconstruction(
     torch.save(result.shape_latent, paths["shape_latent"])
     torch.save(result.slat_feats, paths["slat_feats"])
     torch.save(result.slat_coords, paths["slat_coords"])
+
+    apply_vertex_world_rotation_to_sam3d_result(result, vertex_world_rotation)
 
     if result.gaussian_splat is not None:
         result.gaussian_splat.save_ply(str(paths["gaussian"]))
@@ -127,6 +276,9 @@ def save_reconstruction(
         "slat_voxel_count": int(result.slat_coords.shape[0]),
         "slat_feats_shape": list(result.slat_feats.shape),
         "mesh_path": str(paths["mesh"]) if paths["mesh"].exists() else None,
+        "vertex_world_rotation": vertex_world_rotation.astype(float).tolist()
+        if vertex_world_rotation is not None
+        else None,
     }
     save_json(meta, paths["meta"])
     return paths

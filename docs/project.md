@@ -57,7 +57,7 @@ Novel views for the VLM use a **hybrid** path by default (`rendering.backend: ga
 | RGB | 3DGS `.ply` via **gsplat** when CUDA + `gsplat` are available; otherwise pyrender **centre preview** |
 | `normal_rgb`, `depth_vis_rgb` (optional) | Extra **mesh** passes: world normals as RGB + depth as 3× grayscale (`render_geometry_aux`, default **true**) — sharp edges for SAM when splat RGB is muddy |
 
-Orbit pitch is enforced in **`[30°, 50°]`** above the ground plane (intersection with YAML bounds): no near-horizon cameras, moderate downward views toward the asset center.
+Orbit pitch is enforced in **`[25°, 60°]`** above the ground plane (intersection with YAML bounds): no near-horizon cameras, moderate downward views toward the asset center.
 
 With `backend: mesh`, RGB also comes from the mesh. If `splat_path` is missing or splat rendering fails, `gaussian` / `both` **fall back** to mesh RGB (warning). Projection always targets **mesh vertices**.
 
@@ -72,7 +72,7 @@ Each rendered view provides:
 * camera intrinsics and extrinsics,
 * **vertex correspondences** (mesh UV/barycentric or projected vertex indices) for 2D→3D projection.
 
-Initially, viewpoint sampling uses uniform azimuth on a fixed-elevation ring around the object, with elevation restricted to **[30°, 50°]** (see `rendering/camera_sampling.py`). Later iterations may explore visibility-aware or coverage-optimized view selection.
+Initially, viewpoint sampling uses uniform azimuth on a fixed-elevation ring around the object, with elevation restricted to **[25°, 60°]** (see `rendering/camera_sampling.py`). Later iterations may explore visibility-aware or coverage-optimized view selection.
 
 **MVP note:** vertex affordances remain mesh-based; splats supply **RGB** for VLMs when configured, not per-Gaussian labels.
 

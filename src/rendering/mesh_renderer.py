@@ -7,7 +7,11 @@ import pyrender
 import trimesh
 
 from datasets.mesh_loading import MeshData
-from rendering.camera_sampling import CameraPose, spherical_camera_poses
+from rendering.camera_sampling import (
+    CameraPose,
+    resolve_spherical_orbit_axis,
+    spherical_camera_poses,
+)
 
 
 @dataclass
@@ -33,9 +37,19 @@ class MeshRenderConfig:
     fov_deg: float = 60.0
     num_views: int = 6
     camera_radius: float = 2.0
-    elevation_deg: float = 40.0  # pitch above XZ; intersected with policy band [30°, 50°]
-    elevation_min_deg: float = 30.0
-    elevation_max_deg: float = 50.0
+    elevation_deg: float = 42.5  # polar tilt from ring plane toward +orbit_axis; intersected with policy band
+    elevation_min_deg: float = 25.0
+    elevation_max_deg: float = 60.0
+    # Orbit: cameras sweep a ring in the plane ⟂ ``orbit_axis`` (world units, same as mesh/splat).
+    # ``ring_rotation_deg`` rotates the resolved pole (e.g. +90 about X when assets sit in a frame
+    # tilted vs world +Y). ``None`` + ``orbit_axis_mode`` selects the pole before that rotation.
+    orbit_axis: tuple[float, float, float] | None = None
+    orbit_axis_mode: str = "world"
+    orbit_ring_rotation_deg: float = 0.0
+    orbit_ring_rotation_axis: tuple[float, float, float] = (1.0, 0.0, 0.0)
+    # If set, place cameras at these azimuths (degrees) on the ring instead of a uniform full sweep.
+    # Length must match ``num_views`` (same zero azimuth as the first uniform sample).
+    orbit_azimuth_offsets_deg: tuple[float, ...] | None = None
     depth_tolerance: float = 0.05
     depth_relative_tolerance: float = 0.03
     render_geometry_aux: bool = True  # world normal RGB + depth visualization (uint8)
@@ -47,19 +61,32 @@ class MeshRenderer:
     def __init__(self, config: MeshRenderConfig | None = None) -> None:
         self.config = config or MeshRenderConfig()
 
+    def _default_poses(self, mesh: MeshData) -> list[CameraPose]:
+        ref = np.asarray(mesh.vertices, dtype=np.float64)
+        axis = resolve_spherical_orbit_axis(
+            ref,
+            orbit_axis=self.config.orbit_axis,
+            orbit_axis_mode=self.config.orbit_axis_mode,
+            ring_rotation_deg=self.config.orbit_ring_rotation_deg,
+            ring_rotation_axis=self.config.orbit_ring_rotation_axis,
+        )
+        return spherical_camera_poses(
+            self.config.num_views,
+            radius=self.config.camera_radius,
+            elevation_deg=self.config.elevation_deg,
+            elevation_min_deg=self.config.elevation_min_deg,
+            elevation_max_deg=self.config.elevation_max_deg,
+            orbit_axis=axis,
+            azimuth_offsets_deg=self.config.orbit_azimuth_offsets_deg,
+        )
+
     def render(
         self,
         mesh: MeshData,
         *,
         poses: list[CameraPose] | None = None,
     ) -> list[RenderView]:
-        poses = poses or spherical_camera_poses(
-            self.config.num_views,
-            radius=self.config.camera_radius,
-            elevation_deg=self.config.elevation_deg,
-            elevation_min_deg=self.config.elevation_min_deg,
-            elevation_max_deg=self.config.elevation_max_deg,
-        )
+        poses = poses or self._default_poses(mesh)
         trimesh_mesh = self._to_trimesh(mesh)
         vertex_normals = np.asarray(trimesh_mesh.vertex_normals, dtype=np.float64)
         py_mesh = pyrender.Mesh.from_trimesh(trimesh_mesh, smooth=False)

@@ -1,6 +1,9 @@
-# GPU + SAM3D + pipeline (see docker/README.md)
+# GPU + pipeline (see docker/README.md)
+#
+# Single-GPU by default: only device index AFFORDANCE_CUDA_DEVICE (default 0) is passed in.
+# Example:  AFFORDANCE_CUDA_DEVICE=2  docker compose run --rm autonomous-pipeline bash
 services:
-  sam3d-pipeline:
+  autonomous-pipeline:
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -24,14 +27,21 @@ services:
       PATH: /opt/conda/envs/sam3d/bin:/opt/conda/bin:/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       CONDA_PREFIX: /opt/conda/envs/sam3d
       CONDA_DEFAULT_ENV: sam3d
-      NVIDIA_VISIBLE_DEVICES: all
+      # Which physical GPU(s) the container sees (comma-separated indices or UUIDs allowed).
+      # Default one GPU only — set AFFORDANCE_CUDA_DEVICE on the host to pick another index.
+      NVIDIA_VISIBLE_DEVICES: ${AFFORDANCE_CUDA_DEVICE:-0}
       NVIDIA_DRIVER_CAPABILITIES: compute,utility,graphics
       PYTHONPATH: /workspace/src
       # Headless pyrender / OpenGL in containers (override on host if needed)
       PYOPENGL_PLATFORM: egl
       # Hugging Face token for gated facebook/sam-3d-objects (optional; can use `hf auth login` in container)
       HF_TOKEN: ${HF_TOKEN:-}
-    gpus: all
+    # Pass exactly one GPU into the container (matches AFFORDANCE_CUDA_DEVICE).
+    gpus:
+      - driver: nvidia
+        device_ids:
+          - ${AFFORDANCE_CUDA_DEVICE:-0}
+        capabilities: [gpu]
     stdin_open: true
     tty: true
     shm_size: "4gb"

@@ -44,7 +44,7 @@ def main() -> None:
     p.add_argument("--config", type=Path, default=None, help="YAML config override")
     p.add_argument("--object_stem", type=str, default=None, help="SAM3D / cache stem (default from PLY + view id)")
     p.add_argument("--reference_view", type=int, default=0, help="Which view_NNN.png to feed SAM3D")
-    p.add_argument("--max_points", type=int, default=200_000, help="Max Gaussians for gsplat subsample")
+    p.add_argument("--max_points", type=int, default=500_000, help="Max Gaussians for gsplat subsample")
     p.add_argument(
         "--gsplat_seed",
         type=int,

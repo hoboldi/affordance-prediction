@@ -1,0 +1,16 @@
+{
+  "stem": "GS_0111_view_000",
+  "seed": 42,
+  "image_path": "/workspace/exports/gsplat_sam3d_runs/Seen_train_bowl_Gaussian_GS_0111/sam3d_dataset/images/view_000.png",
+  "mask_path": "/workspace/exports/gsplat_sam3d_runs/Seen_train_bowl_Gaussian_GS_0111/sam3d_dataset/masks/view_000.png",
+  "shape_latent_shape": [
+    4096,
+    8
+  ],
+  "slat_voxel_count": 9051,
+  "slat_feats_shape": [
+    9051,
+    8
+  ],
+  "mesh_path": "/workspace/exports/gsplat_sam3d_runs/Seen_train_bowl_Gaussian_GS_0111/reconstruction/mesh.glb"
+}
