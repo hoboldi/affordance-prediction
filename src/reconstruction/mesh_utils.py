@@ -10,6 +10,7 @@ import numpy as np
 import torch
 import trimesh
 
+from reconstruction.sam3d_wrapper import load_global_latent, save_global_latent
 from utils.config import project_root
 from utils.io import save_json
 
@@ -21,6 +22,13 @@ class ReconstructionArtifacts:
     shape_latent: str = "shape_latent.pt"
     slat_feats: str = "slat_feats.pt"
     slat_coords: str = "slat_coords.pt"
+    slat_vertex_features: str = "slat_vertex_features.pt"
+    global_latent: str = "global_latent.pt"
+    dino_cls: str = "dino_cls.pt"
+    dino_patches: str = "dino_patches.pt"
+    ss_dino_cls: str = "ss_dino_cls.pt"
+    ss_dino_patches: str = "ss_dino_patches.pt"
+    vertex_normals: str = "vertex_normals.pt"
     gaussian: str = "gaussian.ply"
     mesh: str = "mesh.glb"
     meta: str = "meta.json"
@@ -34,6 +42,13 @@ def reconstruction_paths(out_dir: Path) -> dict[str, Path]:
         "shape_latent": out_dir / artifacts.shape_latent,
         "slat_feats": out_dir / artifacts.slat_feats,
         "slat_coords": out_dir / artifacts.slat_coords,
+        "slat_vertex_features": out_dir / artifacts.slat_vertex_features,
+        "global_latent": out_dir / artifacts.global_latent,
+        "dino_cls": out_dir / artifacts.dino_cls,
+        "dino_patches": out_dir / artifacts.dino_patches,
+        "ss_dino_cls": out_dir / artifacts.ss_dino_cls,
+        "ss_dino_patches": out_dir / artifacts.ss_dino_patches,
+        "vertex_normals": out_dir / artifacts.vertex_normals,
         "gaussian": out_dir / artifacts.gaussian,
         "mesh": out_dir / artifacts.mesh,
         "meta": out_dir / artifacts.meta,
@@ -233,6 +248,38 @@ def apply_vertex_world_rotation_to_sam3d_result(result: Any, R: np.ndarray | Non
         _apply_world_rotation_to_sam3d_gaussian(result.gaussian_splat, R)
 
 
+def _extract_mesh_vertices(mesh_scene: Any) -> np.ndarray | None:
+    """Return (V, 3) float32 vertex positions from a trimesh Trimesh or Scene, or None."""
+    if mesh_scene is None:
+        return None
+    if isinstance(mesh_scene, trimesh.Trimesh):
+        return np.array(mesh_scene.vertices, dtype=np.float32)
+    if isinstance(mesh_scene, trimesh.Scene):
+        parts = [
+            np.array(g.vertices, dtype=np.float32)
+            for g in mesh_scene.geometry.values()
+            if isinstance(g, trimesh.Trimesh)
+        ]
+        return np.concatenate(parts, axis=0) if parts else None
+    return None
+
+
+def _extract_mesh_vertex_normals(mesh_scene: Any) -> np.ndarray | None:
+    """Return (V, 3) float32 vertex normals from a trimesh Trimesh or Scene, or None."""
+    if mesh_scene is None:
+        return None
+    if isinstance(mesh_scene, trimesh.Trimesh):
+        return np.array(mesh_scene.vertex_normals, dtype=np.float32)
+    if isinstance(mesh_scene, trimesh.Scene):
+        parts = [
+            np.array(g.vertex_normals, dtype=np.float32)
+            for g in mesh_scene.geometry.values()
+            if isinstance(g, trimesh.Trimesh)
+        ]
+        return np.concatenate(parts, axis=0) if parts else None
+    return None
+
+
 def save_reconstruction(
     result: Any,
     out_dir: Path,
@@ -246,6 +293,9 @@ def save_reconstruction(
     """
     Persist a :class:`~reconstruction.sam3d_wrapper.ReconstructionResult` to disk.
 
+    Writes ``global_latent.pt`` (mean-pooled SLAT, same format as :func:`~reconstruction.sam3d_wrapper.save_global_latent`)
+    next to ``slat_vertex_features.pt`` under ``out_dir``.
+
     When ``vertex_world_rotation`` is a 3×3 matrix, it is applied to the decoded mesh (and SAM3D
     Gaussian means + rotations when ``pytorch3d`` is importable) **before** writing ``mesh.glb`` /
     ``gaussian.ply``. Used to undo a fixed orbit-ring tilt of cameras vs the normalized splat frame.
@@ -258,6 +308,40 @@ def save_reconstruction(
     torch.save(result.shape_latent, paths["shape_latent"])
     torch.save(result.slat_feats, paths["slat_feats"])
     torch.save(result.slat_coords, paths["slat_coords"])
+
+    # Compute per-vertex SLAT features while mesh and voxels share the same (pre-rotation) frame.
+    verts_np = _extract_mesh_vertices(result.mesh_scene)
+    if verts_np is not None:
+        slat_vertex = slat_feats_to_vertex_features(
+            result.slat_feats,
+            result.slat_coords.float(),
+            torch.from_numpy(verts_np),
+        )
+        torch.save(slat_vertex, paths["slat_vertex_features"])
+
+    gl = getattr(result, "global_latent", None)
+    if gl is not None:
+        save_global_latent(gl, paths["global_latent"])
+
+    dino_cls = getattr(result, "dino_cls", None)
+    if dino_cls is not None:
+        torch.save(dino_cls, paths["dino_cls"])
+
+    dino_patches = getattr(result, "dino_patches", None)
+    if dino_patches is not None:
+        torch.save(dino_patches, paths["dino_patches"])
+
+    ss_dino_cls = getattr(result, "ss_dino_cls", None)
+    if ss_dino_cls is not None:
+        torch.save(ss_dino_cls, paths["ss_dino_cls"])
+
+    ss_dino_patches = getattr(result, "ss_dino_patches", None)
+    if ss_dino_patches is not None:
+        torch.save(ss_dino_patches, paths["ss_dino_patches"])
+
+    vertex_normals_np = _extract_mesh_vertex_normals(result.mesh_scene)
+    if vertex_normals_np is not None:
+        torch.save(torch.from_numpy(vertex_normals_np), paths["vertex_normals"])
 
     apply_vertex_world_rotation_to_sam3d_result(result, vertex_world_rotation)
 
@@ -275,6 +359,13 @@ def save_reconstruction(
         "shape_latent_shape": list(result.shape_latent.shape),
         "slat_voxel_count": int(result.slat_coords.shape[0]),
         "slat_feats_shape": list(result.slat_feats.shape),
+        "slat_vertex_features_shape": list(slat_vertex.shape) if verts_np is not None else None,
+        "global_latent_shape": list(gl.shape) if gl is not None else None,
+        "dino_cls_shape": list(dino_cls.shape) if dino_cls is not None else None,
+        "dino_patches_shape": list(dino_patches.shape) if dino_patches is not None else None,
+        "ss_dino_cls_shape": list(ss_dino_cls.shape) if ss_dino_cls is not None else None,
+        "ss_dino_patches_shape": list(ss_dino_patches.shape) if ss_dino_patches is not None else None,
+        "vertex_normals_shape": list(vertex_normals_np.shape) if vertex_normals_np is not None else None,
         "mesh_path": str(paths["mesh"]) if paths["mesh"].exists() else None,
         "vertex_world_rotation": vertex_world_rotation.astype(float).tolist()
         if vertex_world_rotation is not None
@@ -287,8 +378,48 @@ def save_reconstruction(
 def load_latents(out_dir: Path) -> dict[str, torch.Tensor]:
     """Load cached SAM3D latents from a reconstruction directory."""
     paths = reconstruction_paths(out_dir)
-    return {
+    out: dict[str, torch.Tensor] = {
         "shape_latent": torch.load(paths["shape_latent"], map_location="cpu", weights_only=True),
         "slat_feats": torch.load(paths["slat_feats"], map_location="cpu", weights_only=True),
         "slat_coords": torch.load(paths["slat_coords"], map_location="cpu", weights_only=True),
     }
+    if paths["slat_vertex_features"].is_file():
+        out["slat_vertex_features"] = torch.load(
+            paths["slat_vertex_features"], map_location="cpu", weights_only=True
+        )
+    if paths["global_latent"].is_file():
+        out["global_latent"] = load_global_latent(paths["global_latent"])
+    if paths["dino_cls"].is_file():
+        out["dino_cls"] = torch.load(paths["dino_cls"], map_location="cpu", weights_only=True)
+    if paths["dino_patches"].is_file():
+        out["dino_patches"] = torch.load(paths["dino_patches"], map_location="cpu", weights_only=True)
+    if paths["ss_dino_cls"].is_file():
+        out["ss_dino_cls"] = torch.load(paths["ss_dino_cls"], map_location="cpu", weights_only=True)
+    if paths["ss_dino_patches"].is_file():
+        out["ss_dino_patches"] = torch.load(paths["ss_dino_patches"], map_location="cpu", weights_only=True)
+    if paths["vertex_normals"].is_file():
+        out["vertex_normals"] = torch.load(paths["vertex_normals"], map_location="cpu", weights_only=True)
+    return out
+
+
+def slat_feats_to_vertex_features(
+    slat_feats: torch.Tensor,
+    slat_coords: torch.Tensor,
+    vertex_positions: torch.Tensor,
+) -> torch.Tensor:
+    """Assign each mesh vertex the feature of its nearest SLAT voxel.
+
+    Args:
+        slat_feats:        (N, C) per-voxel features from SAM3D
+        slat_coords:       (N, 3) voxel positions, same coordinate frame as vertex_positions
+        vertex_positions:  (V, 3) mesh vertex positions
+
+    Returns:
+        (V, C) per-vertex features
+    """
+    from scipy.spatial import cKDTree
+
+    coords_np = slat_coords.float().cpu().numpy()
+    verts_np = vertex_positions.float().cpu().numpy()
+    _, nn_idx = cKDTree(coords_np).query(verts_np, k=1, workers=-1)
+    return slat_feats[torch.from_numpy(nn_idx).long()]

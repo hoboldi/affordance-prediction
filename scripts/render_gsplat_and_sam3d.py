@@ -52,7 +52,7 @@ def main() -> None:
         help="RNG seed for gsplat subsample (omit for random)",
     )
     p.add_argument("--sam3d_seed", type=int, default=42, help="SAM3D torch seed")
-    p.add_argument("--no_latent_cache", action="store_true", help="Disable global_latent.pt cache write")
+
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -71,11 +71,8 @@ def main() -> None:
         gsplat_seed=args.gsplat_seed,
         reference_view_index=args.reference_view,
         sam3d_seed=args.sam3d_seed,
-        cache_global_latent=not args.no_latent_cache,
     )
     logger.info("Reconstruction dir: {}", out["reconstruction_dir"])
-    if "global_latent_path" in out:
-        logger.info("Cached global latent: {}", out["global_latent_path"])
     run_root = Path(out["reconstruction_dir"]).parent
     logger.info(
         "Wire rendering/VLM/projection: export SAM3D_RUN_DIR={} (see notebooks 02,04,05,06).",

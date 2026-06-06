@@ -23,11 +23,11 @@ class MLPHeadConfig:
 class AffordanceMLP(nn.Module):
     """Per-vertex affordance predictor.
 
-    Input per vertex: concat(vlm_feature, verb_embedding[, sam3d_global])
+    Input per vertex: concat(vlm_feature, verb_embedding[, slat_vertex])
     Output: (V,) logits — apply sigmoid for probabilities.
 
-    sam3d_global is a single (sam3d_dim,) vector broadcast to all vertices,
-    representing the global geometry of the reconstructed object.
+    slat_vertex is a (V, sam3d_dim) tensor of per-vertex SLAT features assigned
+    via nearest-voxel lookup from the SAM3D structured latent.
     """
 
     def __init__(self, cfg: MLPHeadConfig | None = None) -> None:
@@ -45,29 +45,47 @@ class AffordanceMLP(nn.Module):
 
     def forward(
         self,
-        vlm_features: torch.Tensor,
         verb_embedding: torch.Tensor,
-        sam3d_global: torch.Tensor | None = None,
+        slat_vertex: torch.Tensor | None = None,
+        vlm_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Args:
-            vlm_features:   (V, vlm_dim)
             verb_embedding: (verb_dim,) or (1, verb_dim) — L2-normalised
-            sam3d_global:   (sam3d_dim,) or (1, sam3d_dim) — global shape latent,
-                            broadcast to all vertices. Required when cfg.sam3d_dim > 0.
+            slat_vertex:    (V, sam3d_dim) — required when cfg.sam3d_dim > 0
+            vlm_features:   (V, vlm_dim)  — required when cfg.vlm_dim > 0
         """
-        V = vlm_features.shape[0]
+        if self.cfg.sam3d_dim > 0:
+            if slat_vertex is None:
+                raise ValueError("slat_vertex required when cfg.sam3d_dim > 0")
+            V = slat_vertex.shape[0]
+        elif self.cfg.vlm_dim > 0:
+            if vlm_features is None:
+                raise ValueError("vlm_features required when cfg.vlm_dim > 0")
+            V = vlm_features.shape[0]
+        else:
+            raise ValueError("At least one of sam3d_dim or vlm_dim must be > 0")
 
         if verb_embedding.ndim == 1:
             verb_embedding = verb_embedding.unsqueeze(0)
-        parts = [vlm_features, verb_embedding.expand(V, -1)]
 
+        parts = []
+        if self.cfg.vlm_dim > 0:
+            if vlm_features is None or vlm_features.shape != (V, self.cfg.vlm_dim):
+                raise ValueError(
+                    f"vlm_features must be (V={V}, vlm_dim={self.cfg.vlm_dim}), "
+                    f"got {tuple(vlm_features.shape) if vlm_features is not None else None}"
+                )
+            parts.append(vlm_features)
         if self.cfg.sam3d_dim > 0:
-            if sam3d_global is None:
-                raise ValueError("sam3d_global required when cfg.sam3d_dim > 0")
-            if sam3d_global.ndim == 1:
-                sam3d_global = sam3d_global.unsqueeze(0)
-            parts.append(sam3d_global.expand(V, -1))
+            if slat_vertex.shape != (V, self.cfg.sam3d_dim):
+                raise ValueError(
+                    f"slat_vertex must be (V={V}, sam3d_dim={self.cfg.sam3d_dim}), "
+                    f"got {tuple(slat_vertex.shape)}"
+                )
+            parts.append(slat_vertex)
+        if self.cfg.verb_dim > 0:
+            parts.append(verb_embedding.expand(V, -1))
 
         x = torch.cat(parts, dim=-1)
         return self.net(x).squeeze(-1)
@@ -77,18 +95,22 @@ def affordance_bce_loss(
     logits: torch.Tensor,
     targets: torch.Tensor,
     mask: torch.Tensor | None = None,
+    pos_weight: float = 5.0,
 ) -> torch.Tensor:
-    """Binary cross-entropy loss, optionally masked to visible vertices only.
+    """Binary cross-entropy loss with positive-class upweighting.
 
     Args:
-        logits:  (V,) raw scores from AffordanceMLP
-        targets: (V,) float labels in [0, 1]
-        mask:    (V,) bool — only compute loss where True (e.g. visible vertices)
+        logits:     (V,) raw scores from AffordanceMLP
+        targets:    (V,) float labels in [0, 1]
+        mask:       (V,) bool — only compute loss where True (e.g. visible vertices)
+        pos_weight: scalar weight on positive examples; compensates for class imbalance
+                    (~6% positive rate → use 5–10; 1.0 = unweighted)
     """
     if mask is not None:
         logits = logits[mask]
         targets = targets[mask]
-    return nn.functional.binary_cross_entropy_with_logits(logits, targets)
+    pw = torch.tensor(pos_weight, dtype=logits.dtype, device=logits.device)
+    return nn.functional.binary_cross_entropy_with_logits(logits, targets, pos_weight=pw)
 
 
 def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:

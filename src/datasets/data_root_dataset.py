@@ -33,7 +33,7 @@ class ManifestRow:
     mask_path: Path | None = None
     vertex_affordance_path: Path | None = None
     vertex_semantics_path: Path | None = None
-    sam3d_global_latent_path: Path | None = None
+    sam3d_reconstruction_dir: Path | None = None
     split: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
@@ -51,7 +51,7 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         "mask_path",
         "vertex_affordance_path",
         "vertex_semantics_path",
-        "sam3d_global_latent_path",
+        "sam3d_reconstruction_dir",
         "split",
     }
     extras = {k: v for k, v in raw.items() if k not in known}
@@ -71,7 +71,7 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         mask_path=p("mask_path"),
         vertex_affordance_path=p("vertex_affordance_path"),
         vertex_semantics_path=p("vertex_semantics_path"),
-        sam3d_global_latent_path=p("sam3d_global_latent_path"),
+        sam3d_reconstruction_dir=p("sam3d_reconstruction_dir"),
         split=raw.get("split") if raw.get("split") is not None else None,
         extras=extras,
     )
@@ -127,6 +127,63 @@ def _load_vertex_semantics_bundle(path: Path) -> dict[str, torch.Tensor]:
     else:
         mask = torch.from_numpy(np.asarray(vis, dtype=bool))
     return {"vertex_features": feats, "vertex_visible_mask": mask}
+
+
+def _load_gaussian_means_from_ply(path: Path) -> np.ndarray:
+    """Return (N, 3) float32 Gaussian centre positions from a 3DGS PLY."""
+    import re
+    data = path.read_bytes()
+    m = re.search(rb"end_header\r?\n", data)
+    if not m:
+        raise ValueError(f"Invalid PLY: {path}")
+    header = data[: m.start()].decode("ascii", errors="replace")
+    body = data[m.end():]
+    fmt, n_verts = None, 0
+    props: list[str] = []
+    for line in header.splitlines():
+        line = line.strip()
+        if line.startswith("format "):
+            fmt = line.split()[1]
+        elif line.startswith("element vertex "):
+            n_verts = int(line.split()[-1])
+        elif line.startswith("property "):
+            props.append(line.split()[2])
+    xi, yi, zi = props.index("x"), props.index("y"), props.index("z")
+    if fmt == "binary_little_endian":
+        table = np.frombuffer(body[: 4 * len(props) * n_verts], dtype="<f4").reshape(n_verts, len(props))
+        return table[:, [xi, yi, zi]].astype(np.float32)
+    rows = body.decode("ascii", errors="replace").strip().splitlines()[:n_verts]
+    return np.array([[float(r.split()[c]) for c in (xi, yi, zi)] for r in rows], dtype=np.float32)
+
+
+def _affordance_labels_from_anno_ply(
+    anno_ply: Path,
+    mesh_glb: Path,
+    *,
+    threshold: float = 0.1,
+) -> torch.Tensor:
+    """
+    Transfer binary affordance labels from annotation Gaussian positions to mesh vertices.
+
+    A vertex gets label 1 if its nearest annotation Gaussian is within ``threshold``
+    (in the normalised coordinate frame both share after SAM3D export).
+    """
+    from scipy.spatial import cKDTree
+    import trimesh
+
+    anno_means = _load_gaussian_means_from_ply(anno_ply)          # (A, 3)
+
+    loaded = trimesh.load(str(mesh_glb), process=False)
+    if isinstance(loaded, trimesh.Scene):
+        parts = [g for g in loaded.geometry.values() if isinstance(g, trimesh.Trimesh)]
+        mesh = trimesh.util.concatenate(parts) if len(parts) > 1 else parts[0]
+    else:
+        mesh = loaded
+    verts = np.asarray(mesh.vertices, dtype=np.float32)            # (V, 3)
+
+    dists, _ = cKDTree(anno_means).query(verts, k=1, workers=-1)
+    labels = (dists < threshold).astype(np.float32)
+    return torch.from_numpy(labels)
 
 
 def _load_vertex_affordance(path: Path) -> torch.Tensor:
@@ -236,6 +293,28 @@ class DataRootDataset(Dataset[dict[str, Any]]):
     def row(self, index: int) -> ManifestRow:
         return self._rows[index]
 
+    def _affordance_labels_for_row(self, row: ManifestRow) -> torch.Tensor:
+        """
+        Per-mesh-vertex binary affordance labels via normalise + ICP-aligned transfer.
+
+        Cached to ``<reconstruction_dir>/affordance_<verb>.pt`` (keyed by verb, since one mesh
+        serves multiple verbs) so the expensive ICP runs once, not every epoch.
+        """
+        cache = row.sam3d_reconstruction_dir / f"affordance_{row.verb}.pt"
+        if cache.is_file():
+            return torch.load(cache, map_location="cpu", weights_only=True).float()
+
+        from reconstruction.affordance_labels import affordance_labels_aligned
+
+        labels = affordance_labels_aligned(
+            row.splat_path,
+            row.vertex_affordance_path,
+            row.sam3d_reconstruction_dir / "mesh.glb",
+        )
+        t = torch.from_numpy(labels).float()
+        torch.save(t, cache)
+        return t
+
     def __getitem__(self, index: int) -> dict[str, Any]:
         row = self._rows[index]
         out: dict[str, Any] = {
@@ -264,7 +343,10 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         if row.vertex_affordance_path is not None:
             out["vertex_affordance_path"] = row.vertex_affordance_path
             if self._load_vertex_labels_eager:
-                out["vertex_affordance"] = _load_vertex_affordance(row.vertex_affordance_path)
+                if row.vertex_affordance_path.suffix.lower() == ".ply":
+                    out["vertex_affordance"] = self._affordance_labels_for_row(row)
+                else:
+                    out["vertex_affordance"] = _load_vertex_affordance(row.vertex_affordance_path)
             else:
                 out["vertex_affordance"] = None
         else:
@@ -285,17 +367,29 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             out["vertex_features"] = None
             out["vertex_visible_mask"] = None
 
-        if row.sam3d_global_latent_path is not None:
-            out["sam3d_global_latent_path"] = row.sam3d_global_latent_path
-            latent = torch.load(row.sam3d_global_latent_path, map_location="cpu", weights_only=True)
-            if isinstance(latent, dict) and "global_latent" in latent:
-                out["sam3d_global_latent"] = latent["global_latent"]
-            elif isinstance(latent, torch.Tensor):
-                out["sam3d_global_latent"] = latent
+        if row.sam3d_reconstruction_dir is not None:
+            out["sam3d_reconstruction_dir"] = row.sam3d_reconstruction_dir
+            out["slat_vertex_features"] = torch.load(
+                row.sam3d_reconstruction_dir / "slat_vertex_features.pt",
+                map_location="cpu",
+                weights_only=True,
+            )
+            _global_latent_path = row.sam3d_reconstruction_dir / "global_latent.pt"
+            if _global_latent_path.is_file():
+                _blob = torch.load(_global_latent_path, map_location="cpu", weights_only=True)
+                out["global_latent"] = _blob["global_latent"] if isinstance(_blob, dict) else _blob
             else:
-                raise ValueError(f"Unexpected SAM3D latent file layout: {row.sam3d_global_latent_path}")
+                out["global_latent"] = None
+            _dino_cls_path = row.sam3d_reconstruction_dir / "dino_cls.pt"
+            out["dino_cls"] = (
+                torch.load(_dino_cls_path, map_location="cpu", weights_only=True)
+                if _dino_cls_path.is_file()
+                else None
+            )
         else:
-            out["sam3d_global_latent_path"] = None
-            out["sam3d_global_latent"] = None
+            out["sam3d_reconstruction_dir"] = None
+            out["slat_vertex_features"] = None
+            out["global_latent"] = None
+            out["dino_cls"] = None
 
         return out

@@ -2,7 +2,7 @@
 
 This image follows [SAM 3D Objects setup](https://github.com/facebookresearch/sam-3d-objects/blob/main/doc/setup.md): CUDA **12.1**, conda env from `sam-3d-objects/environments/default.yml`, then `pip install -e '.[dev]'`, `'.[p3d]'`, `'.[inference]'`, and the Hydra patch. The affordance repo is installed with **`--no-deps`** so PyTorch stays on SAM3D’s **torch 2.5.1+cu121** stack (do not run a plain `pip install -e .` in `sam3d` without `--no-deps`, or pip may still try to “fix” pins and break **xformers** / **torchaudio**).
 
-- **Single GPU (default):** Compose passes **only one** GPU into `sam3d-pipeline`. Set on the host before `docker compose` / Dev Container:
+- **Single GPU (default):** Compose passes **only one** GPU into `autonomous-pipeline`. Set on the host before `docker compose` / Dev Container:
 
   ```bash
   export AFFORDANCE_CUDA_DEVICE=2   # physical GPU index (default: 0)
@@ -96,7 +96,7 @@ For **Hopper (H100)**, you may need `9.0a+PTX` or `9.0+PTX` depending on your Py
 
 1. Install the **Dev Containers** extension (VS Code) or use Cursor’s built-in dev-container support.
 2. From the repo root: Command Palette → **Dev Containers: Reopen in Container** (or **Rebuild and Reopen in Container** after a Dockerfile change).
-3. Wait for Compose to start the **`sam3d-pipeline`** service; the workspace folder is **`/workspace`** (your bind-mounted repo).
+3. Wait for Compose to start the **`autonomous-pipeline`** service; the workspace folder is **`/workspace`** (your bind-mounted repo).
 4. Open a notebook under **`notebooks/`** → **Select Kernel** → **`/opt/conda/envs/sam3d/bin/python`** (or *Python Environments…* → that interpreter). `.vscode/settings.json` already points `python.defaultInterpreterPath` there when you are inside the container.
 5. Optional: start Jupyter in a terminal and use port **8888** (forwarded by `.devcontainer/devcontainer.json`):
 
@@ -109,7 +109,7 @@ For **Hopper (H100)**, you may need `9.0a+PTX` or `9.0+PTX` depending on your Py
 **Alternative (no Dev Container):** start a long-lived container, then **Attach to Running Container**:
 
 ```bash
-docker compose run --rm --name sam3d-dev -p 8888:8888 sam3d-pipeline bash -lc 'sleep infinity'
+docker compose run --rm --name sam3d-dev -p 8888:8888 autonomous-pipeline bash -lc 'sleep infinity'
 ```
 
 In VS Code: Command Palette → **Dev Containers: Attach to Running Container** → pick `sam3d-dev`. Open folder **`/workspace`**. Same interpreter path as above.
@@ -143,7 +143,7 @@ In VS Code: Command Palette → **Dev Containers: Attach to Running Container** 
 ## Run an interactive shell
 
 ```bash
-docker compose run --rm sam3d-pipeline bash
+docker compose run --rm autonomous-pipeline bash
 ```
 
 Inside the container:
@@ -160,7 +160,7 @@ python scripts/generate_sam3d.py --help
 ## Jupyter (optional)
 
 ```bash
-docker compose run --rm -p 8888:8888 sam3d-pipeline \
+docker compose run --rm -p 8888:8888 autonomous-pipeline \
   jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
 ```
 

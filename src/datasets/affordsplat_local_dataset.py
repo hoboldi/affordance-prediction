@@ -13,6 +13,12 @@ Expected layout (from the `Weizm/AffordSplat` dataset card)::
               GS_anno_0001.ply
       ...
 
+Folder names may be long natural-language affordance names from the release. For **one short
+conditioning token** (e.g. ``grasp``) on every sample, pass ``conditioning_verb=...`` to
+:func:`iter_affordsplat_local_rows` — then each annotated splat yields a **single** row: the
+string ``verb`` is fixed, while vertex labels still come from one ``GS_anno_*.ply`` (matching
+folder name if present, otherwise the lexicographically first affordance folder).
+
 Set ``AFFORDANCE_AFFORDSPLAT_ROOT`` to the directory that **contains** ``Seen/``, or rely on
 auto-detection: ``AFFORDANCE_DATA_ROOT`` / ``paths.data_root`` when ``<that>/Seen`` exists,
 then ``/workspace/data``, then ``/data`` (typical mounts).
@@ -127,12 +133,32 @@ def _iter_verb_anno_paths(category_dir: Path, numeric_id: str) -> dict[str, Path
     return out
 
 
+def _pick_anno_for_single_conditioning_verb(
+    verb_to_anno: dict[str, Path], conditioning_verb: str
+) -> tuple[str, Path]:
+    """
+    Choose one ``GS_anno_*.ply`` when collapsing multi-folder affordances to a single verb string.
+
+    Prefer the folder whose name matches ``conditioning_verb`` (case-insensitive); otherwise the
+    lexicographically first folder name (stable, deterministic).
+    """
+    if not verb_to_anno:
+        raise ValueError("verb_to_anno must be non-empty")
+    want = conditioning_verb.strip().lower()
+    sorted_items = sorted(verb_to_anno.items(), key=lambda kv: kv[0].lower())
+    for folder_name, path in sorted_items:
+        if folder_name.lower() == want:
+            return folder_name, path
+    return sorted_items[0]
+
+
 def iter_affordsplat_local_rows(
     affordsplat_root: Path,
     *,
     subset: str = "Seen",
     split: str | None = None,
     categories: set[str] | None = None,
+    conditioning_verb: str | None = None,
 ) -> Iterator[AffordSplatLocalRow]:
     root = Path(affordsplat_root).resolve()
     subset_path = root / subset
@@ -144,6 +170,9 @@ def iter_affordsplat_local_rows(
         if split not in split_names:
             raise ValueError(f"split must be one of {split_names} or None, got {split!r}")
         split_names = [split]
+
+    cv = (conditioning_verb or "").strip()
+    single_verb_mode = bool(cv)
 
     for split_name in split_names:
         split_path = subset_path / split_name
@@ -175,19 +204,40 @@ def iter_affordsplat_local_rows(
                 }
 
                 if verb_to_anno:
-                    for verb, anno_path in sorted(verb_to_anno.items()):
-                        sid = f"{subset}/{split_name}/{category}/{stem}/{verb}"
+                    if single_verb_mode:
+                        label_folder, anno_path = _pick_anno_for_single_conditioning_verb(
+                            verb_to_anno, cv
+                        )
+                        sid = f"{subset}/{split_name}/{category}/{stem}"
                         yield AffordSplatLocalRow(
                             sample_id=sid,
-                            verb=verb,
+                            verb=cv,
                             subset=subset,
                             split=split_name,
                             category=category,
                             gaussian_stem=stem,
                             splat_path=splat_path,
                             affordance_gs_anno_path=anno_path,
-                            extras={**base_extras, "affordsplat_gs_anno_path": str(anno_path)},
+                            extras={
+                                **base_extras,
+                                "affordsplat_gs_anno_path": str(anno_path),
+                                "affordsplat_label_folder": label_folder,
+                            },
                         )
+                    else:
+                        for verb, anno_path in sorted(verb_to_anno.items()):
+                            sid = f"{subset}/{split_name}/{category}/{stem}/{verb}"
+                            yield AffordSplatLocalRow(
+                                sample_id=sid,
+                                verb=verb,
+                                subset=subset,
+                                split=split_name,
+                                category=category,
+                                gaussian_stem=stem,
+                                splat_path=splat_path,
+                                affordance_gs_anno_path=anno_path,
+                                extras={**base_extras, "affordsplat_gs_anno_path": str(anno_path)},
+                            )
                 else:
                     sid = f"{subset}/{split_name}/{category}/{stem}"
                     yield AffordSplatLocalRow(
@@ -209,6 +259,7 @@ def load_affordsplat_local_rows(
     subset: str = "Seen",
     split: str | None = None,
     categories: set[str] | None = None,
+    conditioning_verb: str | None = None,
 ) -> list[AffordSplatLocalRow]:
     return list(
         iter_affordsplat_local_rows(
@@ -216,6 +267,7 @@ def load_affordsplat_local_rows(
             subset=subset,
             split=split,
             categories=categories,
+            conditioning_verb=conditioning_verb,
         )
     )
 
@@ -227,6 +279,7 @@ def peek_first_affordsplat_row(
     subset: str = "Seen",
     split: str | None = "train",
     categories: set[str] | None = None,
+    conditioning_verb: str | None = None,
 ) -> AffordSplatLocalRow | None:
     """
     First Gaussian row without building the full index (cheap for notebooks / splat auto-pick).
@@ -250,6 +303,7 @@ def peek_first_affordsplat_row(
                 subset=subset,
                 split=split,
                 categories=categories,
+                conditioning_verb=conditioning_verb,
             )
         )
     except StopIteration:
@@ -263,6 +317,7 @@ def sample_random_affordsplat_row(
     subset: str = "Seen",
     split: str | None = "train",
     categories: set[str] | None = None,
+    conditioning_verb: str | None = None,
     seed: int | None = None,
 ) -> AffordSplatLocalRow | None:
     """
@@ -290,6 +345,7 @@ def sample_random_affordsplat_row(
         subset=subset,
         split=split,
         categories=categories,
+        conditioning_verb=conditioning_verb,
     ):
         n += 1
         if rng.randrange(n) == 0:
@@ -313,6 +369,7 @@ class AffordSplatLocalDataset(Dataset[dict[str, Any]]):
         subset: str = "Seen",
         split: str | None = None,
         categories: list[str] | None = None,
+        conditioning_verb: str | None = None,
         shuffle_rows: bool = False,
         shuffle_seed: int | None = None,
     ) -> None:
@@ -335,6 +392,7 @@ class AffordSplatLocalDataset(Dataset[dict[str, Any]]):
             subset=subset,
             split=split,
             categories=cat_set,
+            conditioning_verb=conditioning_verb,
         )
         if not self._rows:
             raise FileNotFoundError(
@@ -370,6 +428,7 @@ class AffordSplatLocalDataset(Dataset[dict[str, Any]]):
             "mask_path": None,
             "vertex_affordance_path": None,
             "vertex_affordance": None,
-            "sam3d_global_latent_path": None,
+            "sam3d_reconstruction_dir": None,
+            "slat_vertex_features": None,
             "extras": ex,
         }

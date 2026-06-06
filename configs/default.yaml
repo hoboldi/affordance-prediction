@@ -68,13 +68,14 @@ vlm:
     - pour from
 
 model:
-  vlm_dim: 512        # CLIP-ViT-B/32 patch/text feature size
-  verb_dim: 512
-  sam3d_dim: 8        # SAM3D global shape latent dim (mean-pooled SS tokens); set 0 to disable
-  hidden_dims: [512, 256]
-  dropout: 0.1
+  vlm_dim: 0          # set to 512 to include CLIP VLM vertex features; 0 = SAM3D-only MVP
+  verb_dim: 0
+  sam3d_dim: 8        # per-vertex SLAT feature dim from SAM3D
+  hidden_dims: [64]
+  dropout: 0.0
 
 training:
   batch_size: 4
   learning_rate: 1.0e-4
   num_epochs: 50
+  pos_weight: 5.0   # upweight positives to compensate ~6% positive rate; try 5–10

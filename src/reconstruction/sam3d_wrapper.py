@@ -60,10 +60,14 @@ def resolve_sam3d_objects_root(project_root_path: Path | None = None) -> Path:
 class ReconstructionResult:
     """Outputs from a single SAM3D forward pass."""
 
-    shape_latent: torch.Tensor   # (4096, 8) dense 16³ SS voxel grid
-    global_latent: torch.Tensor  # (8,) mean-pooled SLAT features over occupied voxels — broadcast to all vertices
-    slat_feats: torch.Tensor     # (N, 8) structured latent per occupied voxel
-    slat_coords: torch.Tensor    # (N, 3) voxel coordinates
+    shape_latent: torch.Tensor        # (4096, 8) dense 16³ SS voxel grid
+    global_latent: torch.Tensor       # (8,) mean-pooled SLAT features over occupied voxels
+    slat_feats: torch.Tensor          # (N, 8) structured latent per occupied voxel
+    slat_coords: torch.Tensor         # (N, 3) voxel coordinates
+    dino_cls: torch.Tensor | None = None          # (768,) DINOv2 CLS token — SLAT embedder
+    dino_patches: torch.Tensor | None = None      # (N_patches, 768) spatial patch tokens — SLAT embedder
+    ss_dino_cls: torch.Tensor | None = None       # (768,) DINOv2 CLS token — SS embedder
+    ss_dino_patches: torch.Tensor | None = None   # (N_patches, 768) spatial patch tokens — SS embedder
     gaussian_splat: Any | None = None
     mesh_scene: Any | None = None
 
@@ -264,6 +268,27 @@ class SAM3DWrapper:
                 use_vertex_color=True,
             )
 
+            # Extract DINOv2 tokens from both condition embedders (no extra model load).
+            dino_cls: torch.Tensor | None = None
+            dino_patches: torch.Tensor | None = None
+            ss_dino_cls: torch.Tensor | None = None
+            ss_dino_patches: torch.Tensor | None = None
+            embedders = getattr(pipe, "condition_embedders", {})
+
+            slat_embedder = embedders.get("slat_condition_embedder")
+            if slat_embedder is not None:
+                with torch.no_grad():
+                    dino_tokens = slat_embedder(**slat_input)  # (1, 1+N_patches, 768)
+                dino_cls = dino_tokens[0, 0].cpu().float()      # (768,)
+                dino_patches = dino_tokens[0, 1:].cpu().float() # (N_patches, 768)
+
+            ss_embedder = embedders.get("ss_condition_embedder")
+            if ss_embedder is not None:
+                with torch.no_grad():
+                    ss_tokens = ss_embedder(**ss_input)         # (1, 1+N_patches, 768)
+                ss_dino_cls = ss_tokens[0, 0].cpu().float()
+                ss_dino_patches = ss_tokens[0, 1:].cpu().float()
+
         global_latent = slat_feats.mean(dim=0)  # (N, 8) occupied voxels → (8,)
 
         return ReconstructionResult(
@@ -271,6 +296,10 @@ class SAM3DWrapper:
             global_latent=global_latent,
             slat_feats=slat_feats,
             slat_coords=slat_coords,
+            dino_cls=dino_cls,
+            dino_patches=dino_patches,
+            ss_dino_cls=ss_dino_cls,
+            ss_dino_patches=ss_dino_patches,
             gaussian_splat=outputs.get("gs"),
             mesh_scene=outputs.get("glb"),
         )

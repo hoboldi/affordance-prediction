@@ -15,33 +15,47 @@ from typing import Any, Iterable
 
 from reconstruction.gsplat_to_sam3d import gsplat_ply_to_sam3d_reconstruction
 from reconstruction.mesh_utils import prerender_meta_matches_splat
+from reconstruction.sam3d_wrapper import SAM3DWrapper
 from utils.config import resolve_path
 
 
-def splat_run_dir_slug(splat_ply: str | Path) -> str:
+def splat_run_dir_slug(splat_ply: str | Path) -> Path:
     """
-    Stable directory name under ``exports/gsplat_sam3d_runs/`` from an AffordSplat-style path.
+    Stable nested path under the output root from an AffordSplat-style splat path.
 
-    Example: ``…/Seen/train/bag/Gaussian/GS_0017.ply`` → ``Seen_train_bag_Gaussian_GS_0017``.
+    Mirrors the source directory structure so reconstructions are easy to locate:
+      ``…/Seen/train/bag/Gaussian/GS_0017.ply`` → ``Seen/train/bag/Gaussian/GS_0017``
+
+    Falls back to a flat safe name for paths that don't follow the AffordSplat layout.
     """
     p = Path(splat_ply).expanduser().resolve()
     lower = [x.lower() for x in p.parts]
     for marker in ("seen", "unseen"):
         if marker in lower:
             i = lower.index(marker)
-            tail = Path(*p.parts[i:])
-            slug = str(tail.with_suffix("")).replace("\\", "/").replace("/", "_")
-            return slug[:220]
+            return Path(*p.parts[i:]).with_suffix("")
     safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in p.name)
-    return f"splat_{safe}"[:220]
+    return Path(f"splat_{safe}"[:220])
 
 
 def sam3d_run_layout_ready(run_dir: Path) -> bool:
     """Whether a run directory looks like a finished gsplat→SAM3D export."""
     rd = Path(run_dir).expanduser().resolve()
-    return (rd / "reconstruction" / "mesh.glb").is_file() and (
-        rd / "sam3d_dataset" / "meta_prerender.json"
-    ).is_file()
+    recon = rd / "reconstruction"
+    return (
+        (recon / "mesh.glb").is_file()
+        and (recon / "shape_latent.pt").is_file()
+        and (recon / "slat_feats.pt").is_file()
+        and (recon / "slat_coords.pt").is_file()
+        and (recon / "slat_vertex_features.pt").is_file()
+        and (recon / "global_latent.pt").is_file()
+        and (recon / "dino_cls.pt").is_file()
+        and (recon / "dino_patches.pt").is_file()
+        and (recon / "ss_dino_cls.pt").is_file()
+        and (recon / "ss_dino_patches.pt").is_file()
+        and (recon / "vertex_normals.pt").is_file()
+        and (rd / "sam3d_dataset" / "meta_prerender.json").is_file()
+    )
 
 
 def ensure_sam3d_reconstruction_for_splat(
@@ -49,15 +63,19 @@ def ensure_sam3d_reconstruction_for_splat(
     *,
     output_root: str | Path,
     cfg: dict[str, Any] | None = None,
+    wrapper: SAM3DWrapper | None = None,
     force: bool = False,
-    run_dir_name: str | None = None,
+    run_dir_name: str | Path | None = None,
     **recon_kw: Any,
 ) -> dict[str, Any]:
     """
     Run :func:`reconstruction.gsplat_to_sam3d.gsplat_ply_to_sam3d_reconstruction` once for ``splat_ply``.
 
+    Pass a pre-loaded ``wrapper`` to avoid reloading the SAM3D model on every call (required for
+    batch processing — see :func:`batch_ensure_sam3d_reconstructions`).
+
     Parameters mirror ``gsplat_ply_to_sam3d_reconstruction`` (``max_points``, ``reference_view_index``,
-    ``sam3d_seed``, ``gsplat_seed``, ``cache_global_latent``, …) via ``**recon_kw``.
+    ``sam3d_seed``, ``gsplat_seed``, …) via ``**recon_kw``.
 
     Returns a dict with ``status`` in ``{"ran", "skipped"}`` plus ``run_dir``, ``mesh_glb``, etc.
     """
@@ -86,7 +104,7 @@ def ensure_sam3d_reconstruction_for_splat(
         }
 
     run_dir.mkdir(parents=True, exist_ok=True)
-    out = gsplat_ply_to_sam3d_reconstruction(splat, run_dir, cfg=cfg, **recon_kw)
+    out = gsplat_ply_to_sam3d_reconstruction(splat, run_dir, cfg=cfg, wrapper=wrapper, **recon_kw)
     recon_dir = Path(out["reconstruction_dir"])
     return {
         "status": "ran",
@@ -95,7 +113,6 @@ def ensure_sam3d_reconstruction_for_splat(
         "reconstruction_dir": recon_dir,
         "mesh_glb": recon_dir / "mesh.glb",
         "object_stem": out.get("object_stem"),
-        "global_latent_path": out.get("global_latent_path"),
     }
 
 
@@ -104,6 +121,7 @@ def batch_ensure_sam3d_reconstructions(
     *,
     output_root: str | Path,
     cfg: dict[str, Any] | None = None,
+    wrapper: SAM3DWrapper | None = None,
     force: bool = False,
     **recon_kw: Any,
 ) -> list[dict[str, Any]]:
@@ -112,7 +130,7 @@ def batch_ensure_sam3d_reconstructions(
     for sp in splat_paths:
         results.append(
             ensure_sam3d_reconstruction_for_splat(
-                sp, output_root=output_root, cfg=cfg, force=force, **recon_kw
+                sp, output_root=output_root, cfg=cfg, wrapper=wrapper, force=force, **recon_kw
             )
         )
     return results

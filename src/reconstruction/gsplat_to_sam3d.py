@@ -10,20 +10,21 @@ debugging, future fusion, or feeding ``scripts/generate_sam3d.py`` directly.
 
 from __future__ import annotations
 
+import gc
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 from PIL import Image
 
 from reconstruction.mesh_utils import ensure_decode_formats, reconstruction_paths, save_reconstruction
 from reconstruction.sam3d_wrapper import (
     ReconstructionResult,
     SAM3DWrapper,
-    latent_cache_path,
     sam3d_environment,
-    save_global_latent,
 )
 from rendering.camera_sampling import rotation_matrix_from_axis_angle_deg
 from rendering.gaussian_gsplat_renderer import render_gaussian_splat_gsplat_views
@@ -32,9 +33,19 @@ from rendering.renderer import build_render_config
 from utils.config import load_config, project_root, resolve_path
 from utils.io import load_binary_mask, load_rgb_image
 
+_SAM3D_AZIMUTH_DEG: float = 45.0
+
 
 def _view_stem(index: int) -> str:
     return f"view_{index:03d}"
+
+
+def _sam3d_render_config(cfg: dict[str, Any], mrc: MeshRenderConfig | None) -> MeshRenderConfig:
+    """Single-view +45° render config for SAM3D input when no explicit mrc is given."""
+    if mrc is not None:
+        return mrc
+    base = build_render_config(cfg)
+    return replace(base, num_views=1, orbit_azimuth_offsets_deg=(_SAM3D_AZIMUTH_DEG,))
 
 
 def _vertex_world_rotation_inverse_orbit_ring(
@@ -73,7 +84,7 @@ def export_gsplat_views_for_sam3d(
     Returns ``(image_paths, render_views)``.
     """
     cfg = cfg if cfg is not None else load_config()
-    mrc = mrc if mrc is not None else build_render_config(cfg)
+    mrc = _sam3d_render_config(cfg, mrc)
 
     views = render_gaussian_splat_gsplat_views(
         ply_path,
@@ -175,6 +186,7 @@ def gsplat_ply_to_sam3d_reconstruction(
     run_dir: str | Path,
     *,
     cfg: dict[str, Any] | None = None,
+    wrapper: SAM3DWrapper | None = None,
     object_stem: str | None = None,
     mrc: MeshRenderConfig | None = None,
     max_points: int = 500_000,
@@ -184,17 +196,23 @@ def gsplat_ply_to_sam3d_reconstruction(
     decode_formats: list[str] | None = None,
     sam3d_config_path: str | Path | None = None,
     compile_model: bool | None = None,
-    cache_global_latent: bool | None = None,
     convert_pyrender_camera_to_gsplat: bool = True,
 ) -> dict[str, Any]:
     """
-    Full stage: gsplat prerender → SAM3D on one view → optional ``global_latent.pt`` under ``paths.cache_root``.
+    Full stage: gsplat prerender → SAM3D on one view → artifacts saved under ``run_dir/reconstruction/``.
+
+    Pass a pre-loaded ``wrapper`` to avoid reloading the model across multiple calls (recommended for
+    batch processing — loading SAM3D takes ~40 GB and ~30 s each time).  When ``wrapper=None`` a new
+    :class:`SAM3DWrapper` is created (and destroyed) for this call only.
+
+    Dense SLAT features (``slat_feats.pt``, ``slat_coords.pt``), per-vertex ``slat_vertex_features.pt``,
+    and mean-pooled ``global_latent.pt`` are written by :func:`~reconstruction.mesh_utils.save_reconstruction`.
 
     Directory layout::
 
         run_dir/
           sam3d_dataset/images, masks, meta_prerender.json
-          reconstruction/{mesh.glb, gaussian.ply, …}
+          reconstruction/{mesh.glb, gaussian.ply, slat_feats.pt, slat_coords.pt, slat_vertex_features.pt, global_latent.pt, …}
 
     Returns a dict with string keys ``dataset_dir``, ``reconstruction_dir``, ``paths`` (from
     ``reconstruction_paths``), ``result`` (:class:`~reconstruction.sam3d_wrapper.ReconstructionResult`).
@@ -219,17 +237,14 @@ def gsplat_ply_to_sam3d_reconstruction(
         gsplat_seed=gsplat_seed,
         convert_pyrender_camera_to_gsplat=convert_pyrender_camera_to_gsplat,
     )
+    # Free gsplat GPU allocations before SAM3D inference to avoid OOM
+    del _views
+    gc.collect()
+    torch.cuda.empty_cache()
 
-    recon_cfg = cfg.get("reconstruction") or {}
-    config_path = sam3d_config_path or recon_cfg.get(
-        "sam3d_config", "sam-3d-objects/checkpoints/hf/pipeline.yaml"
-    )
-    if compile_model is None:
-        compile_model = bool(recon_cfg.get("compile", False))
-    resolved_config = resolve_path(str(config_path), root=project_root())
     v_rot = _vertex_world_rotation_inverse_orbit_ring(mrc, cfg)
-    with sam3d_environment(project_root()):
-        wrapper = SAM3DWrapper(resolved_config, compile_model=compile_model)
+
+    if wrapper is not None:
         result = run_sam3d_on_prerendered_view(
             dataset_dir,
             recon_dir,
@@ -240,6 +255,26 @@ def gsplat_ply_to_sam3d_reconstruction(
             decode_formats=decode_formats,
             vertex_world_rotation=v_rot,
         )
+    else:
+        recon_cfg = cfg.get("reconstruction") or {}
+        config_path = sam3d_config_path or recon_cfg.get(
+            "sam3d_config", "sam-3d-objects/checkpoints/hf/pipeline.yaml"
+        )
+        if compile_model is None:
+            compile_model = bool(recon_cfg.get("compile", False))
+        resolved_config = resolve_path(str(config_path), root=project_root())
+        with sam3d_environment(project_root()):
+            _wrapper = SAM3DWrapper(resolved_config, compile_model=compile_model)
+            result = run_sam3d_on_prerendered_view(
+                dataset_dir,
+                recon_dir,
+                _wrapper,
+                reference_view_index=reference_view_index,
+                object_stem=stem,
+                seed=sam3d_seed,
+                decode_formats=decode_formats,
+                vertex_world_rotation=v_rot,
+            )
 
     paths = reconstruction_paths(recon_dir)
     out: dict[str, Any] = {
@@ -249,14 +284,5 @@ def gsplat_ply_to_sam3d_reconstruction(
         "result": result,
         "object_stem": stem,
     }
-
-    if cache_global_latent is None:
-        cache_global_latent = bool(recon_cfg.get("cache_latents", True))
-    if cache_global_latent:
-        paths_cfg = cfg.get("paths") or {}
-        cache_root = resolve_path(str(paths_cfg.get("cache_root", "data/cache")), root=project_root())
-        latent_path = latent_cache_path(stem, cache_root)
-        save_global_latent(result.global_latent, latent_path)
-        out["global_latent_path"] = latent_path
 
     return out

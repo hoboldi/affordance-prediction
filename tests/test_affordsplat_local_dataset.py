@@ -49,6 +49,43 @@ def test_iter_rows_multiple_verbs(tmp_path: Path) -> None:
     assert verbs == {"grasp", "sit on"}
 
 
+def test_conditioning_verb_collapses_to_one_row_prefers_matching_folder(tmp_path: Path) -> None:
+    root = tmp_path / "m"
+    ply = root / "Seen" / "val" / "bed" / "Gaussian" / "GS_0009.ply"
+    a1 = root / "Seen" / "val" / "bed" / "grasp" / "GS_anno_0009.ply"
+    a2 = root / "Seen" / "val" / "bed" / "sit on" / "GS_anno_0009.ply"
+    _touch(ply)
+    _touch(a1)
+    _touch(a2)
+
+    rows = load_affordsplat_local_rows(
+        root, subset="Seen", split="val", conditioning_verb="grasp"
+    )
+    assert len(rows) == 1
+    assert rows[0].verb == "grasp"
+    assert rows[0].affordance_gs_anno_path == a1.resolve()
+    assert rows[0].extras.get("affordsplat_label_folder") == "grasp"
+
+
+def test_conditioning_verb_fallback_first_sorted_folder(tmp_path: Path) -> None:
+    root = tmp_path / "m"
+    ply = root / "Seen" / "val" / "bed" / "Gaussian" / "GS_0009.ply"
+    a1 = root / "Seen" / "val" / "bed" / "contain" / "GS_anno_0009.ply"
+    a2 = root / "Seen" / "val" / "bed" / "lift" / "GS_anno_0009.ply"
+    _touch(ply)
+    _touch(a1)
+    _touch(a2)
+
+    rows = load_affordsplat_local_rows(
+        root, subset="Seen", split="val", conditioning_verb="grasp"
+    )
+    assert len(rows) == 1
+    assert rows[0].verb == "grasp"
+    # "contain" < "lift" lexicographically → first sorted folder
+    assert rows[0].affordance_gs_anno_path == a1.resolve()
+    assert rows[0].extras.get("affordsplat_label_folder") == "contain"
+
+
 def test_iter_rows_no_annos_defaults_verb(tmp_path: Path) -> None:
     root = tmp_path / "m"
     ply = root / "Seen" / "test" / "chair" / "Gaussian" / "GS_0001.ply"

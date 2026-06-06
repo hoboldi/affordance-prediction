@@ -62,7 +62,7 @@ Use this when you want a Linux + CUDA 12.1 environment aligned with Meta’s SAM
 
 ```bash
 docker compose build
-docker compose run --rm sam3d-pipeline bash
+docker compose run --rm autonomous-pipeline bash
 ```
 
 Details, VRAM expectations, Jupyter, Hugging Face checkpoints, and optional `SAM3D_REF` / `SAM3D_REPO` build args: [docker/README.md](docker/README.md).
@@ -124,10 +124,10 @@ PYTHONPATH=src python scripts/select_best_gsplat_view_for_gt.py \
 
 Visual walkthrough (all candidates + winner): **`notebooks/11_gsplat_view_selection_vs_gt.ipynb`**.
 
-**gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`). **You cannot use this path outside the `sam3d-pipeline` Docker container** in a supported way — run inside `docker compose run --rm sam3d-pipeline bash` (see [docker/README.md](docker/README.md)):
+**gsplat → SAM3D (mesh + cached latent):** rasterise the same `.ply`, then run SAM3D on `view_000` (see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md), `notebooks/10_sam3d_from_gsplat.ipynb`). **You cannot use this path outside the `autonomous-pipeline` Docker container** in a supported way — run inside `docker compose run --rm autonomous-pipeline bash` (see [docker/README.md](docker/README.md)):
 
 ```bash
-docker compose run --rm sam3d-pipeline bash -lc 'cd /workspace && PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py --splat_path data/Seen/train/bag/Gaussian/GS_0017.ply --run_dir exports/gsplat_sam3d/my_run'
+docker compose run --rm autonomous-pipeline bash -lc 'cd /workspace && PYTHONPATH=src python scripts/render_gsplat_and_sam3d.py --splat_path data/Seen/train/bag/Gaussian/GS_0017.ply --run_dir exports/gsplat_sam3d/my_run'
 ```
 
 **Batch / idempotent SAM3D** (same on-disk layout; skips objects that already have `mesh.glb` + matching `meta_prerender.json`): run `PYTHONPATH=src python scripts/batch_gsplat_sam3d.py` inside the same container — see [docs/pipeline_gsplat_sam3d.md](docs/pipeline_gsplat_sam3d.md) for flags (`--splat_paths_file`, `--affordsplat_random_n`, …).

@@ -7,7 +7,7 @@ This connects **dataset 3D Gaussians** (e.g. AffordSplat `Gaussian/GS_*.ply`) to
 1. **Rasterise** the splat with **true `gsplat`** (`render_gaussian_splat_gsplat_views`) using the same orbit cameras as mesh rendering (`MeshRenderConfig` / `configs/default.yaml` → `rendering`).
 2. Write **`images/`** + **`masks/`** in the layout expected by `scripts/generate_sam3d.py` (full-foreground masks; SAM3D still uses **one** RGB for inference).
 3. Call **`SAM3DWrapper.reconstruct`** on `view_{REFERENCE:03d}.png` (default `view_000.png`).
-4. Persist **`mesh.glb`**, **`gaussian.ply`**, latents, and `meta.json` under the run’s `reconstruction/` directory; optionally cache **`global_latent.pt`** under `paths.cache_root/sam3d/<stem>/` when `reconstruction.cache_latents` is true.
+4. Persist **`mesh.glb`**, **`gaussian.ply`**, SLAT tensors, **`global_latent.pt`** (mean-pooled SLAT for the whole object, same format as the cache file), **`slat_vertex_features.pt`**, and `meta.json` under the run’s **`reconstruction/`** directory. Optionally also cache **`global_latent.pt`** under `paths.cache_root/sam3d/<stem>/` when `reconstruction.cache_latents` is true (training shortcuts).
 
 `gsplat_ply_to_sam3d_reconstruction` (and `scripts/generate_sam3d.py`) run SAM3D inside **`sam3d_environment()`** in [`sam3d_wrapper.py`](../src/reconstruction/sam3d_wrapper.py): it prepends the `sam-3d-objects` tree to `sys.path` for that block, then **removes those prefixes** and restores **`LIDRA_SKIP_INIT`** so later code (including `gsplat`) does not keep SAM3D’s skip flag. **`CUDA_HOME`** is still defaulted from `CONDA_PREFIX` when unset and is left in place afterward so CUDA tooling stays stable.
 
@@ -38,7 +38,7 @@ After a successful run, **`RUN_DIR`** (notebook 10) is the value to pass everywh
 
 Use **`reconstruction.mesh_utils.cfg_with_sam3d_reconstruction(cfg, RUN_DIR)`** (or set the same `SAM3D_RUN_DIR` in notebooks **02**, **04**, **05**, **06**) so `rendering.mesh_path` points at that mesh (and `gaussian.ply` when present). Then **delete** `outputs/notebooks/02_rendering/` if you previously cached renders for another mesh, and rerun **02 → 04 → 05 → 06** so vertex counts match.
 
-**Global latent in the affordance head:** with `reconstruction.cache_latents: true` (default), notebook 10 writes **`paths.cache_root/sam3d/<stem>/global_latent.pt`**. Notebook **06** loads it via **`reconstruction.sam3d_wrapper.try_load_cached_global_latent`** when **`SAM3D_RUN_DIR`** (and `reconstruction/meta.json`) or **`SAM3D_GLOBAL_LATENT_PATH`** / **`SAM3D_OBJECT_STEM`** is set.
+**Global latent in the affordance head:** each run writes **`reconstruction/global_latent.pt`** (same `{"global_latent": (8,)}` payload as the cache helper) next to **`slat_vertex_features.pt`**. With `reconstruction.cache_latents: true` (default), notebook 10 may **also** mirror that tensor under **`paths.cache_root/sam3d/<stem>/global_latent.pt`**. Notebook **06** loads it via **`reconstruction.sam3d_wrapper.try_load_cached_global_latent`** when **`SAM3D_RUN_DIR`** (and `reconstruction/meta.json`) or **`SAM3D_GLOBAL_LATENT_PATH`** / **`SAM3D_OBJECT_STEM`** is set.
 
 ## Limitations
 

@@ -125,7 +125,7 @@ def main() -> None:
     p.add_argument("--reference_view", type=int, default=0, help="Which view_NNN.png to feed SAM3D")
     p.add_argument("--gsplat_seed", type=int, default=None, help="RNG seed for gsplat subsample")
     p.add_argument("--sam3d_seed", type=int, default=42, help="SAM3D torch seed")
-    p.add_argument("--no_latent_cache", action="store_true", help="Disable global_latent.pt cache write")
+
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -157,7 +157,6 @@ def main() -> None:
         "reference_view_index": args.reference_view,
         "gsplat_seed": args.gsplat_seed,
         "sam3d_seed": args.sam3d_seed,
-        "cache_global_latent": not args.no_latent_cache,
     }
 
     n_ran = 0

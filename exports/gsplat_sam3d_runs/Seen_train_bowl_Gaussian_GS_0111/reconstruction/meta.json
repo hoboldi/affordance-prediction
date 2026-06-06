@@ -7,10 +7,18 @@
     4096,
     8
   ],
-  "slat_voxel_count": 9051,
+  "slat_voxel_count": 10149,
   "slat_feats_shape": [
-    9051,
+    10149,
     8
   ],
-  "mesh_path": "/workspace/exports/gsplat_sam3d_runs/Seen_train_bowl_Gaussian_GS_0111/reconstruction/mesh.glb"
+  "slat_vertex_features_shape": [
+    188984,
+    8
+  ],
+  "global_latent_shape": [
+    8
+  ],
+  "mesh_path": "/workspace/exports/gsplat_sam3d_runs/Seen_train_bowl_Gaussian_GS_0111/reconstruction/mesh.glb",
+  "vertex_world_rotation": null
 }
