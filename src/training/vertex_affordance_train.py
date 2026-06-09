@@ -18,6 +18,7 @@ def _item_to_device(item: dict[str, Any], device: torch.device) -> dict[str, Any
         "vertex_affordance",
         "slat_vertex_features",
         "vertex_normals",
+        "vertex_positions",
         "dino_cls",
         "ss_dino_cls",
     ):
@@ -40,6 +41,7 @@ def _check_required_features(
         ("dino_cls_dim", "dino_cls"),
         ("ss_dino_cls_dim", "ss_dino_cls"),
         ("normals_dim", "vertex_normals"),
+        ("pos_dim", "vertex_positions"),
     ]
     for dim_attr, key in checks:
         if getattr(cfg, dim_attr, 0) > 0 and raw.get(key) is None:
@@ -81,6 +83,7 @@ def _forward(
         dino_cls=item.get("dino_cls"),
         ss_dino_cls=item.get("ss_dino_cls"),
         vertex_normals=item.get("vertex_normals"),
+        vertex_positions=item.get("vertex_positions"),
     )
 
 

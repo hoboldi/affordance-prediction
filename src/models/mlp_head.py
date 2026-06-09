@@ -13,6 +13,7 @@ class MLPHeadConfig:
     vlm_dim: int = 512
     sam3d_dim: int = 0           # set to 8 when SAM3D SLAT vertex features are available
     normals_dim: int = 0         # set to 3 to include per-vertex surface normals
+    pos_dim: int = 0             # set to 3 to include normalized per-vertex xyz position
 
     # Global (per-mesh constant) inputs — modulate the geometry stream via FiLM
     verb_dim: int = 512
@@ -26,7 +27,7 @@ class MLPHeadConfig:
 
     @property
     def per_vertex_dim(self) -> int:
-        return self.vlm_dim + self.sam3d_dim + self.normals_dim
+        return self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim
 
     @property
     def global_dim(self) -> int:
@@ -94,12 +95,14 @@ class AffordanceMLP(nn.Module):
         slat_vertex: torch.Tensor | None,
         vlm_features: torch.Tensor | None,
         vertex_normals: torch.Tensor | None,
+        vertex_positions: torch.Tensor | None,
     ) -> torch.Tensor:
         parts: list[torch.Tensor] = []
         for t, dim, name in [
             (vlm_features, self.cfg.vlm_dim, "vlm_features"),
             (slat_vertex, self.cfg.sam3d_dim, "slat_vertex"),
             (vertex_normals, self.cfg.normals_dim, "vertex_normals"),
+            (vertex_positions, self.cfg.pos_dim, "vertex_positions"),
         ]:
             if dim > 0:
                 if t is None:
@@ -139,8 +142,9 @@ class AffordanceMLP(nn.Module):
         dino_cls: torch.Tensor | None = None,
         ss_dino_cls: torch.Tensor | None = None,
         vertex_normals: torch.Tensor | None = None,
+        vertex_positions: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = self._per_vertex_input(slat_vertex, vlm_features, vertex_normals)  # (V, per_vertex_dim)
+        h = self._per_vertex_input(slat_vertex, vlm_features, vertex_normals, vertex_positions)  # (V, per_vertex_dim)
 
         film_params = None
         if self.use_global:
@@ -190,6 +194,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         vlm_dim=int(model_cfg.get("vlm_dim", 512)),
         sam3d_dim=int(model_cfg.get("sam3d_dim", 0)),
         normals_dim=int(model_cfg.get("normals_dim", 0)),
+        pos_dim=int(model_cfg.get("pos_dim", 0)),
         verb_dim=int(model_cfg.get("verb_dim", 512)),
         num_verbs=int(model_cfg.get("num_verbs", 0)),
         dino_cls_dim=int(model_cfg.get("dino_cls_dim", 0)),

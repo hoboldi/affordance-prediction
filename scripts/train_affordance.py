@@ -69,6 +69,7 @@ def compute_metrics(
                 dino_cls=_to(item.get("dino_cls")),
                 ss_dino_cls=_to(item.get("ss_dino_cls")),
                 vertex_normals=_to(item.get("vertex_normals")),
+                vertex_positions=_to(item.get("vertex_positions")),
             )
             probs = torch.sigmoid(logits).cpu()
 
@@ -156,6 +157,7 @@ def save_checkpoint(
                 "dino_cls_dim": model.cfg.dino_cls_dim,
                 "ss_dino_cls_dim": model.cfg.ss_dino_cls_dim,
                 "normals_dim": model.cfg.normals_dim,
+                "pos_dim": model.cfg.pos_dim,
                 "cond_dim": model.cfg.cond_dim,
                 "hidden_dims": list(model.cfg.hidden_dims),
                 "dropout": model.cfg.dropout,

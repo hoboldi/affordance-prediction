@@ -21,6 +21,25 @@ from datasets.mesh_loading import MeshData, load_mesh
 from utils.config import load_config, resolve_path
 
 
+def _load_vertex_positions(recon_dir: Path) -> torch.Tensor | None:
+    """Per-vertex xyz from ``mesh.glb``, centered + unit-sphere normalized, V-aligned to
+    the other reconstruction artifacts. Cached as ``vertex_positions.pt`` after first load."""
+    cache = recon_dir / "vertex_positions.pt"
+    if cache.is_file():
+        return torch.load(cache, map_location="cpu", weights_only=True)
+    mesh_path = recon_dir / "mesh.glb"
+    if not mesh_path.is_file():
+        return None
+    import trimesh
+
+    mesh = trimesh.load(str(mesh_path), force="mesh", process=False)
+    xyz = torch.from_numpy(np.asarray(mesh.vertices, dtype=np.float32))
+    xyz = xyz - xyz.mean(dim=0, keepdim=True)
+    xyz = xyz / (xyz.norm(dim=-1).max() + 1e-6)  # unit sphere — preserves aspect ratio
+    torch.save(xyz, cache)
+    return xyz
+
+
 @dataclass
 class ManifestRow:
     """One line from ``manifest.jsonl`` after path resolution."""
@@ -399,6 +418,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
                     if _pt.is_file()
                     else None
                 )
+            out["vertex_positions"] = _load_vertex_positions(row.sam3d_reconstruction_dir)
         else:
             out["sam3d_reconstruction_dir"] = None
             out["slat_vertex_features"] = None
@@ -406,5 +426,6 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             out["dino_cls"] = None
             out["ss_dino_cls"] = None
             out["vertex_normals"] = None
+            out["vertex_positions"] = None
 
         return out
