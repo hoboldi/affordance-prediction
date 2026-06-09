@@ -68,11 +68,16 @@ vlm:
     - pour from
 
 model:
-  vlm_dim: 0          # set to 512 to include CLIP VLM vertex features; 0 = SAM3D-only MVP
-  verb_dim: 0
-  sam3d_dim: 8        # per-vertex SLAT feature dim from SAM3D
-  hidden_dims: [64]
-  dropout: 0.0
+  vlm_dim: 0            # set to 512 to include CLIP VLM vertex features; 0 = disabled
+  verb_dim: 128         # learned verb embedding dim (table size = num_verbs, set at runtime)
+  sam3d_dim: 8          # per-vertex SLAT features from SAM3D
+  dino_cls_dim: 1024    # SLAT-stage DINOv2 CLS token (dinov2_vitl14_reg → 1024-dim)
+  ss_dino_cls_dim: 1024 # SS-stage DINOv2 CLS token
+  normals_dim: 3        # per-vertex surface normals
+  geom_dim: 128         # geometry encoder output dim
+  cond_dim: 128         # global (conditioning) encoder output dim
+  hidden_dims: [256, 128]
+  dropout: 0.1
 
 training:
   batch_size: 4

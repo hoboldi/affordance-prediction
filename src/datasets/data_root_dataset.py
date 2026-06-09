@@ -56,11 +56,19 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
     }
     extras = {k: v for k, v in raw.items() if k not in known}
 
+    _CONTAINER_DATA_ROOT = Path("/workspace/data")
+
     def p(key: str) -> Path | None:
         if key not in raw or raw[key] is None or raw[key] == "":
             return None
         path = Path(str(raw[key]))
-        return path if path.is_absolute() else (data_root / path)
+        if path.is_absolute():
+            try:
+                rel = path.relative_to(_CONTAINER_DATA_ROOT)
+                return data_root / rel
+            except ValueError:
+                return path
+        return data_root / path
 
     return ManifestRow(
         sample_id=str(raw["sample_id"]),
@@ -287,6 +295,10 @@ class DataRootDataset(Dataset[dict[str, Any]]):
     def manifest_path(self) -> Path:
         return self._manifest_path
 
+    @property
+    def rows(self) -> list:
+        return self._rows
+
     def __len__(self) -> int:
         return len(self._rows)
 
@@ -380,16 +392,19 @@ class DataRootDataset(Dataset[dict[str, Any]]):
                 out["global_latent"] = _blob["global_latent"] if isinstance(_blob, dict) else _blob
             else:
                 out["global_latent"] = None
-            _dino_cls_path = row.sam3d_reconstruction_dir / "dino_cls.pt"
-            out["dino_cls"] = (
-                torch.load(_dino_cls_path, map_location="cpu", weights_only=True)
-                if _dino_cls_path.is_file()
-                else None
-            )
+            for _key in ("dino_cls", "ss_dino_cls", "vertex_normals"):
+                _pt = row.sam3d_reconstruction_dir / f"{_key}.pt"
+                out[_key] = (
+                    torch.load(_pt, map_location="cpu", weights_only=True)
+                    if _pt.is_file()
+                    else None
+                )
         else:
             out["sam3d_reconstruction_dir"] = None
             out["slat_vertex_features"] = None
             out["global_latent"] = None
             out["dino_cls"] = None
+            out["ss_dino_cls"] = None
+            out["vertex_normals"] = None
 
         return out
