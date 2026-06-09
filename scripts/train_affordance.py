@@ -112,7 +112,22 @@ def load_split(
     cfg: dict,
     *,
     filter_degenerate: bool = True,
+    categories: list[str] | None = None,
+    verbs: list[str] | None = None,
 ) -> DataRootDataset:
+    cat_set = set(categories) if categories else None
+    verb_set = set(verbs) if verbs else None
+
+    def _filter(row) -> bool:
+        if cat_set is not None:
+            # sample_id looks like "Seen/train/<category>/GS_xxxx/<verb>"
+            parts = str(row.sample_id).split("/")
+            if len(parts) < 3 or parts[2] not in cat_set:
+                return False
+        if verb_set is not None and row.verb not in verb_set:
+            return False
+        return _degenerate_label_filter(row) if filter_degenerate else True
+
     return DataRootDataset(
         manifest_path=manifest,
         cfg=cfg,
@@ -120,7 +135,7 @@ def load_split(
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
         load_vertex_semantics_eager=False,
-        row_filter=_degenerate_label_filter if filter_degenerate else None,
+        row_filter=_filter,
     )
 
 
@@ -181,6 +196,8 @@ def main() -> None:
     p.add_argument("--grad_accum", type=int, default=8, help="Samples to accumulate gradients over before each optimizer step")
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     p.add_argument("--max_train_samples", type=int, default=None)
+    p.add_argument("--categories", nargs="*", default=None, help="Limit to these object categories (e.g. mug bottle)")
+    p.add_argument("--verbs", nargs="*", default=None, help="Limit to these actions/verbs (e.g. grasp pour)")
     p.add_argument("--no_val", action="store_true")
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
@@ -209,8 +226,8 @@ def main() -> None:
 
     # ── Datasets ──────────────────────────────────────────────────────────────
     log.info("Loading datasets …")
-    ds_train = load_split(args.manifest, "train", cfg)
-    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg)
+    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs)
+    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs)
     log.info("train: %d samples  val: %s", len(ds_train), len(ds_val) if ds_val else "—")
 
     # ── Verbs (learned embedding table inside the model) ────────────────────────
