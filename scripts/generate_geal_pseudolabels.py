@@ -125,17 +125,19 @@ def main() -> None:
             continue
 
         out_dir = recon_dir if recon_dir is not None else Path(mesh_path).parent
-        out_path = out_dir / PSEUDOLABEL_FILENAME
-        if args.skip_existing and out_path.is_file():
-            raw["vertex_pseudolabel_path"] = _rel_to(data_root, out_path)
-            n_skip += 1
-            continue
 
         object_class = args.object_class or raw.get("object_class")
         affordance = args.affordance or raw.get("verb") or row.verb
         if not object_class:
             log.warning("[%s] missing object_class (set in manifest or --object_class) — skipping", sample_id)
             n_fail += 1
+            continue
+
+        # One label file per affordance so multiple verbs can be labeled per object (verb-conditioning).
+        out_path = out_dir / f"vertex_pseudolabels_{affordance}.pt"
+        if args.skip_existing and out_path.is_file():
+            raw["vertex_pseudolabel_path"] = _rel_to(data_root, out_path)
+            n_skip += 1
             continue
 
         try:

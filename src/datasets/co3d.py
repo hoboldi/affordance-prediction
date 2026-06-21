@@ -35,14 +35,14 @@ _NON_SEQUENCE_DIRS = {"set_lists", "eval_batches"}
 class CO3DSample:
     """One staged reference view of one CO3D object (sequence)."""
 
-    sample_id: str          # "<category>__<sequence>__v000"
-    category: str           # CO3D folder name (e.g. "bowl")
-    sequence: str           # CO3D sequence name (object id, e.g. "34_1403_4393")
-    geal_class: str         # mapped GEAL/3D-AffordanceNet class (e.g. "Bowl")
-    affordance: str         # GEAL affordance/verb to query (e.g. "contain")
-    image_path: Path        # chosen RGB frame
-    mask_path: Path | None  # CO3D foreground mask for that frame (or None if missing)
-    split: str = "train"    # "train" | "val"
+    sample_id: str            # "<category>__<sequence>__v000" (per object/view)
+    category: str             # CO3D folder name (e.g. "bowl")
+    sequence: str             # CO3D sequence name (object id, e.g. "34_1403_4393")
+    geal_class: str           # mapped GEAL/3D-AffordanceNet class (e.g. "Bowl")
+    affordances: list[str]    # GEAL affordances/verbs to query (one labeled field per verb)
+    image_path: Path          # chosen RGB frame
+    mask_path: Path | None    # CO3D foreground mask for that frame (or None if missing)
+    split: str = "train"      # "train" | "val"
 
 
 def _select_frames(frames: list[Path], views: int, mode: str = "middle") -> list[Path]:
@@ -93,9 +93,10 @@ def discover_samples(
         geal_class = lowered.get(cat_dir.name.lower())
         if geal_class is None:
             continue
-        affordance = affordance_map.get(geal_class)
-        if affordance is None:
+        affs = affordance_map.get(geal_class)
+        if not affs:
             continue
+        affordances = [affs] if isinstance(affs, str) else list(affs)
         split = "val" if cat_dir.name.lower() in val_set else "train"
 
         seq_dirs = sorted(
@@ -120,7 +121,7 @@ def discover_samples(
                         category=cat_dir.name,
                         sequence=seq_dir.name,
                         geal_class=geal_class,
-                        affordance=affordance,
+                        affordances=affordances,
                         image_path=img,
                         mask_path=mask if mask.is_file() else None,
                         split=split,
@@ -187,15 +188,22 @@ def write_manifest(
 
     with manifest_path.open("w", encoding="utf-8") as f:
         for s in samples:
-            row = {
-                "sample_id": s.sample_id,
-                "verb": s.affordance,
-                "object_class": s.geal_class,
-                "category": s.category,
-                "sequence": s.sequence,
-                "reference_rgb_path": _rel(data_root, dataset_dir / "images" / f"{s.sample_id}.png"),
-                "mask_path": _rel(data_root, dataset_dir / "masks" / f"{s.sample_id}.png"),
-                "sam3d_reconstruction_dir": _rel(data_root, recon_output_dir / s.sample_id),
-                "split": s.split,
-            }
-            f.write(json.dumps(row) + "\n")
+            # Image/mask/reconstruction are per OBJECT (one frame per object); the manifest emits one
+            # row per (object, verb) so the verb-conditioned head trains on multiple affordances per
+            # object. sample_id is suffixed with the verb to stay unique.
+            img_rel = _rel(data_root, dataset_dir / "images" / f"{s.sample_id}.png")
+            mask_rel = _rel(data_root, dataset_dir / "masks" / f"{s.sample_id}.png")
+            recon_rel = _rel(data_root, recon_output_dir / s.sample_id)
+            for verb in s.affordances:
+                row = {
+                    "sample_id": f"{s.sample_id}#{verb}",
+                    "verb": verb,
+                    "object_class": s.geal_class,
+                    "category": s.category,
+                    "sequence": s.sequence,
+                    "reference_rgb_path": img_rel,
+                    "mask_path": mask_rel,
+                    "sam3d_reconstruction_dir": recon_rel,
+                    "split": s.split,
+                }
+                f.write(json.dumps(row) + "\n")

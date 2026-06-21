@@ -75,6 +75,7 @@ vlm:
 model:
   vlm_dim: 0            # set to 512 to include CLIP VLM vertex features; 0 = disabled
   verb_dim: 128         # learned verb embedding dim (table size = num_verbs, set at runtime)
+  verb_conditioning: concat  # concat = verb appended per-vertex (can localize per verb); film = global level only
   sam3d_dim: 8          # per-vertex SLAT features from SAM3D
   dino_cls_dim: 1024    # SLAT-stage DINOv2 CLS token (dinov2_vitl14_reg → 1024-dim)
   ss_dino_cls_dim: 1024 # SS-stage DINOv2 CLS token
