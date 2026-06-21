@@ -37,19 +37,21 @@ co3d:
     tv: Display
     vase: Vase
 
-  # GEAL class -> the affordance/verb to query (one canonical affordance per class for the MVP).
-  # Must be one of labeling.GEAL_AFFORDANCES.
+  # GEAL class -> list of affordances/verbs to query (one labeled field per verb, per object).
+  # Multiple verbs per object exercise the verb-conditioned head (same geometry, different verb ->
+  # different region). All must be in labeling.GEAL_AFFORDANCES and be plausible 3D-AffordanceNet
+  # (object, affordance) pairs so the frozen GEAL teacher gives meaningful labels.
   affordance_map:
-    Bottle: contain
-    Bowl: contain
-    Mug: contain
-    Chair: sit
-    Bag: grasp
-    Keyboard: press
-    Laptop: display
-    Microwave: open
-    Display: display
-    Vase: contain
+    Bottle: [contain, grasp, wrap_grasp, pour]
+    Bowl: [contain, wrap_grasp]
+    Mug: [contain, grasp, wrap_grasp, pour]
+    Chair: [sit, move]
+    Bag: [grasp, lift, contain]
+    Keyboard: [press]
+    Laptop: [display, press]
+    Microwave: [open, contain]
+    Display: [display]
+    Vase: [contain, wrap_grasp, pour]
 
   # Held-out GEAL classes -> manifest split "val" (quantitative unseen-CLASS generalisation eval).
   # Chosen so their affordance stays represented in train: contain via bottle/bowl/cup, display via tv.

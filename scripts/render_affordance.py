@@ -60,7 +60,7 @@ def _predict(model, verb_to_idx, item) -> np.ndarray:
         logits = model(
             verb_to_idx.get(item["verb"], 0),
             slat_vertex=_f(item.get("slat_vertex_features")),
-            vlm_features=None,
+            vlm_features=_f(item.get("vertex_features")),
             dino_cls=_f(item.get("dino_cls")),
             ss_dino_cls=_f(item.get("ss_dino_cls")),
             vertex_normals=_f(item.get("vertex_normals")),
@@ -89,7 +89,7 @@ def main() -> None:
         manifest_path=args.manifest,
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
-        load_vertex_semantics_eager=False,
+        load_vertex_semantics_eager=True,  # load per-vertex CLIP features for vlm_dim>0 heads
     )
     rows = ds.rows
     if args.sample_ids:

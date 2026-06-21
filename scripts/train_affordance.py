@@ -139,7 +139,7 @@ def load_split(
         split=split,
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
-        load_vertex_semantics_eager=False,
+        load_vertex_semantics_eager=True,  # load per-vertex CLIP features (vertex_semantics_path) for vlm_dim>0
         row_filter=_filter,
     )
 
@@ -208,6 +208,7 @@ def main() -> None:
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
     p.add_argument("--ss_dino_cls_dim", type=int, default=None, help="Override model.ss_dino_cls_dim from config")
     p.add_argument("--pos_dim", type=int, default=None, help="Override model.pos_dim (0 drops absolute vertex positions, forcing the head to use geometry instead of a height shortcut)")
+    p.add_argument("--vlm_dim", type=int, default=None, help="Override model.vlm_dim (per-vertex CLIP feature dim; requires vertex_semantics_path in the manifest)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -249,6 +250,8 @@ def main() -> None:
         model_cfg_raw["ss_dino_cls_dim"] = args.ss_dino_cls_dim
     if args.pos_dim is not None:
         model_cfg_raw["pos_dim"] = args.pos_dim
+    if args.vlm_dim is not None:
+        model_cfg_raw["vlm_dim"] = args.vlm_dim
     model_cfg_raw["num_verbs"] = len(verbs)
     cfg = {**cfg, "model": model_cfg_raw}
 

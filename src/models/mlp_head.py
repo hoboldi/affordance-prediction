@@ -24,14 +24,27 @@ class MLPHeadConfig:
     cond_dim: int = 128          # global (conditioning) encoder output dim
     hidden_dims: tuple[int, ...] = field(default_factory=lambda: (256, 128))  # FiLM-modulated geometry trunk
     dropout: float = 0.1
+    # How the verb conditions the prediction:
+    #   "concat" — verb embedding concatenated onto EVERY vertex's feature (per-vertex conditioning):
+    #              the MLP predicts from (vertex_features, verb) jointly, so it can localize different
+    #              regions for different verbs. (FiLM, being one (γ,β) per object, can only rescale the
+    #              whole field — it shifts the global level per verb but cannot select regions.)
+    #   "film"   — verb folded into the global FiLM stream (legacy; global level only).
+    verb_conditioning: str = "concat"
+
+    @property
+    def _verb_in_vertex(self) -> bool:
+        return self.verb_conditioning == "concat" and self.verb_dim > 0
 
     @property
     def per_vertex_dim(self) -> int:
-        return self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim
+        d = self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim
+        return d + (self.verb_dim if self._verb_in_vertex else 0)
 
     @property
     def global_dim(self) -> int:
-        return self.verb_dim + self.dino_cls_dim + self.ss_dino_cls_dim
+        d = self.dino_cls_dim + self.ss_dino_cls_dim
+        return d + (self.verb_dim if (self.verb_conditioning == "film" and self.verb_dim > 0) else 0)
 
     @property
     def input_dim(self) -> int:
@@ -75,13 +88,15 @@ class AffordanceMLP(nn.Module):
         self.out = nn.Linear(prev, 1)
         nn.init.constant_(self.out.bias, 0.0)  # balanced sampling → start at logit 0
 
-        # Global conditioning → FiLM params for every geometry layer
+        # Verb embedding — used per-vertex in "concat" mode, or in the global FiLM in "film" mode.
+        if cfg.verb_dim > 0:
+            if cfg.num_verbs <= 0:
+                raise ValueError("num_verbs must be > 0 when verb_dim > 0")
+            self.verb_emb = nn.Embedding(cfg.num_verbs, cfg.verb_dim)
+
+        # Global (object-level) conditioning → FiLM params for every geometry layer
         self.use_global = cfg.global_dim > 0
         if self.use_global:
-            if cfg.verb_dim > 0:
-                if cfg.num_verbs <= 0:
-                    raise ValueError("num_verbs must be > 0 when verb_dim > 0")
-                self.verb_emb = nn.Embedding(cfg.num_verbs, cfg.verb_dim)
             self.global_encoder = nn.Sequential(
                 nn.Linear(cfg.global_dim, cfg.cond_dim), nn.ReLU(),
                 nn.Linear(cfg.cond_dim, cfg.cond_dim), nn.ReLU(),
@@ -92,6 +107,7 @@ class AffordanceMLP(nn.Module):
 
     def _per_vertex_input(
         self,
+        verb_idx: int | torch.Tensor | None,
         slat_vertex: torch.Tensor | None,
         vlm_features: torch.Tensor | None,
         vertex_normals: torch.Tensor | None,
@@ -110,7 +126,16 @@ class AffordanceMLP(nn.Module):
                 if t.shape[-1] != dim:
                     raise ValueError(f"{name} last dim must be {dim}, got {tuple(t.shape)}")
                 parts.append(t)
-        return torch.cat(parts, dim=-1)
+        feat = torch.cat(parts, dim=-1)  # (V, per-vertex feature dim)
+        # "concat" conditioning: append the verb embedding to EVERY vertex, so the head predicts from
+        # (vertex_features, verb) jointly and can localize different regions for different verbs.
+        if self.cfg._verb_in_vertex:
+            if verb_idx is None:
+                raise ValueError("verb_idx required (verb_conditioning='concat')")
+            idx = torch.as_tensor(verb_idx, device=self.verb_emb.weight.device, dtype=torch.long)
+            v = self.verb_emb(idx).reshape(-1)  # (verb_dim,)
+            feat = torch.cat([feat, v.unsqueeze(0).expand(feat.shape[0], -1)], dim=-1)
+        return feat
 
     def _global_input(
         self,
@@ -127,7 +152,7 @@ class AffordanceMLP(nn.Module):
             if ss_dino_cls is None:
                 raise ValueError("ss_dino_cls required (dim>0)")
             parts.append(ss_dino_cls.flatten()[: self.cfg.ss_dino_cls_dim])
-        if self.cfg.verb_dim > 0:
+        if self.cfg.verb_dim > 0 and self.cfg.verb_conditioning == "film":
             if verb_idx is None:
                 raise ValueError("verb_idx required (verb_dim>0)")
             idx = torch.as_tensor(verb_idx, device=self.verb_emb.weight.device, dtype=torch.long)
@@ -144,7 +169,7 @@ class AffordanceMLP(nn.Module):
         vertex_normals: torch.Tensor | None = None,
         vertex_positions: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = self._per_vertex_input(slat_vertex, vlm_features, vertex_normals, vertex_positions)  # (V, per_vertex_dim)
+        h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions)  # (V, per_vertex_dim)
 
         film_params = None
         if self.use_global:
@@ -202,6 +227,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         cond_dim=int(model_cfg.get("cond_dim", 128)),
         hidden_dims=tuple(int(x) for x in hd),
         dropout=float(model_cfg.get("dropout", 0.1)),
+        verb_conditioning=str(model_cfg.get("verb_conditioning", "concat")),
     )
 
 
