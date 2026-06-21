@@ -207,6 +207,7 @@ def main() -> None:
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
     p.add_argument("--ss_dino_cls_dim", type=int, default=None, help="Override model.ss_dino_cls_dim from config")
+    p.add_argument("--pos_dim", type=int, default=None, help="Override model.pos_dim (0 drops absolute vertex positions, forcing the head to use geometry instead of a height shortcut)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -246,6 +247,8 @@ def main() -> None:
         model_cfg_raw["dino_cls_dim"] = args.dino_cls_dim
     if args.ss_dino_cls_dim is not None:
         model_cfg_raw["ss_dino_cls_dim"] = args.ss_dino_cls_dim
+    if args.pos_dim is not None:
+        model_cfg_raw["pos_dim"] = args.pos_dim
     model_cfg_raw["num_verbs"] = len(verbs)
     cfg = {**cfg, "model": model_cfg_raw}
 

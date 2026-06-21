@@ -79,7 +79,9 @@ model:
   dino_cls_dim: 1024    # SLAT-stage DINOv2 CLS token (dinov2_vitl14_reg → 1024-dim)
   ss_dino_cls_dim: 1024 # SS-stage DINOv2 CLS token
   normals_dim: 3        # per-vertex surface normals
-  pos_dim: 3            # per-vertex xyz position (unit-sphere normalized) — key spatial signal
+  pos_dim: 0            # absolute xyz position OFF: it let the head learn a "low Y = affordance" height
+                        # shortcut (uniform lower-bright preds) instead of geometry. pos_dim=0 gives the same
+                        # unseen AUPRC (~0.29) but geometry-driven preds (chair seat, container interiors).
   cond_dim: 128         # global (conditioning) encoder output dim
   hidden_dims: [256, 128]
   dropout: 0.1
