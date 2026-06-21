@@ -18,8 +18,9 @@ services:
     # Mount the repo so you can edit code and attach HF checkpoints without rebuilding.
     volumes:
       - .:/workspace
-      # Host dataset tree → project data dir (overlays ./data from the repo bind mount)
-      - /data/customDatasets/inNet:/workspace/data
+      # cmr2 data tree mounted at the SAME absolute path in-container, so host venvs and the
+      # container resolve identical paths (no /workspace/data translation needed).
+      - /home/datasets/customDatasets/cmr2:/home/datasets/customDatasets/cmr2
       # Optional: persist Hugging Face cache for checkpoint downloads
       - huggingface-cache:/root/.cache/huggingface
     environment:
@@ -37,11 +38,15 @@ services:
       # Hugging Face token for gated facebook/sam-3d-objects (optional; can use `hf auth login` in container)
       HF_TOKEN: ${HF_TOKEN:-}
     # Pass exactly one GPU into the container (matches AFFORDANCE_CUDA_DEVICE).
-    gpus:
-      - driver: nvidia
-        device_ids:
-          - ${AFFORDANCE_CUDA_DEVICE:-0}
-        capabilities: [gpu]
+    # NOTE: the top-level `gpus:` service key needs Compose v2.30+; this host has v2.21,
+    # so use the older deploy.resources.reservations.devices form (honored by `docker compose run`).
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["${AFFORDANCE_CUDA_DEVICE:-0}"]
+              capabilities: [gpu]
     stdin_open: true
     tty: true
     shm_size: "4gb"

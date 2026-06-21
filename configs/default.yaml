@@ -2,10 +2,11 @@ project:
   seed: 42
 
 paths:
-  # Repo-relative data directory (Docker: mount host data at /workspace/data)
-  data_root: data
+  # Bulk pipeline data lives on /home (cmr2): source images, reconstructions+latents, manifests.
+  # Absolute so host venvs and the SAM3D Docker container (same path mounted) resolve identically.
+  data_root: /home/datasets/customDatasets/cmr2
   output_root: outputs
-  cache_root: data/cache
+  cache_root: /home/datasets/customDatasets/cmr2/cache
 
 dataset:
   # JSONL manifest under data_root — see docs/data_layout.md

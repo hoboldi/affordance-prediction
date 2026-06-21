@@ -1,0 +1,62 @@
+# CO3D v2 ingestion for the GEAL-pseudolabel pipeline (REAL images).
+#
+# Supersedes configs/omniobject3d.yaml (synthetic blender renders). CO3D (Common Objects in 3D, Meta)
+# provides real cellphone turntable captures of single objects with per-frame foreground masks — SAM3D's
+# native input domain. We use ONE RGB frame + its provided mask per sequence (object); CO3D depth maps /
+# point clouds are ignored (SAM3D estimates its own geometry).
+#
+# Flow:
+#   prepare_co3d.py  (scan <co3d_root>/<category>/<sequence>/images -> stage images/+masks/ -> manifest)
+#     -> generate_sam3d.py   -> generate_geal_pseudolabels.py  -> train_affordance.py
+#
+# Only categories in `category_map` (CO3D folder -> GEAL/3D-AffordanceNet class) are kept, since GEAL
+# only produces meaningful pseudolabels for its 23 classes.
+
+paths:
+  data_root: /home/datasets/customDatasets/cmr2
+
+co3d:
+  co3d_root: source                 # <data_root>/source is the CO3D root (category dirs live here)
+  staged_dir: sam3d_inputs          # where staged images/ + masks/ are written for generate_sam3d.py
+  recon_output_dir: reconstructions # where generate_sam3d.py writes <sample_id>/mesh.glb ...
+  manifest_filename: manifest.jsonl
+  views_per_object: 1               # frames sampled per sequence (1 = a single canonical view)
+  frame_selection: middle           # middle | first | even  (which frame(s) of the turntable to use)
+  max_objects_per_category: null    # cap sequences kept per category (null = all). ~100 for a ~1k-object run.
+
+  # CO3D (COCO) category folder -> GEAL / 3D-AffordanceNet class. GEAL knows only these 23 classes.
+  category_map:
+    bottle: Bottle
+    bowl: Bowl
+    cup: Mug
+    chair: Chair
+    handbag: Bag
+    keyboard: Keyboard
+    laptop: Laptop
+    microwave: Microwave
+    tv: Display
+    vase: Vase
+
+  # GEAL class -> the affordance/verb to query (one canonical affordance per class for the MVP).
+  # Must be one of labeling.GEAL_AFFORDANCES.
+  affordance_map:
+    Bottle: contain
+    Bowl: contain
+    Mug: contain
+    Chair: sit
+    Bag: grasp
+    Keyboard: press
+    Laptop: display
+    Microwave: open
+    Display: display
+    Vase: contain
+
+  # Held-out GEAL classes -> manifest split "val" (quantitative unseen-CLASS generalisation eval).
+  # Chosen so their affordance stays represented in train: contain via bottle/bowl/cup, display via tv.
+  val_categories: [vase, laptop]
+
+  # Out-of-taxonomy CO3D categories for a later QUALITATIVE open-vocab demo (NOT in category_map; GEAL
+  # gives no labels). Each maps to a trained query verb for inference-time visual inspection only.
+  oot_categories:
+    remote: press
+    toaster: open

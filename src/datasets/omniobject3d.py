@@ -97,12 +97,54 @@ def discover_samples(
     return samples
 
 
+def _derive_foreground_mask(image_path: Path, im) -> "np.ndarray":
+    """Binary uint8 (0/255) foreground mask for one staged OmniObject3D render.
+
+    OmniObject3D ``blender_renders`` are RGB on a **black** background (no alpha), so the old
+    "alpha else full-image" rule produced an all-foreground mask — which would make SAM3D try to
+    reconstruct the background slab. Priority instead:
+
+      1. RGBA alpha channel (if the render ever has one);
+      2. the sibling normal map ``render/normals/<stem>_normal.png`` — background normals are
+         exactly ``(0,0,0)`` regardless of object colour, so this is robust for dark objects where
+         an RGB threshold would erase the object (e.g. a black monitor/bag);
+      3. luminance threshold on the (dark) background as a fallback;
+      4. full image only as a last resort (and when the background is clearly not dark).
+
+    Interior holes are filled (objects are centred, not touching the border).
+    """
+    import numpy as np
+    from PIL import Image
+
+    if im.mode == "RGBA":
+        mask = np.asarray(im.split()[-1]) > 0
+    else:
+        normals_path = image_path.parent.parent / "normals" / f"{image_path.stem}_normal.png"
+        if normals_path.is_file():
+            n = np.asarray(Image.open(normals_path).convert("RGB")).astype(np.int32)
+            mask = n.sum(-1) > 4  # background normals are (0,0,0); any real surface is > 0
+        else:
+            rgb = np.asarray(im.convert("RGB")).astype(np.int32)
+            mask = rgb.sum(-1) > 12  # assumes a dark background (OmniObject3D renders)
+            if mask.mean() > 0.97:  # background was not dark -> no reliable cutout
+                mask = np.ones(rgb.shape[:2], dtype=bool)
+
+    try:
+        from scipy.ndimage import binary_fill_holes
+
+        filled = binary_fill_holes(mask)
+        if filled is not None:
+            mask = filled
+    except Exception:
+        pass
+    return mask.astype("uint8") * 255
+
+
 def stage_sam3d_inputs(samples: list[OmniObjectSample], dataset_dir: Path) -> None:
     """Write ``dataset_dir/images/<stem>.png`` and ``dataset_dir/masks/<stem>.png`` for each sample.
 
-    The mask is the render alpha channel when present (clean object cut-out), otherwise full image.
+    The mask is derived per :func:`_derive_foreground_mask` (alpha → normal map → luminance → full).
     """
-    import numpy as np
     from PIL import Image
 
     images_dir = Path(dataset_dir) / "images"
@@ -112,11 +154,7 @@ def stage_sam3d_inputs(samples: list[OmniObjectSample], dataset_dir: Path) -> No
 
     for s in samples:
         im = Image.open(s.image_path)
-        if im.mode == "RGBA":
-            alpha = np.asarray(im.split()[-1])
-            mask = (alpha > 0).astype("uint8") * 255
-        else:
-            mask = np.full((im.height, im.width), 255, dtype="uint8")
+        mask = _derive_foreground_mask(s.image_path, im)
         Image.fromarray(mask, mode="L").save(masks_dir / f"{s.sample_id}.png")
         im.convert("RGB").save(images_dir / f"{s.sample_id}.png")
 

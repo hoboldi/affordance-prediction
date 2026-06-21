@@ -83,13 +83,18 @@ def compute_metrics(
     probs_cat = torch.cat(all_probs).numpy()
     labels_cat = torch.cat(all_labels).numpy()
 
+    # GEAL pseudolabels are soft scores in [0, 1]; binarise at 0.5 (GEAL's sigmoid midpoint) for
+    # threshold metrics. The BCE training loss uses the soft targets directly; only mIoU/AUPRC need
+    # discrete ground truth.
+    labels_bin = (labels_cat >= 0.5).astype(float)
+
     preds = (probs_cat >= threshold).astype(float)
-    tp = ((preds == 1) & (labels_cat == 1)).sum()
-    fp = ((preds == 1) & (labels_cat == 0)).sum()
-    fn = ((preds == 0) & (labels_cat == 1)).sum()
+    tp = ((preds == 1) & (labels_bin == 1)).sum()
+    fp = ((preds == 1) & (labels_bin == 0)).sum()
+    fn = ((preds == 0) & (labels_bin == 1)).sum()
     iou = tp / max(tp + fp + fn, 1)
 
-    auprc = float(average_precision_score(labels_cat, probs_cat)) if labels_cat.sum() > 0 else 0.0
+    auprc = float(average_precision_score(labels_bin, probs_cat)) if labels_bin.sum() > 0 else 0.0
 
     return {"miou": float(iou), "auprc": auprc}
 

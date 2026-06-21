@@ -40,6 +40,7 @@ import numpy as np
 import torch
 
 from datasets.data_root_dataset import _parse_row, resolve_data_root
+from labeling.canonicalize import find_canonical_rotation
 from labeling.geal_infer import GealLabeler
 from utils.config import load_config
 
@@ -52,6 +53,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 PSEUDOLABEL_FILENAME = "vertex_pseudolabels.pt"
+CANON_ROTATION_FILENAME = "canonical_rotation.pt"
 
 
 def _load_mesh_vertices_and_sampler(mesh_path: Path):
@@ -80,6 +82,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--config", default=None, help="GEAL eval yaml with model_3d block (default: <geal_root>/config/evaluation.yaml)")
     p.add_argument("--question_csv", default=None, help="Affordance-Question.csv for canonical phrasings (optional)")
     p.add_argument("--n_points", type=int, default=2048, help="Surface points fed to GEAL (default: 2048)")
+    p.add_argument("--canonicalize", action="store_true", help="GEAL-guided orientation canonicalization (OFF by default: SAM3D already outputs objects upright (+Y), and the yaw-stability search is unreliable for rotationally-symmetric objects — it can rotate already-upright poses). Enable only if SAM3D output poses are unreliable.")
+    p.add_argument("--canon_yaws", type=int, default=3, help="Yaws (2-4) for the canonicalization yaw-stability search")
     p.add_argument("--object_class", default=None, help="Override object class for all rows (must be a GEAL class)")
     p.add_argument("--affordance", default=None, help="Override affordance/verb for all rows (must be a GEAL affordance)")
     p.add_argument("--device", default=None, help="cuda|cpu (default: auto)")
@@ -140,11 +144,27 @@ def main() -> None:
             sampled, _ = mesh.sample(n_pts, return_index=True) if hasattr(mesh, "sample") else (verts, None)
             sampled = np.asarray(sampled, dtype=np.float32)
 
+            # GEAL is only reliable near the canonical-upright pose; SAM3D's output pose is arbitrary.
+            # Find the orientation where GEAL is most yaw-stable, label there, save the rotation so the
+            # head can canonicalize vertex_positions/normals too. Scores are per-point, so they still
+            # map back onto the original (un-rotated) mesh vertices.
+            sampled_for_geal = sampled
+            canon_info = None
+            if args.canonicalize:
+                yaw_list = [0.0, 90.0, 210.0, 300.0][: max(2, min(args.canon_yaws, 4))]
+                R_canon, canon_info = find_canonical_rotation(
+                    sampled, labeler, object_class, affordance,
+                    yaws=tuple(yaw_list), question_csv=args.question_csv,
+                )
+                torch.save(torch.from_numpy(R_canon), out_dir / CANON_ROTATION_FILENAME)
+                raw["canonical_rotation_path"] = _rel_to(data_root, out_dir / CANON_ROTATION_FILENAME)
+                sampled_for_geal = (sampled @ R_canon.T).astype(np.float32)
+
             scores = labeler.predict(
-                sampled, object_class, affordance, question_csv=args.question_csv
+                sampled_for_geal, object_class, affordance, question_csv=args.question_csv
             )  # (P,) in [0, 1]
 
-            # Map sampled-point scores onto mesh vertices (nearest in the shared mesh frame).
+            # Map sampled-point scores onto mesh vertices (nearest in the ORIGINAL mesh frame).
             _, idx = cKDTree(sampled).query(verts, k=1, workers=-1)
             vert_scores = torch.from_numpy(scores[idx].astype(np.float32))  # (V,)
             torch.save(vert_scores, out_path)
@@ -152,8 +172,10 @@ def main() -> None:
             raw["vertex_pseudolabel_path"] = _rel_to(data_root, out_path)
             n_ok += 1
             log.info(
-                "[%s] %s/%s -> %s  (V=%d, pos_rate=%.3f)",
-                sample_id, object_class, affordance, out_path.name, len(verts), float((vert_scores > 0.5).float().mean()),
+                "[%s] %s/%s -> %s  (V=%d, pos_rate=%.3f%s)",
+                sample_id, object_class, affordance, out_path.name, len(verts),
+                float((vert_scores > 0.5).float().mean()),
+                (f", canon_up={canon_info['up_axis']} yaw_iou={canon_info['yaw_iou']}" if canon_info else ""),
             )
         except Exception as exc:  # noqa: BLE001 — log and continue over the batch
             log.error("[%s] failed: %r", sample_id, exc)
