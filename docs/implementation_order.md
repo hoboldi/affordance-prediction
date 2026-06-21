@@ -1,6 +1,6 @@
 # Stage 0 — Minimal Research Goal
 
-**Dataset direction:** supervised training and full evaluation are planned around **[3DAffordSplat](https://arxiv.org/abs/2504.11218)** — multi-view **renders from dataset 3D Gaussians** as SAM3D input, with affordance labels from the dataset mapped onto SAM3D meshes. Rationale and citations: [data_strategy_3daffordsplat.md](data_strategy_3daffordsplat.md).
+**Dataset direction:** supervised training uses **[OmniObject3D](https://omniobject3d.github.io/)** images reconstructed with SAM3D, with per-vertex affordance **pseudolabels from the frozen [GEAL](https://github.com/DylanOrange/geal) teacher** (no label alignment). Rationale and citations: [data_strategy_geal_omniobject3d.md](data_strategy_geal_omniobject3d.md).
 
 The first prototype should answer only one question:
 
@@ -42,7 +42,7 @@ Build a working end-to-end pipeline with:
 # MVP Pipeline
 
 ```text
-RGB-D image + verb   ← often: synthetic views from 3DAffordSplat 3DGS (see docs/data_strategy_3daffordsplat.md)
+RGB-D image + verb   ← clean single-object image from OmniObject3D (see docs/data_strategy_geal_omniobject3d.md)
         ↓
 SAM3D reconstruction (or preloaded mesh.glb)
         ↓
@@ -207,7 +207,7 @@ vertex_feature = concat(
 ### Keep:
 
 * BCE loss
-* **3DAffordSplat / AffordSplat** affordance supervision (vertex labels after transfer from dataset geometry to SAM3D mesh — see `docs/data_strategy_3daffordsplat.md`)
+* **GEAL pseudolabel** supervision (per-vertex labels from the frozen GEAL teacher on the SAM3D mesh — see `docs/data_strategy_geal_omniobject3d.md`)
 
 ### Ignore:
 
@@ -264,11 +264,9 @@ Each pipeline stage must have a **dedicated Jupyter notebook** used to validate 
 | Step | Notebook | `src/` code | Status | Can work on now? | Blocker / notes |
 |------|----------|-------------|--------|------------------|-----------------|
 | 0 | `00_mesh_bootstrap.ipynb` | `datasets/mesh_loading.py`, `utils/config.py` | ✅ | — | Run notebook to confirm on your machine |
-| 0.5 | `01_affordsplat_dataloader.ipynb` | `datasets/affordsplat_local_dataset.py` | ✅ | — | Local AffordSplat mirror (`/data/Seen` or `AFFORDANCE_AFFORDSPLAT_ROOT`); auto `Dataset` + optional `DataLoader` |
 | 1 | `01_reconstruction_debug.ipynb` | `reconstruction/sam3d_wrapper.py`, `mesh_utils.py` | 🟡 | **No** (run) | Code exists; **SAM3D checkpoints** + submodule setup required to execute |
 | 2 | `02_rendering_mesh_debug.ipynb` | `rendering/mesh_renderer.py`, `camera_sampling.py` | ✅ | — | Mesh backend; run notebook to confirm |
 | 3 | `03_rendering_gaussian_splat.ipynb` | `rendering/gaussian_gsplat_renderer.py`, `gaussian_point_renderer.py` | ✅ | — | True 3DGS via **gsplat** (CUDA); centre preview fallback |
-| 3.5 | `10_sam3d_from_gsplat.ipynb` | `reconstruction/gsplat_to_sam3d.py`, `scripts/render_gsplat_and_sam3d.py` | 🟡 | **GPU + gsplat + SAM3D ckpts** | Renders views then SAM3D on `view_000` (single-image API) |
 | 4 | `04_vlm_features_debug.ipynb` | `vlm/vlm_wrapper.py`, `patch_extractor.py`, `text_encoder.py` | ✅ | — | Frozen CLIP-B/32; run after **02** renders |
 | 5 | `05_projection_debug.ipynb` | `projection/project_to_mesh.py` | ✅ | — | Run after caches from **02** + **04** |
 | 6 | `06_affordance_head_debug.ipynb` | `models/mlp_head.py`, `training/affordance_fit.py`, `sam3d_wrapper.try_load_cached_global_latent` | 🟡 | **After step 5** | `build_affordance_mlp` + optional `global_latent.pt` (notebook 10 cache + `meta.json` stem) |
@@ -281,7 +279,7 @@ Each pipeline stage must have a **dedicated Jupyter notebook** used to validate 
 |----------|------|----------|
 | 1 | `06_affordance_head_debug.ipynb` | MLP + concat fusion on `vertex_semantic.pt` |
 
-**Already landed (foundation):** repo scaffold (`src/`, configs), SAM3D wrapper (not runnable without weights), mesh I/O, `scripts/generate_sam3d.py`, `tests/test_mesh_loading.py`, data plan for **3DAffordSplat** (`docs/data_strategy_3daffordsplat.md`).
+**Already landed (foundation):** repo scaffold (`src/`, configs), SAM3D wrapper (not runnable without weights), mesh I/O, `scripts/generate_sam3d.py`, `tests/test_mesh_loading.py`, data plan for **GEAL + OmniObject3D** (`docs/data_strategy_geal_omniobject3d.md`).
 
 Later (Phase 2+): `08_ablation_analysis.ipynb` for mesh vs splat rendering and fusion ablations.
 
@@ -460,7 +458,7 @@ MLP(vertex_feature) -> affordance
 
 ## Goal
 
-Run training and evaluation on **3DAffordSplat / AffordSplat**: synthetic multi-view renders from each 3DGS, SAM3D reconstruction to mesh, then vertex affordance metrics against labels transferred from the dataset geometry.
+Run training and evaluation on **OmniObject3D + GEAL pseudolabels**: SAM3D reconstruction per image, GEAL per-vertex pseudolabels, then vertex affordance metrics (teacher validated on PIAD/LASO GT).
 
 ## Metrics
 
@@ -625,7 +623,7 @@ This is likely the safest order:
 4. Frozen VLM extraction + notebooks/04_vlm_features_debug.ipynb
 5. Patch-to-vertex projection + notebooks/05_projection_debug.ipynb
 6. MLP affordance prediction + notebooks/06_affordance_head_debug.ipynb
-7. **3DAffordSplat** train/eval + notebooks/07_training_evaluation_debug.ipynb
+7. **OmniObject3D + GEAL** train/eval + notebooks/07_training_evaluation_debug.ipynb
 7. Report figures / interactive demos (reuse notebook outputs)
 8. Intermediate VLM features
 9. Attention fusion

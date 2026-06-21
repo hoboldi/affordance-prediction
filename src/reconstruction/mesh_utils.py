@@ -126,7 +126,7 @@ def find_sam3d_reconstruction_mesh_for_splat(
     search_under: Path | str | None = None,
 ) -> Path | None:
     """
-    Find ``<run_dir>/reconstruction/mesh.glb`` produced by :func:`reconstruction.gsplat_to_sam3d.gsplat_ply_to_sam3d_reconstruction`
+    Find ``<run_dir>/reconstruction/mesh.glb`` produced by a SAM3D reconstruction run
     for **this** splat file.
 
     Each run writes ``<run_dir>/sam3d_dataset/meta_prerender.json`` with a ``splat_path`` field.

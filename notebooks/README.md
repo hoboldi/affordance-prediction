@@ -7,7 +7,6 @@ Full requirements: [docs/implementation_order.md](../docs/implementation_order.m
 | # | Notebook | Stage | Code ready | Status | Work on now? |
 |---|----------|--------|------------|--------|--------------|
 | 0 | `00_mesh_bootstrap.ipynb` | Mesh load / normalize | `datasets/mesh_loading.py` | ✅ | Run to verify locally |
-| 1 | `01_affordsplat_dataloader.ipynb` | AffordSplat / 3DAffordSplat (local) | `datasets/affordsplat_local_dataset.py` | ✅ | **Yes** — auto root + `AffordSplatLocalDataset` |
 | 2 | `02_rendering_mesh_debug.ipynb` | Novel views (mesh) | `rendering/mesh_renderer.py` | ✅ | Run to verify locally |
 | 3 | `03_rendering_gaussian_splat.ipynb` | Novel views (3DGS / gsplat) | `gaussian_gsplat_renderer.py` | ✅ | PNG/JPEG → **`exports/gaussian_splat/`** (visible; `outputs/` is gitignored) |
 | 4 | `04_vlm_features_debug.ipynb` | VLM patches | `vlm/` (CLIP) | ✅ | After **02** caches (or re-render inline) |
@@ -15,12 +14,10 @@ Full requirements: [docs/implementation_order.md](../docs/implementation_order.m
 | 6 | `06_affordance_head_debug.ipynb` | MLP head | `models/mlp_head.py`, `training/affordance_fit.py`, `try_load_cached_global_latent` | 🟡 | **Yes** — optional `global_latent.pt` via `SAM3D_RUN_DIR` / `SAM3D_GLOBAL_LATENT_PATH` / `SAM3D_OBJECT_STEM` |
 | 7 | `07_training_evaluation_debug.ipynb` | Train/val loop | `training/vertex_affordance_train.py`, `DataRootDataset` | 🟡 | **Yes** — toy `examples/data_manifest` + `scripts/build_example_training_fixtures.py` |
 | 8 | `08_ablation_analysis.ipynb` | Ablations | — | ⬜ | Phase 2+ |
-| 10 | `10_sam3d_from_gsplat.ipynb` | gsplat views → SAM3D | `reconstruction/gsplat_to_sam3d.py` | 🟡 | **GPU + gsplat + SAM3D weights**; **run inside `sam3d-pipeline` Docker** — not supported on arbitrary host conda (see `scripts/render_gsplat_and_sam3d.py`, `docs/pipeline_gsplat_sam3d.md`) |
-| 11 | `11_gsplat_view_selection_vs_gt.ipynb` | Pick best orbit view vs GT cloud | `rendering/gsplat_viewpoint_selection.py` | 🟡 | **GPU + gsplat**; grid of all candidates + winner (see `docs/gsplat_gt_view_selection.md`) |
 
-**Note:** SAM3D reconstruction (`01_reconstruction_debug.ipynb`) is still planned once checkpoints are available. **`01_affordsplat_dataloader.ipynb`** covers the local Hugging Face mirror under `/data`.
+**Note:** SAM3D reconstruction (`01_reconstruction_debug.ipynb`) is still planned once checkpoints are available. OmniObject3D ingestion + GEAL pseudolabels run via `scripts/` (see the repo README), not notebooks.
 
-**Typical run order (MVP):** `00` → **`01`** (optional) → **`10`** (optional SAM3D from gsplat; set **`SAM3D_RUN_DIR`** in **`02`**) → `02` → `03` (optional gsplat) → `04` → `05` → `06` → **`07`** (manifest train/val; run fixture script first).
+**Typical run order (MVP):** `00` → `02` → `03` (optional gsplat) → `04` → `05` → `06` → **`07`** (manifest train/val; run fixture script first).
 
 ```bash
 pip install -e ".[notebooks]"
