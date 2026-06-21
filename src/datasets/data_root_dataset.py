@@ -342,6 +342,17 @@ class DataRootDataset(Dataset[dict[str, Any]]):
                     else None
                 )
             out["vertex_positions"] = _load_vertex_positions(row.sam3d_reconstruction_dir)
+
+            # Canonicalize orientation so per-vertex positions/normals share an upright frame across
+            # objects (GEAL labelled at this same orientation). R from generate_geal_pseudolabels;
+            # canonical coords = X @ R.T (matches the points fed to GEAL).
+            _canon = row.sam3d_reconstruction_dir / "canonical_rotation.pt"
+            if _canon.is_file():
+                _R = torch.load(_canon, map_location="cpu", weights_only=True).float()
+                if out.get("vertex_positions") is not None:
+                    out["vertex_positions"] = out["vertex_positions"].float() @ _R.T
+                if out.get("vertex_normals") is not None:
+                    out["vertex_normals"] = out["vertex_normals"].float() @ _R.T
         else:
             out["sam3d_reconstruction_dir"] = None
             out["slat_vertex_features"] = None

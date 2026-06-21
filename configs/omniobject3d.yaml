@@ -11,12 +11,12 @@
 # all 190 categories). Each kept category is queried with one canonical GEAL affordance for the MVP.
 
 paths:
-  # All OmniObject3D downloads + staged inputs + reconstructions live here (gitignored).
-  data_root: data/omniobject3d
+  # All OmniObject3D downloads + staged inputs + reconstructions live here (on /home, cmr2).
+  data_root: /home/datasets/customDatasets/cmr2
 
 omniobject3d:
   # <data_root>/<blender_renders_dir>/<category>/<object_id>/render/{images,depths,normals,transforms.json}
-  blender_renders_dir: blender_renders
+  blender_renders_dir: source
   raw_scans_dir: raw_scans
   staged_dir: sam3d_inputs           # where staged images/ + masks/ are written
   recon_output_dir: reconstructions  # where generate_sam3d.py writes <stem>/mesh.glb ...
@@ -26,35 +26,29 @@ omniobject3d:
 
   # OmniObject3D category folder name (lowercased) -> GEAL / 3D-AffordanceNet class.
   # GEAL only knows these 23 classes, so only overlapping categories yield meaningful pseudolabels.
+  # VERIFIED against the actual 216 OmniObject3D-New blender_renders/ folders (OpenDataLab, 2026-06).
+  # Only real folder names are kept. Removed keys that do not exist as folders (mug/teacup/water_bottle/
+  # cap/bag/alarm_clock/trash_can/trashcan/display) — each is covered by a sibling folder below.
+  # GEAL classes with NO OmniObject3D coverage are dropped entirely: Earphone (no earphone/headphone
+  # folder) and Faucet (no faucet folder).
+  # Optional unused GEAL classes with clean OmniObject3D matches you could add to broaden coverage:
+  #   bed -> Bed, microwaveoven -> Microwave, cabinet -> StorageFurniture.
   category_map:
     bowl: Bowl
     cup: Mug
-    mug: Mug
-    teacup: Mug
     bottle: Bottle
-    water_bottle: Bottle
     knife: Knife
-    scissors: Scissors
+    scissor: Scissors        # OmniObject3D folder is singular "scissor" (not "scissors")
     hat: Hat
-    cap: Hat
-    bag: Bag
     handbag: Bag
     backpack: Bag
     clock: Clock
-    alarm_clock: Clock
     vase: Vase
     dustbin: TrashCan
-    trash_can: TrashCan
-    trashcan: TrashCan
     chair: Chair
     laptop: Laptop
     keyboard: Keyboard
-    earphone: Earphone
-    headphone: Earphone
-    headphones: Earphone
     monitor: Display
-    display: Display
-    faucet: Faucet
     table: Table
 
   # GEAL class -> the affordance/verb to query (one canonical affordance per class for the MVP).
