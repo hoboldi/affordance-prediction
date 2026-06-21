@@ -21,6 +21,25 @@ from datasets.mesh_loading import MeshData, load_mesh
 from utils.config import load_config, resolve_path
 
 
+def _load_vertex_positions(recon_dir: Path) -> torch.Tensor | None:
+    """Per-vertex xyz from ``mesh.glb``, centered + unit-sphere normalized, V-aligned to
+    the other reconstruction artifacts. Cached as ``vertex_positions.pt`` after first load."""
+    cache = recon_dir / "vertex_positions.pt"
+    if cache.is_file():
+        return torch.load(cache, map_location="cpu", weights_only=True)
+    mesh_path = recon_dir / "mesh.glb"
+    if not mesh_path.is_file():
+        return None
+    import trimesh
+
+    mesh = trimesh.load(str(mesh_path), force="mesh", process=False)
+    xyz = torch.from_numpy(np.asarray(mesh.vertices, dtype=np.float32))
+    xyz = xyz - xyz.mean(dim=0, keepdim=True)
+    xyz = xyz / (xyz.norm(dim=-1).max() + 1e-6)  # unit sphere — preserves aspect ratio
+    torch.save(xyz, cache)
+    return xyz
+
+
 @dataclass
 class ManifestRow:
     """One line from ``manifest.jsonl`` after path resolution."""
@@ -32,6 +51,7 @@ class ManifestRow:
     reference_rgb_path: Path | None = None
     mask_path: Path | None = None
     vertex_affordance_path: Path | None = None
+    vertex_pseudolabel_path: Path | None = None
     vertex_semantics_path: Path | None = None
     sam3d_reconstruction_dir: Path | None = None
     split: str | None = None
@@ -50,17 +70,26 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         "reference_rgb_path",
         "mask_path",
         "vertex_affordance_path",
+        "vertex_pseudolabel_path",
         "vertex_semantics_path",
         "sam3d_reconstruction_dir",
         "split",
     }
     extras = {k: v for k, v in raw.items() if k not in known}
 
+    _CONTAINER_DATA_ROOT = Path("/workspace/data")
+
     def p(key: str) -> Path | None:
         if key not in raw or raw[key] is None or raw[key] == "":
             return None
         path = Path(str(raw[key]))
-        return path if path.is_absolute() else (data_root / path)
+        if path.is_absolute():
+            try:
+                rel = path.relative_to(_CONTAINER_DATA_ROOT)
+                return data_root / rel
+            except ValueError:
+                return path
+        return data_root / path
 
     return ManifestRow(
         sample_id=str(raw["sample_id"]),
@@ -70,6 +99,7 @@ def _parse_row(raw: dict[str, Any], *, data_root: Path) -> ManifestRow:
         reference_rgb_path=p("reference_rgb_path"),
         mask_path=p("mask_path"),
         vertex_affordance_path=p("vertex_affordance_path"),
+        vertex_pseudolabel_path=p("vertex_pseudolabel_path"),
         vertex_semantics_path=p("vertex_semantics_path"),
         sam3d_reconstruction_dir=p("sam3d_reconstruction_dir"),
         split=raw.get("split") if raw.get("split") is not None else None,
@@ -127,63 +157,6 @@ def _load_vertex_semantics_bundle(path: Path) -> dict[str, torch.Tensor]:
     else:
         mask = torch.from_numpy(np.asarray(vis, dtype=bool))
     return {"vertex_features": feats, "vertex_visible_mask": mask}
-
-
-def _load_gaussian_means_from_ply(path: Path) -> np.ndarray:
-    """Return (N, 3) float32 Gaussian centre positions from a 3DGS PLY."""
-    import re
-    data = path.read_bytes()
-    m = re.search(rb"end_header\r?\n", data)
-    if not m:
-        raise ValueError(f"Invalid PLY: {path}")
-    header = data[: m.start()].decode("ascii", errors="replace")
-    body = data[m.end():]
-    fmt, n_verts = None, 0
-    props: list[str] = []
-    for line in header.splitlines():
-        line = line.strip()
-        if line.startswith("format "):
-            fmt = line.split()[1]
-        elif line.startswith("element vertex "):
-            n_verts = int(line.split()[-1])
-        elif line.startswith("property "):
-            props.append(line.split()[2])
-    xi, yi, zi = props.index("x"), props.index("y"), props.index("z")
-    if fmt == "binary_little_endian":
-        table = np.frombuffer(body[: 4 * len(props) * n_verts], dtype="<f4").reshape(n_verts, len(props))
-        return table[:, [xi, yi, zi]].astype(np.float32)
-    rows = body.decode("ascii", errors="replace").strip().splitlines()[:n_verts]
-    return np.array([[float(r.split()[c]) for c in (xi, yi, zi)] for r in rows], dtype=np.float32)
-
-
-def _affordance_labels_from_anno_ply(
-    anno_ply: Path,
-    mesh_glb: Path,
-    *,
-    threshold: float = 0.1,
-) -> torch.Tensor:
-    """
-    Transfer binary affordance labels from annotation Gaussian positions to mesh vertices.
-
-    A vertex gets label 1 if its nearest annotation Gaussian is within ``threshold``
-    (in the normalised coordinate frame both share after SAM3D export).
-    """
-    from scipy.spatial import cKDTree
-    import trimesh
-
-    anno_means = _load_gaussian_means_from_ply(anno_ply)          # (A, 3)
-
-    loaded = trimesh.load(str(mesh_glb), process=False)
-    if isinstance(loaded, trimesh.Scene):
-        parts = [g for g in loaded.geometry.values() if isinstance(g, trimesh.Trimesh)]
-        mesh = trimesh.util.concatenate(parts) if len(parts) > 1 else parts[0]
-    else:
-        mesh = loaded
-    verts = np.asarray(mesh.vertices, dtype=np.float32)            # (V, 3)
-
-    dists, _ = cKDTree(anno_means).query(verts, k=1, workers=-1)
-    labels = (dists < threshold).astype(np.float32)
-    return torch.from_numpy(labels)
 
 
 def _load_vertex_affordance(path: Path) -> torch.Tensor:
@@ -287,33 +260,15 @@ class DataRootDataset(Dataset[dict[str, Any]]):
     def manifest_path(self) -> Path:
         return self._manifest_path
 
+    @property
+    def rows(self) -> list:
+        return self._rows
+
     def __len__(self) -> int:
         return len(self._rows)
 
     def row(self, index: int) -> ManifestRow:
         return self._rows[index]
-
-    def _affordance_labels_for_row(self, row: ManifestRow) -> torch.Tensor:
-        """
-        Per-mesh-vertex binary affordance labels via normalise + ICP-aligned transfer.
-
-        Cached to ``<reconstruction_dir>/affordance_<verb>.pt`` (keyed by verb, since one mesh
-        serves multiple verbs) so the expensive ICP runs once, not every epoch.
-        """
-        cache = row.sam3d_reconstruction_dir / f"affordance_{row.verb}.pt"
-        if cache.is_file():
-            return torch.load(cache, map_location="cpu", weights_only=True).float()
-
-        from reconstruction.affordance_labels import affordance_labels_aligned
-
-        labels = affordance_labels_aligned(
-            row.splat_path,
-            row.vertex_affordance_path,
-            row.sam3d_reconstruction_dir / "mesh.glb",
-        )
-        t = torch.from_numpy(labels).float()
-        torch.save(t, cache)
-        return t
 
     def __getitem__(self, index: int) -> dict[str, Any]:
         row = self._rows[index]
@@ -340,15 +295,14 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         if row.mask_path is not None:
             out["mask_path"] = row.mask_path
 
-        if row.vertex_affordance_path is not None:
-            out["vertex_affordance_path"] = row.vertex_affordance_path
-            if self._load_vertex_labels_eager:
-                if row.vertex_affordance_path.suffix.lower() == ".ply":
-                    out["vertex_affordance"] = self._affordance_labels_for_row(row)
-                else:
-                    out["vertex_affordance"] = _load_vertex_affordance(row.vertex_affordance_path)
-            else:
-                out["vertex_affordance"] = None
+        # Affordance supervision: GEAL pseudolabels take priority, then any precomputed GT
+        # (.npy / .pt of shape (V,)). Labels are already in mesh-vertex order — no alignment.
+        label_path = row.vertex_pseudolabel_path or row.vertex_affordance_path
+        if label_path is not None:
+            out["vertex_affordance_path"] = label_path
+            out["vertex_affordance"] = (
+                _load_vertex_affordance(label_path) if self._load_vertex_labels_eager else None
+            )
         else:
             out["vertex_affordance_path"] = None
             out["vertex_affordance"] = None
@@ -380,16 +334,21 @@ class DataRootDataset(Dataset[dict[str, Any]]):
                 out["global_latent"] = _blob["global_latent"] if isinstance(_blob, dict) else _blob
             else:
                 out["global_latent"] = None
-            _dino_cls_path = row.sam3d_reconstruction_dir / "dino_cls.pt"
-            out["dino_cls"] = (
-                torch.load(_dino_cls_path, map_location="cpu", weights_only=True)
-                if _dino_cls_path.is_file()
-                else None
-            )
+            for _key in ("dino_cls", "ss_dino_cls", "vertex_normals"):
+                _pt = row.sam3d_reconstruction_dir / f"{_key}.pt"
+                out[_key] = (
+                    torch.load(_pt, map_location="cpu", weights_only=True)
+                    if _pt.is_file()
+                    else None
+                )
+            out["vertex_positions"] = _load_vertex_positions(row.sam3d_reconstruction_dir)
         else:
             out["sam3d_reconstruction_dir"] = None
             out["slat_vertex_features"] = None
             out["global_latent"] = None
             out["dino_cls"] = None
+            out["ss_dino_cls"] = None
+            out["vertex_normals"] = None
+            out["vertex_positions"] = None
 
         return out

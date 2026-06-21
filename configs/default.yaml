@@ -6,16 +6,20 @@ paths:
   data_root: data
   output_root: outputs
   cache_root: data/cache
-  # Local Hugging Face mirror of Weizm/AffordSplat (3DAffordSplat). If null, use
-  # AFFORDANCE_AFFORDSPLAT_ROOT, or auto-detect when <root>/Seen exists:
-  # AFFORDANCE_DATA_ROOT, paths.data_root, /workspace/data, /data (in that order).
-  affordsplat_root: null
 
 dataset:
   # JSONL manifest under data_root — see docs/data_layout.md
   manifest_filename: manifest.jsonl
   load_mesh_eager: false
   load_vertex_labels_eager: true
+
+# Supervision: per-vertex affordance pseudolabels from the frozen GEAL teacher.
+# GEAL code lives in external/geal (gitignored); weights go in external/geal/ckpt/ (fetch separately
+# from https://huggingface.co/datasets/dylanorange/geal). OmniObject3D ingestion: configs/omniobject3d.yaml.
+labeling:
+  geal_ckpt: external/geal/ckpt/piad_seen.pt
+  geal_question_csv: null    # optional Affordance-Question.csv for GEAL's canonical phrasings
+  n_points: 2048             # surface points fed to GEAL per object
 
 reconstruction:
   # Requires HF download into sam-3d-objects/checkpoints/hf/ — see sam-3d-objects/doc/setup.md §2
@@ -68,11 +72,16 @@ vlm:
     - pour from
 
 model:
-  vlm_dim: 0          # set to 512 to include CLIP VLM vertex features; 0 = SAM3D-only MVP
-  verb_dim: 0
-  sam3d_dim: 8        # per-vertex SLAT feature dim from SAM3D
-  hidden_dims: [64]
-  dropout: 0.0
+  vlm_dim: 0            # set to 512 to include CLIP VLM vertex features; 0 = disabled
+  verb_dim: 128         # learned verb embedding dim (table size = num_verbs, set at runtime)
+  sam3d_dim: 8          # per-vertex SLAT features from SAM3D
+  dino_cls_dim: 1024    # SLAT-stage DINOv2 CLS token (dinov2_vitl14_reg → 1024-dim)
+  ss_dino_cls_dim: 1024 # SS-stage DINOv2 CLS token
+  normals_dim: 3        # per-vertex surface normals
+  pos_dim: 3            # per-vertex xyz position (unit-sphere normalized) — key spatial signal
+  cond_dim: 128         # global (conditioning) encoder output dim
+  hidden_dims: [256, 128]
+  dropout: 0.1
 
 training:
   batch_size: 4

@@ -25,3 +25,9 @@ data/renders/
 
 # SAM3D checkpoints (large; fetch separately)
 sam-3d-objects/checkpoints/
+
+# GEAL teacher: cloned code lives here; weights fetched separately into external/geal/ckpt
+external/
+
+# OmniObject3D raw downloads (large; fetch separately)
+data/omniobject3d/

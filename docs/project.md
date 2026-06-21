@@ -1,6 +1,6 @@
 This project investigates open-vocabulary affordance prediction by combining 3D reconstruction from SAM3D with semantic context extracted from a Vision-Language Model (VLM). The goal is to predict fine-grained, verb-conditioned affordance scores on a reconstructed 3D representation, enabling the model to reason about interactions such as *grasp*, *sit on*, *pour from*, or *open* in an open-vocabulary setting. The method combines geometric understanding from SAM3D with semantic reasoning from a frozen VLM to produce dense affordance fields over reconstructed objects.
 
-**Data source (updated plan):** paired *natural* 2D images with dense 3D affordance ground truth are difficult to obtain at scale. We instead use **[3DAffordSplat](https://arxiv.org/abs/2504.11218)** (Wei et al., 2025) as the primary corpus: it provides **3D Gaussian splats**, point clouds, and **affordance annotations** with language. We **render multi-view RGB (and depth)** from each splat and feed selected views into **SAM3D** to obtain a mesh-centric representation compatible with the rest of this repo. Full rationale, links, and open engineering choices are in [data_strategy_3daffordsplat.md](data_strategy_3daffordsplat.md).
+**Data source + supervision (current plan):** dense 3D affordance ground truth paired with *natural* 2D images is hard to obtain at scale. Instead of hand labels we **distill a frozen teacher**: clean single-object images from **[OmniObject3D](https://omniobject3d.github.io/)** (Wu et al., 2023) are reconstructed with **SAM3D**, and **[GEAL](https://github.com/DylanOrange/geal)** (Lu et al., CVPR 2025) generates per-vertex affordance **pseudolabels** on that reconstructed geometry. Because GEAL labels the *same* mesh we train on, **no cross-modal alignment is required** — this replaces the earlier 3DAffordSplat + ICP-alignment plan, which failed because SAM3D reconstructs splat renders poorly. Full rationale, links, and the taxonomy-overlap constraint are in [data_strategy_geal_omniobject3d.md](data_strategy_geal_omniobject3d.md).
 
 The proposed pipeline consists of the following stages:
 
@@ -10,7 +10,7 @@ The proposed pipeline consists of the following stages:
 
 The system receives as input a single RGB-D image together with an open-vocabulary verb describing a potential interaction. The RGB-D image provides both appearance and geometric cues, while the verb acts as a semantic query conditioning the affordance prediction process.
 
-In the **3DAffordSplat-driven** setup, that RGB-D observation may be **synthetic**: one or more views rasterized from the dataset’s 3D Gaussian splat with known cameras, rather than a photograph of a real scene. SAM3D is still applied to produce (or regularize) the mesh used downstream; supervision comes from **3DAffordSplat affordance labels** transferred onto that mesh (see [data_strategy_3daffordsplat.md](data_strategy_3daffordsplat.md)).
+In the **OmniObject3D-driven** setup, that observation is a clean single-object image (a real scan render). SAM3D reconstructs the mesh used downstream; supervision comes from **GEAL pseudolabels** computed on a point cloud sampled from that mesh and mapped to its vertices (see [data_strategy_geal_omniobject3d.md](data_strategy_geal_omniobject3d.md)).
 
 The goal is to infer a probabilistic affordance value in the range ([0,1]) for every vertex of the reconstructed object, representing the likelihood that the queried interaction can be performed at that location.
 
@@ -165,7 +165,7 @@ These extensions may improve spatial consistency and enable more sophisticated i
 
 ## 8. Training and Supervision
 
-The system is intended to be trained using affordance annotations from **[3DAffordSplat](https://arxiv.org/abs/2504.11218)** (and the released **AffordSplat** data on Hugging Face), after labels are aligned to **SAM3D mesh vertices** via an explicit geometric mapping from the dataset’s 3DGS / point-cloud representation (see [data_strategy_3daffordsplat.md](data_strategy_3daffordsplat.md)).
+The system is trained using per-vertex affordance **pseudolabels** from the frozen **GEAL** teacher, computed on a point cloud sampled from each SAM3D mesh and mapped to its vertices — already in mesh-vertex order, so **no label alignment step is needed** (see [data_strategy_geal_omniobject3d.md](data_strategy_geal_omniobject3d.md)).
 
 Training supervision is formulated as probabilistic vertex-wise affordance prediction conditioned on the queried verb.
 

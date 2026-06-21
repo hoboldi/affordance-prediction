@@ -13,6 +13,13 @@ loguru>=0.7
 transformers>=4.36
 safetensors>=0.4
 
+# GEAL pseudolabel pipeline + training metrics
+scipy>=1.10           # nearest-point mapping of GEAL scores -> mesh vertices
+pandas>=2.0           # GEAL Affordance-Question.csv lookup (labeling.geal_infer)
+scikit-learn>=1.3     # train_affordance.py validation metrics (AUPRC)
+huggingface_hub>=0.20 # fetch GEAL / SAM3D checkpoints (scripts/bootstrap.sh)
+
 # torch + torchvision are in requirements-pytorch.txt (install separately)
 
 # SAM3D (optional): git submodule update --init sam-3d-objects
+# GEAL teacher code + its own deps: scripts/bootstrap.sh, then pip install -r external/geal/requirements.txt
