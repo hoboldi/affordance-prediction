@@ -181,6 +181,8 @@ def save_checkpoint(
                 "cond_dim": model.cfg.cond_dim,
                 "hidden_dims": list(model.cfg.hidden_dims),
                 "dropout": model.cfg.dropout,
+                "verb_conditioning": model.cfg.verb_conditioning,
+                "input_layernorm": model.cfg.input_layernorm,
             },
             "verb_to_idx": verb_to_idx,
         },
