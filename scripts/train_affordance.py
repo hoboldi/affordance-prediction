@@ -23,7 +23,11 @@ from tqdm import tqdm
 
 from datasets.data_root_dataset import DataRootDataset
 from models.mlp_head import AffordanceMLP, affordance_bce_loss, build_affordance_mlp
-from training.vertex_affordance_train import eval_vertex_bce, training_epoch_vertex_bce
+from training.vertex_affordance_train import (
+    eval_vertex_bce,
+    training_epoch_vertex_bce,
+    training_epoch_vertex_contrastive,
+)
 from utils.config import load_config
 
 logging.basicConfig(
@@ -215,6 +219,10 @@ def main() -> None:
     p.add_argument("--min_pred_std", type=float, default=0.02,
                    help="Min val prediction std for best.pt selection — refuses degenerate near-flat checkpoints "
                         "(random baseline ~0.002, developed ~0.06-0.09). last.pt always saved regardless.")
+    p.add_argument("--contrastive_weight", type=float, default=0.0,
+                   help="Weight on the cross-verb contrastive term (per-object). >0 enables the contrastive "
+                        "training epoch: penalizes prediction correlation across verbs on the same object, "
+                        "pushing predictions toward the near-disjoint GEAL labels. Try 0.5-1.0.")
     p.add_argument("--no_val", action="store_true")
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
@@ -315,7 +323,9 @@ def main() -> None:
     for ep in range(start_epoch, n_epochs):
         t0 = time.time()
 
-        tr_loss = training_epoch_vertex_bce(
+        epoch_fn = training_epoch_vertex_contrastive if args.contrastive_weight > 0 else training_epoch_vertex_bce
+        extra = {"contrastive_weight": args.contrastive_weight} if args.contrastive_weight > 0 else {}
+        tr_loss = epoch_fn(
             model, optimizer, ds_train,
             verb_to_idx=verb_to_idx,
             device=device,
@@ -323,6 +333,7 @@ def main() -> None:
             pos_weight=pos_weight,
             grad_accum=args.grad_accum,
             progress=lambda r: tqdm(r, desc=f"train {ep+1}/{n_epochs}", leave=False),
+            **extra,
         )
         train_losses.append(tr_loss)
         scheduler.step()

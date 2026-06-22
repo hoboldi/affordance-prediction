@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import collections
+import logging
 import math
 from typing import Any, Callable
 
@@ -9,6 +11,8 @@ import torch
 from torch.utils.data import Dataset
 
 from models.mlp_head import AffordanceMLP, affordance_bce_loss
+
+log = logging.getLogger(__name__)
 
 
 def _item_to_device(item: dict[str, Any], device: torch.device) -> dict[str, Any]:
@@ -142,6 +146,115 @@ def training_epoch_vertex_bce(
     if pending > 0:  # flush leftover gradients
         optimizer.step()
         optimizer.zero_grad()
+    return sum(losses) / max(len(losses), 1)
+
+
+_PER_VERTEX_KEYS = (
+    "vertex_features", "slat_vertex_features", "vertex_normals",
+    "vertex_positions", "vertex_affordance", "vertex_visible_mask",
+)
+
+
+def _subsample_item(item: dict[str, Any], sub: torch.Tensor) -> dict[str, Any]:
+    """Slice the per-vertex fields to `sub` (global dino_cls/ss_dino_cls left intact)."""
+    out = dict(item)
+    for key in _PER_VERTEX_KEYS:
+        if out.get(key) is not None:
+            out[key] = out[key][sub]
+    return out
+
+
+def _pearson(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    a = a - a.mean()
+    b = b - b.mean()
+    return (a * b).sum() / (a.norm() * b.norm() + 1e-6)
+
+
+def training_epoch_vertex_contrastive(
+    model: AffordanceMLP,
+    optimizer: torch.optim.Optimizer,
+    dataset: Dataset,
+    *,
+    verb_to_idx: dict[str, int],
+    device: torch.device,
+    max_samples: int | None = None,
+    progress: Callable[[range], Any] | None = None,
+    pos_weight: float = 5.0,
+    n_vertices_per_class: int = 2048,
+    grad_accum: int = 8,
+    contrastive_weight: float = 1.0,
+    max_vertices: int = 60000,
+) -> float:
+    """Like :func:`training_epoch_vertex_bce` but groups an object's verbs into one step and adds a
+    contrastive term that penalizes cross-verb prediction CORRELATION on the same object. The GEAL
+    labels are near-disjoint across verbs (corr ~-0.1, top-region IoU ~0), yet the per-row BCE lets the
+    head collapse toward a verb-agnostic average; this term pushes predictions apart toward the labels'
+    distinctness. Each object is subsampled to `max_vertices` to bound memory (multiple verbs held for
+    the contrastive backward). `grad_accum` counts OBJECTS.
+    """
+    model.train()
+    by_obj: dict[str, list[int]] = collections.OrderedDict()
+    for i in range(len(dataset.rows)):
+        by_obj.setdefault(str(dataset.rows[i].sam3d_reconstruction_dir), []).append(i)
+    objs = list(by_obj.values())
+    order = torch.randperm(len(objs)).tolist()
+    if max_samples is not None:
+        order = order[:max_samples]
+    iterator = progress(range(len(order))) if progress is not None else range(len(order))
+
+    optimizer.zero_grad()
+    pending = 0
+    losses: list[float] = []
+    sims: list[float] = []
+    for kk in iterator:
+        row_idxs = objs[order[kk]]
+        first = dataset[row_idxs[0]]
+        if first.get("vertex_affordance") is None:
+            continue
+        v_total = first["vertex_affordance"].shape[0]
+        sub = torch.randperm(v_total)[: min(v_total, max_vertices)]
+
+        preds: list[torch.Tensor] = []
+        bce_sum = None
+        nv = 0
+        for i in row_idxs:
+            raw = dataset[i]
+            if raw.get("vertex_affordance") is None:
+                continue
+            _check_required_features(raw, model.cfg, raw.get("sample_id"))
+            verb = raw["verb"]
+            if verb not in verb_to_idx:
+                continue
+            item = _item_to_device(_subsample_item(raw, sub), device)
+            logits = _forward(model, item, verb_to_idx[verb])
+            y = item["vertex_affordance"]
+            idx = _balanced_vertex_sample(y, n_vertices_per_class, item.get("vertex_visible_mask"))
+            bce = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0)
+            bce_sum = bce if bce_sum is None else bce_sum + bce
+            preds.append(torch.sigmoid(logits))
+            nv += 1
+        if nv == 0:
+            continue
+
+        loss = bce_sum / nv
+        if contrastive_weight > 0 and len(preds) >= 2:
+            pair = [_pearson(preds[a], preds[b]) for a in range(len(preds)) for b in range(a + 1, len(preds))]
+            csim = torch.stack(pair).mean()
+            loss = loss + contrastive_weight * csim
+            sims.append(float(csim.detach().cpu()))
+        (loss / grad_accum).backward()
+        pending += 1
+        if pending >= grad_accum:
+            optimizer.step()
+            optimizer.zero_grad()
+            pending = 0
+        losses.append(float(loss.detach().cpu()))
+
+    if pending > 0:
+        optimizer.step()
+        optimizer.zero_grad()
+    if sims:
+        log.info("  mean cross-verb pred corr (multi-verb objs) = %.3f", sum(sims) / len(sims))
     return sum(losses) / max(len(losses), 1)
 
 
