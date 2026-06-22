@@ -32,6 +32,13 @@ class MLPHeadConfig:
     #   "film"   — verb folded into the global FiLM stream (legacy; global level only).
     verb_conditioning: str = "concat"
     input_layernorm: bool = True  # LayerNorm the per-vertex input so the verb embedding doesn't drown the (unit-norm) CLIP features
+    # Where the verb conditioning vector comes from:
+    #   "learned" — nn.Embedding table indexed by verb id (closed set; new verbs need retraining).
+    #   "text"    — FROZEN CLIP text embedding of the verb phrase + a small learnable projection, so ANY
+    #               verb phrase maps to a conditioning vector at inference (OPEN-VOCABULARY). Lands in the
+    #               same CLIP space as the per-vertex visual features.
+    verb_embedding: str = "learned"
+    verb_text_dim: int = 512      # dim of the frozen text embedding (CLIP ViT-B/32 projection = 512)
 
     @property
     def _verb_in_vertex(self) -> bool:
@@ -70,7 +77,7 @@ class AffordanceMLP(nn.Module):
     Output: (V,) logits — apply sigmoid for probabilities.
     """
 
-    def __init__(self, cfg: MLPHeadConfig | None = None) -> None:
+    def __init__(self, cfg: MLPHeadConfig | None = None, verb_text_embeddings: torch.Tensor | None = None) -> None:
         super().__init__()
         cfg = cfg or MLPHeadConfig()
         self.cfg = cfg
@@ -92,11 +99,22 @@ class AffordanceMLP(nn.Module):
         self.out = nn.Linear(prev, 1)
         nn.init.constant_(self.out.bias, 0.0)  # balanced sampling → start at logit 0
 
-        # Verb embedding — used per-vertex in "concat" mode, or in the global FiLM in "film" mode.
+        # Verb conditioning vector source (used per-vertex in "concat" mode, or in global FiLM in "film").
         if cfg.verb_dim > 0:
             if cfg.num_verbs <= 0:
                 raise ValueError("num_verbs must be > 0 when verb_dim > 0")
-            self.verb_emb = nn.Embedding(cfg.num_verbs, cfg.verb_dim)
+            if cfg.verb_embedding == "text":
+                # Frozen CLIP text embedding per training verb (zeros here at load-time; filled by state_dict),
+                # mapped to verb_dim by a small learnable projection. New verbs: pass a text embedding to forward.
+                if verb_text_embeddings is None:
+                    verb_text_embeddings = torch.zeros(cfg.num_verbs, cfg.verb_text_dim)
+                self.register_buffer("verb_text", verb_text_embeddings.float())
+                self.verb_proj = nn.Sequential(
+                    nn.Linear(cfg.verb_text_dim, cfg.verb_dim), nn.ReLU(),
+                    nn.Linear(cfg.verb_dim, cfg.verb_dim),
+                )
+            else:
+                self.verb_emb = nn.Embedding(cfg.num_verbs, cfg.verb_dim)
 
         # Global (object-level) conditioning → FiLM params for every geometry layer
         self.use_global = cfg.global_dim > 0
@@ -108,6 +126,22 @@ class AffordanceMLP(nn.Module):
             self.film = nn.Linear(cfg.cond_dim, 2 * sum(cfg.hidden_dims))
             nn.init.zeros_(self.film.weight)   # identity modulation (γ=β=0) at init
             nn.init.zeros_(self.film.bias)
+
+    def _verb_vector(self, verb: int | torch.Tensor) -> torch.Tensor:
+        """(verb_dim,) conditioning vector for a verb — by id, or directly from a CLIP text embedding.
+
+        In ``verb_embedding="text"`` mode, pass a float tensor of shape (verb_text_dim,) to condition on an
+        arbitrary/unseen verb phrase (open-vocabulary); pass an int id to use a training verb's stored embedding.
+        """
+        if self.cfg.verb_embedding == "text":
+            if torch.is_tensor(verb) and torch.is_floating_point(verb) and verb.shape[-1] == self.cfg.verb_text_dim:
+                t = verb.to(self.verb_text.dtype).reshape(-1)            # a CLIP text embedding (e.g. an unseen verb)
+            else:
+                idx = torch.as_tensor(verb, device=self.verb_text.device, dtype=torch.long)
+                t = self.verb_text[idx].reshape(-1)
+            return self.verb_proj(t).reshape(-1)
+        idx = torch.as_tensor(verb, device=self.verb_emb.weight.device, dtype=torch.long)
+        return self.verb_emb(idx).reshape(-1)
 
     def _per_vertex_input(
         self,
@@ -136,8 +170,7 @@ class AffordanceMLP(nn.Module):
         if self.cfg._verb_in_vertex:
             if verb_idx is None:
                 raise ValueError("verb_idx required (verb_conditioning='concat')")
-            idx = torch.as_tensor(verb_idx, device=self.verb_emb.weight.device, dtype=torch.long)
-            v = self.verb_emb(idx).reshape(-1)  # (verb_dim,)
+            v = self._verb_vector(verb_idx)  # (verb_dim,)
             feat = torch.cat([feat, v.unsqueeze(0).expand(feat.shape[0], -1)], dim=-1)
         return feat
 
@@ -159,8 +192,7 @@ class AffordanceMLP(nn.Module):
         if self.cfg.verb_dim > 0 and self.cfg.verb_conditioning == "film":
             if verb_idx is None:
                 raise ValueError("verb_idx required (verb_dim>0)")
-            idx = torch.as_tensor(verb_idx, device=self.verb_emb.weight.device, dtype=torch.long)
-            parts.append(self.verb_emb(idx).flatten())
+            parts.append(self._verb_vector(verb_idx))
         return torch.cat(parts, dim=-1).unsqueeze(0)  # (1, global_dim)
 
     def forward(
@@ -235,6 +267,8 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         dropout=float(model_cfg.get("dropout", 0.1)),
         verb_conditioning=str(model_cfg.get("verb_conditioning", "concat")),
         input_layernorm=bool(model_cfg.get("input_layernorm", True)),
+        verb_embedding=str(model_cfg.get("verb_embedding", "learned")),
+        verb_text_dim=int(model_cfg.get("verb_text_dim", 512)),
     )
 
 
@@ -242,6 +276,7 @@ def build_affordance_mlp(
     cfg: dict[str, Any] | None = None,
     *,
     include_sam3d: bool | None = None,
+    verb_text_embeddings: torch.Tensor | None = None,
 ) -> AffordanceMLP:
     """
     Instantiate :class:`AffordanceMLP` from merged project config (``model.*`` keys).
@@ -264,4 +299,4 @@ def build_affordance_mlp(
         if int(m_raw.get("sam3d_dim", 0)) <= 0:
             m_raw["sam3d_dim"] = 8
     mcfg = mlp_head_config_from_model_cfg(m_raw)
-    return AffordanceMLP(mcfg)
+    return AffordanceMLP(mcfg, verb_text_embeddings=verb_text_embeddings)
