@@ -31,6 +31,7 @@ class MLPHeadConfig:
     #              whole field — it shifts the global level per verb but cannot select regions.)
     #   "film"   — verb folded into the global FiLM stream (legacy; global level only).
     verb_conditioning: str = "concat"
+    input_layernorm: bool = True  # LayerNorm the per-vertex input so the verb embedding doesn't drown the (unit-norm) CLIP features
 
     @property
     def _verb_in_vertex(self) -> bool:
@@ -76,6 +77,9 @@ class AffordanceMLP(nn.Module):
 
         if cfg.per_vertex_dim == 0:
             raise ValueError("At least one per-vertex input (vlm_dim, sam3d_dim, normals_dim) must be > 0")
+
+        # Balance scales across the concatenated per-vertex input (CLIP unit-norm vs verb embedding vs slat/normals)
+        self.in_norm = nn.LayerNorm(cfg.per_vertex_dim) if cfg.input_layernorm else None
 
         # Geometry trunk (per-vertex)
         self.geom_layers = nn.ModuleList()
@@ -170,6 +174,8 @@ class AffordanceMLP(nn.Module):
         vertex_positions: torch.Tensor | None = None,
     ) -> torch.Tensor:
         h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions)  # (V, per_vertex_dim)
+        if self.in_norm is not None:
+            h = self.in_norm(h)
 
         film_params = None
         if self.use_global:
@@ -228,6 +234,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         hidden_dims=tuple(int(x) for x in hd),
         dropout=float(model_cfg.get("dropout", 0.1)),
         verb_conditioning=str(model_cfg.get("verb_conditioning", "concat")),
+        input_layernorm=bool(model_cfg.get("input_layernorm", True)),
     )
 
 
