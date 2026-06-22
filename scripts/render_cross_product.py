@@ -31,15 +31,19 @@ from datasets.data_root_dataset import DataRootDataset  # noqa: E402
 from models.mlp_head import AffordanceMLP, mlp_head_config_from_model_cfg  # noqa: E402
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig  # noqa: E402
 
-# Curated per-object verbs: trained verbs + *fitting unseen phrases* (open-vocab). Edit freely.
-CURATED: dict[str, list[str]] = {
-    "cup":     ["grasp", "hold", "contain", "pour", "drink from"],
-    "bottle":  ["grasp", "contain", "pour", "twist the cap"],
-    "vase":    ["contain", "pour", "arrange flowers in"],
-    "bowl":    ["contain", "scoop from"],
-    "chair":   ["sit", "move", "rest on"],
-    "laptop":  ["display", "type on", "open the lid"],
-    "handbag": ["grasp", "contain", "carry"],
+# Curated per-object triplets demonstrating open-vocab: (phrase, role) where role is
+#   "trained"    — a verb the head trained on (reference region)
+#   "synonym"    — an UNSEEN paraphrase of the trained verb (should match the trained region)
+#   "new action" — an UNSEEN, semantically DIFFERENT affordance that still fits the object
+#                  (should localize to a DIFFERENT region). Edit freely.
+CURATED: dict[str, list[tuple[str, str]]] = {
+    "cup":     [("grasp", "trained"),   ("grip", "synonym"),               ("drink from", "new action")],
+    "bottle":  [("pour", "trained"),    ("pour out", "synonym"),           ("hold", "new action")],
+    "vase":    [("contain", "trained"), ("fill", "synonym"),               ("grasp", "new action")],
+    "bowl":    [("contain", "trained"), ("hold food", "synonym"),          ("grasp", "new action")],
+    "chair":   [("sit", "trained"),     ("be seated on", "synonym"),       ("lift", "new action")],
+    "laptop":  [("display", "trained"), ("show on its screen", "synonym"), ("carry", "new action")],
+    "handbag": [("grasp", "trained"),   ("hold", "synonym"),               ("put things in", "new action")],
 }
 
 
@@ -66,7 +70,7 @@ def main() -> None:
     model.eval()
 
     # Encode every unique phrase once.
-    phrases = sorted({v for vs in spec.values() for v in vs})
+    phrases = sorted({p for vs in spec.values() for (p, _role) in vs})
     embs = VLMWrapper(VLMConfig(device="cpu")).encode_text([p.replace("_", " ") for p in phrases])
     emb_of = {p: embs[i] for i, p in enumerate(phrases)}
 
@@ -93,7 +97,7 @@ def main() -> None:
         kw = dict(slat_vertex=_f(it.get("slat_vertex_features")), vlm_features=_f(it.get("vertex_features")),
                   dino_cls=_f(it.get("dino_cls")), ss_dino_cls=_f(it.get("ss_dino_cls")),
                   vertex_normals=_f(it.get("vertex_normals")), vertex_positions=None)
-        for ci, verb in enumerate(spec[cat]):
+        for ci, (verb, role) in enumerate(spec[cat]):
             with torch.no_grad():
                 p = torch.sigmoid(model(emb_of[verb], **kw)).numpy()
             ax = fig.add_subplot(len(objects), ncol, ri * ncol + ci + 1, projection="3d")
@@ -103,7 +107,8 @@ def main() -> None:
             mid = (xyz[sel].max(0) + xyz[sel].min(0)) / 2
             ax.set_xlim(mid[0] - h, mid[0] + h); ax.set_ylim(mid[2] - h, mid[2] + h); ax.set_zlim(mid[1] - h, mid[1] + h)
             ax.view_init(elev=14, azim=-60); ax.set_axis_off()
-            ax.set_title(verb, fontsize=9)
+            colr = {"trained": "black", "synonym": "tab:green", "new action": "tab:red"}.get(role, "black")
+            ax.set_title(f"{verb}\n({role})", fontsize=8, color=colr)
             if ci == 0:
                 ax.text2D(-0.18, 0.5, cat, transform=ax.transAxes, fontsize=11, fontweight="bold", rotation=90, va="center")
     fig.suptitle("Open-vocab affordance — each object with verbs that fit it (trained + unseen phrases)", fontsize=11)
