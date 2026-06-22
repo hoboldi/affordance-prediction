@@ -50,6 +50,7 @@ def compute_metrics(
     model.eval()
     all_probs: list[torch.Tensor] = []
     all_labels: list[torch.Tensor] = []
+    per_obj_std: list[float] = []   # spatial variation of each object's prediction field
 
     with torch.no_grad():
         for i in range(len(dataset)):
@@ -72,6 +73,7 @@ def compute_metrics(
                 vertex_positions=_to(item.get("vertex_positions")),
             )
             probs = torch.sigmoid(logits).cpu()
+            per_obj_std.append(float(probs.std()))   # before masking: variation of the full predicted field
 
             if mask is not None:
                 probs = probs[mask]
@@ -95,8 +97,9 @@ def compute_metrics(
     iou = tp / max(tp + fp + fn, 1)
 
     auprc = float(average_precision_score(labels_bin, probs_cat)) if labels_bin.sum() > 0 else 0.0
+    pred_std = float(torch.tensor(per_obj_std).mean()) if per_obj_std else 0.0
 
-    return {"miou": float(iou), "auprc": auprc}
+    return {"miou": float(iou), "auprc": auprc, "pred_std": pred_std}
 
 
 # ── Verb embeddings ────────────────────────────────────────────────────────────
@@ -183,6 +186,8 @@ def save_checkpoint(
                 "dropout": model.cfg.dropout,
                 "verb_conditioning": model.cfg.verb_conditioning,
                 "input_layernorm": model.cfg.input_layernorm,
+                "verb_embedding": model.cfg.verb_embedding,
+                "verb_text_dim": model.cfg.verb_text_dim,
             },
             "verb_to_idx": verb_to_idx,
         },
@@ -205,6 +210,11 @@ def main() -> None:
     p.add_argument("--max_train_samples", type=int, default=None)
     p.add_argument("--categories", nargs="*", default=None, help="Limit to these object categories (e.g. mug bottle)")
     p.add_argument("--verbs", nargs="*", default=None, help="Limit to these actions/verbs (e.g. grasp pour)")
+    p.add_argument("--verb_embedding", default=None, choices=["learned", "text"],
+                   help="Verb conditioning source (default: config/learned). 'text' = open-vocab CLIP text embedding")
+    p.add_argument("--min_pred_std", type=float, default=0.02,
+                   help="Min val prediction std for best.pt selection — refuses degenerate near-flat checkpoints "
+                        "(random baseline ~0.002, developed ~0.06-0.09). last.pt always saved regardless.")
     p.add_argument("--no_val", action="store_true")
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
@@ -255,10 +265,23 @@ def main() -> None:
     if args.vlm_dim is not None:
         model_cfg_raw["vlm_dim"] = args.vlm_dim
     model_cfg_raw["num_verbs"] = len(verbs)
+    if args.verb_embedding is not None:
+        model_cfg_raw["verb_embedding"] = args.verb_embedding
     cfg = {**cfg, "model": model_cfg_raw}
 
     # ── Model ─────────────────────────────────────────────────────────────────
-    model = build_affordance_mlp(cfg).to(device)
+    # Open-vocab conditioning: a frozen CLIP text embedding per verb (+ a learnable projection in the
+    # head), so the head conditions on the verb *phrase* and generalizes to unseen verbs at inference.
+    verb_text_emb = None
+    if str(model_cfg_raw.get("verb_embedding", "learned")) == "text":
+        from vlm.vlm_wrapper import VLMWrapper, build_vlm_config
+        # Bare verb words give the most separable CLIP text embeddings (mean cos ~0.82 vs ~0.92 for
+        # "a region to {verb}", whose shared template tokens dilute the verb signal).
+        prompts = [v.replace('_', ' ') for v in verbs]
+        verb_text_emb = VLMWrapper(build_vlm_config(cfg)).encode_text(prompts)
+        log.info("Open-vocab verbs: CLIP text emb %s for %s", tuple(verb_text_emb.shape), verbs)
+
+    model = build_affordance_mlp(cfg, verb_text_embeddings=verb_text_emb).to(device)
     log.info("Model input_dim=%d  params=%s", model.cfg.input_dim,
              f"{sum(p.numel() for p in model.parameters()):,}")
 
@@ -322,7 +345,7 @@ def main() -> None:
         msg = (
             f"epoch {ep+1:>3}/{n_epochs}"
             f"  train={tr_loss:.4f}"
-            + (f"  val={va_loss:.4f}  mIoU={metrics['miou']:.3f}  AUPRC={metrics['auprc']:.3f}" if metrics else "")
+            + (f"  val={va_loss:.4f}  mIoU={metrics['miou']:.3f}  AUPRC={metrics['auprc']:.3f}  std={metrics['pred_std']:.3f}" if metrics else "")
             + f"  lr={scheduler.get_last_lr()[0]:.2e}  {elapsed:.0f}s"
         )
         log.info(msg)
@@ -342,8 +365,11 @@ def main() -> None:
             verb_to_idx=verb_to_idx,
         )
 
-        # Best model by AUPRC
-        if metrics and metrics["auprc"] > best_auprc:
+        # Best model by AUPRC — but gated on a minimum prediction std. Verb-conditioning (spatial
+        # structure) develops over many epochs while AUPRC on a small/noisy val split saturates early,
+        # so a near-flat, undertrained checkpoint can score a deceptively-OK AUPRC. The std gate refuses
+        # to crown such a degenerate model. `last.pt` (below) is the selection-independent fallback.
+        if metrics and metrics["auprc"] > best_auprc and metrics["pred_std"] >= args.min_pred_std:
             best_auprc = metrics["auprc"]
             save_checkpoint(
                 out_dir / "best.pt",
@@ -357,7 +383,22 @@ def main() -> None:
                 best_auprc=best_auprc,
                 verb_to_idx=verb_to_idx,
             )
-            log.info("  ↑ new best AUPRC=%.3f — saved best.pt", best_auprc)
+            log.info("  ↑ new best AUPRC=%.3f (std=%.3f) — saved best.pt", best_auprc, metrics["pred_std"])
+
+        # Always keep the latest epoch (selection-independent; conditioning develops late even when
+        # val-AUPRC is flat, so the final epoch is often the best-conditioned checkpoint).
+        save_checkpoint(
+            out_dir / "last.pt",
+            epoch=ep + 1,
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            train_losses=train_losses,
+            val_losses=val_losses,
+            val_metrics=val_metrics,
+            best_auprc=best_auprc,
+            verb_to_idx=verb_to_idx,
+        )
 
         # Keep only last 3 epoch checkpoints to save disk
         old_ckpts = sorted(out_dir.glob("epoch_*.pt"))[:-3]

@@ -51,3 +51,17 @@ class VLMWrapper:
     @property
     def num_patches(self) -> int:
         return self.patch_grid_size**2
+
+    def encode_text(self, texts: list[str]) -> torch.Tensor:
+        """Frozen CLIP text embeddings, L2-normalized — (len(texts), projection_dim).
+
+        Same CLIP space as the per-vertex image features, so a verb phrase can condition the head
+        and generalize to unseen phrases (open-vocabulary verb conditioning).
+        """
+        inputs = self.processor(text=list(texts), return_tensors="pt", padding=True, truncation=True).to(self.device)
+        with torch.no_grad():
+            pooled = self.model.text_model(
+                input_ids=inputs["input_ids"], attention_mask=inputs.get("attention_mask")
+            ).pooler_output                                  # (N, hidden)
+            feats = self.model.text_projection(pooled)        # (N, projection_dim)
+        return (feats / (feats.norm(dim=-1, keepdim=True) + 1e-6)).cpu()

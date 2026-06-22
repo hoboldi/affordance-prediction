@@ -22,7 +22,7 @@ co3d:
   manifest_filename: manifest.jsonl
   views_per_object: 1               # frames sampled per sequence (1 = a single canonical view)
   frame_selection: middle           # middle | first | even  (which frame(s) of the turntable to use)
-  max_objects_per_category: null    # cap sequences kept per category (null = all). ~100 for a ~1k-object run.
+  max_objects_per_category: 80      # cap sequences kept per category (balances the set + bounds recon).
 
   # CO3D (COCO) category folder -> GEAL / 3D-AffordanceNet class. GEAL knows only these 23 classes.
   category_map:
@@ -31,7 +31,6 @@ co3d:
     cup: Mug
     chair: Chair
     handbag: Bag
-    keyboard: Keyboard
     laptop: Laptop
     microwave: Microwave
     tv: Display
@@ -42,16 +41,15 @@ co3d:
   # different region). All must be in labeling.GEAL_AFFORDANCES and be plausible 3D-AffordanceNet
   # (object, affordance) pairs so the frozen GEAL teacher gives meaningful labels.
   affordance_map:
-    Bottle: [contain, grasp, wrap_grasp, pour]
-    Bowl: [contain, wrap_grasp]
-    Mug: [contain, grasp, wrap_grasp, pour]
+    Bottle: [contain, grasp, pour]
+    Bowl: [contain]
+    Mug: [contain, grasp, pour]
     Chair: [sit, move]
-    Bag: [grasp, lift, contain]
-    Keyboard: [press]
-    Laptop: [display, press]
-    Microwave: [open, contain]
+    Bag: [grasp, contain]
+    Laptop: [display]
+    Microwave: [contain]
     Display: [display]
-    Vase: [contain, wrap_grasp, pour]
+    Vase: [contain, pour]
 
   # Held-out GEAL classes -> manifest split "val" (quantitative unseen-CLASS generalisation eval).
   # Chosen so their affordance stays represented in train: contain via bottle/bowl/cup, display via tv.
