@@ -232,6 +232,9 @@ def main() -> None:
                    help="Linearly ramp contrastive_weight from 0 to its full value over the first N epochs "
                         "(0 = constant). Lets confident structure form before separation — for the open-vocab "
                         "head, constant contrastive flattens predictions.")
+    p.add_argument("--confidence_weight", type=float, default=0.0,
+                   help="Weight each vertex's loss by GEAL decisiveness (2|y-0.5|)^gamma — trusts confident "
+                        "labels, discounts the ambiguous/sparse middle. gamma=this value (1=linear). Labels unchanged.")
     p.add_argument("--no_val", action="store_true")
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
@@ -350,6 +353,7 @@ def main() -> None:
             max_samples=args.max_train_samples,
             pos_weight=pos_weight,
             grad_accum=args.grad_accum,
+            conf_weight=args.confidence_weight,
             progress=lambda r: tqdm(r, desc=f"train {ep+1}/{n_epochs}", leave=False),
             **extra,
         )

@@ -103,6 +103,7 @@ def training_epoch_vertex_bce(
     pos_weight: float = 5.0,
     n_vertices_per_class: int = 2048,
     grad_accum: int = 8,
+    conf_weight: float = 0.0,
 ) -> float:
     """One full pass over ``dataset`` (each item = one mesh). Returns mean BCE loss per sample.
 
@@ -134,7 +135,7 @@ def training_epoch_vertex_bce(
 
         idx = _balanced_vertex_sample(y, n_vertices_per_class, item.get("vertex_visible_mask"))
         # pos_weight=1.0 — balanced sampling already equalises classes
-        loss = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0)
+        loss = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0, conf_weight=conf_weight)
         (loss / grad_accum).backward()
         pending += 1
         if pending == grad_accum:
@@ -184,6 +185,7 @@ def training_epoch_vertex_contrastive(
     grad_accum: int = 8,
     contrastive_weight: float = 1.0,
     max_vertices: int = 60000,
+    conf_weight: float = 0.0,
 ) -> float:
     """Like :func:`training_epoch_vertex_bce` but groups an object's verbs into one step and adds a
     contrastive term that penalizes cross-verb prediction CORRELATION on the same object. The GEAL
@@ -229,7 +231,7 @@ def training_epoch_vertex_contrastive(
             logits = _forward(model, item, verb_to_idx[verb])
             y = item["vertex_affordance"]
             idx = _balanced_vertex_sample(y, n_vertices_per_class, item.get("vertex_visible_mask"))
-            bce = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0)
+            bce = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0, conf_weight=conf_weight)
             bce_sum = bce if bce_sum is None else bce_sum + bce
             preds.append(torch.sigmoid(logits))
             nv += 1

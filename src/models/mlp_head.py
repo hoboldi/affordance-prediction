@@ -252,6 +252,7 @@ def affordance_bce_loss(
     targets: torch.Tensor,
     mask: torch.Tensor | None = None,
     pos_weight: float = 5.0,
+    conf_weight: float = 0.0,
 ) -> torch.Tensor:
     """Binary cross-entropy loss with positive-class upweighting.
 
@@ -261,11 +262,18 @@ def affordance_bce_loss(
         mask:       (V,) bool — only compute loss where True (e.g. visible vertices)
         pos_weight: scalar weight on positive examples. Use 1.0 with balanced vertex
                     sampling; use 5–10 when training on all vertices (~6% positive rate).
+        conf_weight: if > 0, weight each vertex's loss by GEAL *decisiveness* (2·|y−0.5|)^conf_weight —
+                    trusts confident labels (y near 0/1) and discounts the ambiguous/sparse middle (y≈0.5).
+                    Labels are unchanged; only the loss is reweighted. conf_weight is the exponent γ (1=linear).
     """
     if mask is not None:
         logits = logits[mask]
         targets = targets[mask]
     pw = torch.tensor(pos_weight, dtype=logits.dtype, device=logits.device)
+    if conf_weight > 0:
+        w = (2.0 * (targets - 0.5).abs()).clamp(0.0, 1.0) ** conf_weight   # GEAL confidence: 1 at 0/1, ~0 at 0.5
+        per = nn.functional.binary_cross_entropy_with_logits(logits, targets, pos_weight=pw, reduction="none")
+        return (w * per).sum() / (w.sum() + 1e-6)
     return nn.functional.binary_cross_entropy_with_logits(logits, targets, pos_weight=pw)
 
 
