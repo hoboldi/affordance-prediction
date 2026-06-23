@@ -55,6 +55,7 @@ def _predict(model, v2i, it) -> np.ndarray:
             ss_dino_cls=_f(it.get("ss_dino_cls")),
             vertex_normals=_f(it.get("vertex_normals")),
             vertex_positions=_f(it.get("vertex_positions")),
+            dino_vertex=_f(it.get("dino_vertex_features")),
         )
     return torch.sigmoid(logits).numpy()
 
@@ -71,8 +72,9 @@ def main() -> None:
     model.load_state_dict(ck["model"])
     model.eval()
     v2i = ck["verb_to_idx"]
+    _use_dino = int(ck["model_cfg"].get("dino_vertex_dim", 0)) > 0
 
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True)
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=_use_dino)
 
     # Group manifest rows by object (reconstruction dir) -> {verb: row_index}
     by_obj: dict[str, dict[str, int]] = collections.defaultdict(dict)

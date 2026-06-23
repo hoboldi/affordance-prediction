@@ -41,7 +41,7 @@ def _load(path):
     ck = torch.load(path, map_location="cpu", weights_only=False)
     m = AffordanceMLP(mlp_head_config_from_model_cfg(ck["model_cfg"]))
     m.load_state_dict(ck["model"]); m.eval()
-    return m, ck["verb_to_idx"]
+    return m, ck["verb_to_idx"], int(ck["model_cfg"].get("dino_vertex_dim", 0))
 
 
 def parse_args():
@@ -55,9 +55,9 @@ def parse_args():
 
 def main():
     args = parse_args()
-    m3, v2i3 = _load(args.v3)
-    m4, v2i4 = _load(args.v4)
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True)
+    m3, v2i3, d3 = _load(args.v3)
+    m4, v2i4, d4 = _load(args.v4)
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=(d3 > 0 or d4 > 0))
     idx = {}
     for i, r in enumerate(ds.rows):
         cat = r.sample_id.split("__")[0]
@@ -73,7 +73,7 @@ def main():
             return torch.sigmoid(m(v2i[verb], slat_vertex=_f(it.get("slat_vertex_features")),
                 vlm_features=_f(it.get("vertex_features")), dino_cls=_f(it.get("dino_cls")),
                 ss_dino_cls=_f(it.get("ss_dino_cls")), vertex_normals=_f(it.get("vertex_normals")),
-                vertex_positions=None)).numpy()
+                vertex_positions=None, dino_vertex=_f(it.get("dino_vertex_features")))).numpy()
 
     rng = np.random.default_rng(0)
     fig = plt.figure(figsize=(9, 2.5 * len(pairs)))
