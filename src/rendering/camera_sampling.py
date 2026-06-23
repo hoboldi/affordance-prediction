@@ -278,3 +278,46 @@ def spherical_camera_poses(
         eye = target + offset.astype(np.float64)
         poses.append(look_at_pose(eye, target=target, up=a))
     return poses
+
+
+def multi_ring_camera_poses(
+    azimuths_per_ring: int,
+    elevations_deg: tuple[float, ...],
+    *,
+    radius: float = 2.0,
+    target: np.ndarray | None = None,
+    orbit_axis: np.ndarray | None = None,
+    elevation_min_deg: float = 25.0,
+    elevation_max_deg: float = 60.0,
+) -> list[CameraPose]:
+    """Cameras on **multiple** elevation rings, with azimuths **staggered** across rings.
+
+    The single-ring sampler bakes an N-fold azimuthal seam into projected per-vertex features (all
+    cameras share one elevation, evenly spaced in azimuth). Spreading cameras over several elevations
+    and interleaving their azimuths (ring k offset by ``k·360/(azimuths_per_ring·K)``) gives a set of
+    well-distributed viewpoints that wash that seam out under mean/weighted fusion and cover more of
+    the surface. Total views = ``azimuths_per_ring · len(elevations_deg)``.
+    """
+    if azimuths_per_ring < 1:
+        raise ValueError("azimuths_per_ring must be >= 1")
+    if not elevations_deg:
+        raise ValueError("elevations_deg must be non-empty")
+    K = len(elevations_deg)
+    stagger = 360.0 / (azimuths_per_ring * K)
+    base = [360.0 * i / azimuths_per_ring for i in range(azimuths_per_ring)]
+    poses: list[CameraPose] = []
+    for k, elev in enumerate(elevations_deg):
+        offsets = tuple(b + k * stagger for b in base)
+        poses.extend(
+            spherical_camera_poses(
+                azimuths_per_ring,
+                radius=radius,
+                elevation_deg=float(elev),
+                elevation_min_deg=elevation_min_deg,
+                elevation_max_deg=elevation_max_deg,
+                target=target,
+                orbit_axis=orbit_axis,
+                azimuth_offsets_deg=offsets,
+            )
+        )
+    return poses

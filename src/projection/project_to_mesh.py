@@ -28,14 +28,23 @@ class ViewProjectionInputs:
     patches: PatchFeatures
     render_height: int
     render_width: int
+    camera_position: np.ndarray | None = None  # (3,) camera world pos — enables facing-weighted fusion
 
 
 def project_views_to_vertices(
     views: list[ViewProjectionInputs],
     *,
     clip_image_size: int = 224,
+    vertex_normals: np.ndarray | None = None,
+    vertex_positions: np.ndarray | None = None,
 ) -> VertexSemanticFeatures:
-    """Project patch tokens onto vertices and mean-fuse across views."""
+    """Project patch tokens onto vertices and fuse across views.
+
+    If ``vertex_normals`` + ``vertex_positions`` are given and every view carries a ``camera_position``,
+    fusion is **facing-weighted**: each view contributes to a vertex in proportion to how head-on the
+    surface faces that camera (``clip(normal·dir_to_cam, 0.1, 1)``). This down-weights grazing/
+    foreshortened views and smooths the seams a plain equal-weight mean leaves. Otherwise: equal mean.
+    """
     if not views:
         raise ValueError("views must not be empty")
 
@@ -58,10 +67,27 @@ def project_views_to_vertices(
         )
         patches_per_view.append(pf.patches)
 
+    view_weights: list[np.ndarray] | None = None
+    if (
+        vertex_normals is not None
+        and vertex_positions is not None
+        and all(v.camera_position is not None for v in views)
+    ):
+        n = np.asarray(vertex_normals, dtype=np.float64)
+        n = n / (np.linalg.norm(n, axis=1, keepdims=True) + 1e-8)
+        pos = np.asarray(vertex_positions, dtype=np.float64)
+        view_weights = []
+        for view in views:
+            d = np.asarray(view.camera_position, dtype=np.float64)[None, :] - pos
+            d = d / (np.linalg.norm(d, axis=1, keepdims=True) + 1e-8)
+            facing = (n * d).sum(axis=1)
+            view_weights.append(np.clip(facing, 0.1, 1.0).astype(np.float32))  # floor: visible verts always count
+
     features, counts = fuse_patch_features(
         num_vertices,
         patch_indices_per_view,
         patches_per_view,
+        view_weights=view_weights,
     )
 
     visible_any = np.zeros(num_vertices, dtype=bool)

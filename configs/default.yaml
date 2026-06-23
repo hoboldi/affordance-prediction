@@ -48,6 +48,16 @@ rendering:
   orbit_axis_mode: world
   orbit_ring_rotation_deg: 0.0
   orbit_ring_rotation_axis: [1.0, 0.0, 0.0]
+  # --- Per-vertex feature-render quality (CLIP/DINO pipeline) ---
+  # Multiple elevation rings with staggered azimuths break the single-ring 6-fold azimuthal seam
+  # (24 views = 3 rings x 8). Auto-fit framing fills the frame for finer patches. Unlit albedo gives
+  # true, view-consistent vertex colour. Facing-weighted fusion (in project_to_mesh) smooths seams.
+  elevation_rings_deg: [33.0, 52.0]   # 2 rings x 8 = 16 views: star gone (sweep), ~33% less than 24
+  azimuths_per_ring: 8
+  auto_fit_framing: true
+  frame_fill: 0.85
+  unlit_albedo: true
+  unlit_ambient: 0.6   # de-wash the muted SAM3D vertex colours (ambient 1.0 brightens 130->210)
   # Second pyrender pass: world normals as RGB + 3-channel depth visualization (uint8) for SAM/VLM aux.
   render_geometry_aux: true
   depth_tolerance: 0.05

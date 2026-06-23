@@ -26,6 +26,7 @@ if str(_REPO_ROOT / "src") not in sys.path:
 
 import numpy as np
 import torch
+import trimesh
 from PIL import Image
 
 from datasets.data_root_dataset import _parse_row, resolve_data_root
@@ -124,10 +125,13 @@ def main() -> None:
             mesh = load_mesh(mesh_path, process=False)
             views = render_mesh_views(mesh, cfg)
             patches = extractor.patches([v.rgb for v in views])
+            vnormals = trimesh.Trimesh(mesh.vertices, mesh.faces, process=False).vertex_normals
             pv = [ViewProjectionInputs(vertex_uv=v.vertex_uv, vertex_visible=v.vertex_visible, patches=p,
-                                       render_height=v.rgb.shape[0], render_width=v.rgb.shape[1])
+                                       render_height=v.rgb.shape[0], render_width=v.rgb.shape[1],
+                                       camera_position=v.camera_pose[:3, 3])
                   for v, p in zip(views, patches)]
-            vs = project_views_to_vertices(pv, clip_image_size=clip_image_size)
+            vs = project_views_to_vertices(pv, clip_image_size=clip_image_size,
+                                           vertex_normals=vnormals, vertex_positions=mesh.vertices)
             feats = vs.features.float()
             feats = feats / (feats.norm(dim=-1, keepdim=True) + 1e-6)
             if proj is not None:
