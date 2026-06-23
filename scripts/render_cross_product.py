@@ -36,14 +36,18 @@ from vlm.vlm_wrapper import VLMWrapper, VLMConfig  # noqa: E402
 #   "synonym"    — an UNSEEN paraphrase of the trained verb (should match the trained region)
 #   "new action" — an UNSEEN, semantically DIFFERENT affordance that still fits the object
 #                  (should localize to a DIFFERENT region). Edit freely.
+# Four columns per object:
+#   "trained"    — verb trained ON THIS object (reference region)
+#   "synonym"    — unseen paraphrase of the trained verb (should match the trained region)
+#   "transfer"   — a verb that IS in the training vocab but learned on OTHER object classes, yet suits
+#                  this object too (tests transfer of a known action to a new object)
+#   "new action" — a verb phrase NEVER seen in training, but suitable for the object (pure open-vocab)
 CURATED: dict[str, list[tuple[str, str]]] = {
-    "cup":     [("grasp", "trained"),   ("grip", "synonym"),               ("drink from", "new action")],
-    "bottle":  [("pour", "trained"),    ("pour out", "synonym"),           ("hold", "new action")],
-    "vase":    [("contain", "trained"), ("fill", "synonym"),               ("grasp", "new action")],
-    "bowl":    [("contain", "trained"), ("hold food", "synonym"),          ("grasp", "new action")],
-    "chair":   [("sit", "trained"),     ("be seated on", "synonym"),       ("lift", "new action")],
-    "laptop":  [("display", "trained"), ("show on its screen", "synonym"), ("carry", "new action")],
-    "handbag": [("grasp", "trained"),   ("hold", "synonym"),               ("put things in", "new action")],
+    "bottle": [("pour", "trained"),    ("pour out", "synonym"),     ("contain", "transfer"), ("drink from", "new action")],
+    "bowl":   [("contain", "trained"), ("hold food", "synonym"),    ("grasp", "transfer"),   ("scoop from", "new action")],
+    "chair":  [("sit", "trained"),     ("be seated on", "synonym"), ("grasp", "transfer"),   ("lean on", "new action")],
+    "cup":    [("grasp", "trained"),   ("grip", "synonym"),         ("move", "transfer"),    ("drink from", "new action")],
+    "vase":   [("contain", "trained"), ("fill", "synonym"),         ("grasp", "transfer"),   ("display flowers in", "new action")],
 }
 
 
@@ -74,7 +78,8 @@ def main() -> None:
     embs = VLMWrapper(VLMConfig(device="cpu")).encode_text([p.replace("_", " ") for p in phrases])
     emb_of = {p: embs[i] for i, p in enumerate(phrases)}
 
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=False, load_vertex_semantics_eager=True)
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=False, load_vertex_semantics_eager=True,
+                         load_vertex_dino=int(cfg.dino_vertex_dim) > 0, dino_filename=cfg.dino_filename)
     pick: dict[str, int] = {}
     for i, r in enumerate(ds.rows):
         cat = r.sample_id.split("__")[0]
@@ -96,7 +101,8 @@ def main() -> None:
         sel = rng.choice(len(xyz), min(args.subsample, len(xyz)), replace=False)
         kw = dict(slat_vertex=_f(it.get("slat_vertex_features")), vlm_features=_f(it.get("vertex_features")),
                   dino_cls=_f(it.get("dino_cls")), ss_dino_cls=_f(it.get("ss_dino_cls")),
-                  vertex_normals=_f(it.get("vertex_normals")), vertex_positions=None)
+                  vertex_normals=_f(it.get("vertex_normals")), vertex_positions=None,
+                  dino_vertex=_f(it.get("dino_vertex_features")))
         for ci, (verb, role) in enumerate(spec[cat]):
             with torch.no_grad():
                 p = torch.sigmoid(model(emb_of[verb], **kw)).numpy()
@@ -107,11 +113,11 @@ def main() -> None:
             mid = (xyz[sel].max(0) + xyz[sel].min(0)) / 2
             ax.set_xlim(mid[0] - h, mid[0] + h); ax.set_ylim(mid[2] - h, mid[2] + h); ax.set_zlim(mid[1] - h, mid[1] + h)
             ax.view_init(elev=14, azim=-60); ax.set_axis_off()
-            colr = {"trained": "black", "synonym": "tab:green", "new action": "tab:red"}.get(role, "black")
+            colr = {"trained": "black", "synonym": "tab:green", "transfer": "tab:blue", "new action": "tab:red"}.get(role, "black")
             ax.set_title(f"{verb}\n({role})", fontsize=8, color=colr)
             if ci == 0:
                 ax.text2D(-0.18, 0.5, cat, transform=ax.transAxes, fontsize=11, fontweight="bold", rotation=90, va="center")
-    fig.suptitle("Open-vocab affordance — each object with verbs that fit it (trained + unseen phrases)", fontsize=11)
+    fig.suptitle("Open-vocab affordance (v15) — trained (black) | synonym (green) | transfer: known verb, new object (blue) | never-seen (red)", fontsize=10)
     out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=120, bbox_inches="tight")
     print(f"saved {out}  ({len(objects)} objects, phrases: {phrases})")
