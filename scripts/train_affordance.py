@@ -219,6 +219,8 @@ def main() -> None:
                    help="Verb conditioning source (default: config/learned). 'text' = open-vocab CLIP text embedding")
     p.add_argument("--verb_proj_deep", action="store_true",
                    help="Open-vocab (text) mode: use a deeper verb projection (more capacity to separate verbs)")
+    p.add_argument("--verb_conditioning", default=None, choices=["concat", "film", "cross_attn"],
+                   help="How the verb conditions predictions (default: config/concat). cross_attn = verb-query scores each vertex.")
     p.add_argument("--min_pred_std", type=float, default=0.02,
                    help="Min val prediction std for best.pt selection — refuses degenerate near-flat checkpoints "
                         "(random baseline ~0.002, developed ~0.06-0.09). last.pt always saved regardless.")
@@ -226,6 +228,10 @@ def main() -> None:
                    help="Weight on the cross-verb contrastive term (per-object). >0 enables the contrastive "
                         "training epoch: penalizes prediction correlation across verbs on the same object, "
                         "pushing predictions toward the near-disjoint GEAL labels. Try 0.5-1.0.")
+    p.add_argument("--contrastive_warmup", type=int, default=0,
+                   help="Linearly ramp contrastive_weight from 0 to its full value over the first N epochs "
+                        "(0 = constant). Lets confident structure form before separation — for the open-vocab "
+                        "head, constant contrastive flattens predictions.")
     p.add_argument("--no_val", action="store_true")
     p.add_argument("--resume", action="store_true", help="Resume from latest checkpoint in output_dir")
     p.add_argument("--dino_cls_dim", type=int, default=None, help="Override model.dino_cls_dim from config")
@@ -280,6 +286,8 @@ def main() -> None:
         model_cfg_raw["verb_embedding"] = args.verb_embedding
     if args.verb_proj_deep:
         model_cfg_raw["verb_proj_deep"] = True
+    if args.verb_conditioning is not None:
+        model_cfg_raw["verb_conditioning"] = args.verb_conditioning
     cfg = {**cfg, "model": model_cfg_raw}
 
     # ── Model ─────────────────────────────────────────────────────────────────
@@ -328,8 +336,13 @@ def main() -> None:
     for ep in range(start_epoch, n_epochs):
         t0 = time.time()
 
-        epoch_fn = training_epoch_vertex_contrastive if args.contrastive_weight > 0 else training_epoch_vertex_bce
-        extra = {"contrastive_weight": args.contrastive_weight} if args.contrastive_weight > 0 else {}
+        if args.contrastive_weight > 0:
+            lam = args.contrastive_weight * (min(1.0, (ep + 1) / args.contrastive_warmup) if args.contrastive_warmup > 0 else 1.0)
+            epoch_fn = training_epoch_vertex_contrastive
+            extra = {"contrastive_weight": lam}
+        else:
+            epoch_fn = training_epoch_vertex_bce
+            extra = {}
         tr_loss = epoch_fn(
             model, optimizer, ds_train,
             verb_to_idx=verb_to_idx,

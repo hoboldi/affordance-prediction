@@ -136,6 +136,13 @@ class AffordanceMLP(nn.Module):
             nn.init.zeros_(self.film.weight)   # identity modulation (γ=β=0) at init
             nn.init.zeros_(self.film.bias)
 
+        # Cross-attention conditioning: the verb forms a query that scores each vertex's hidden state
+        # directly (logit_v = h_v . q / sqrt(d) + bias) — a more expressive, spatially-direct mechanism
+        # than concat (where the verb is a constant appended to every vertex).
+        if cfg.verb_conditioning == "cross_attn":
+            self.verb_query = nn.Linear(cfg.verb_dim, cfg.hidden_dims[-1])
+            self.attn_bias = nn.Parameter(torch.zeros(()))
+
     def _verb_vector(self, verb: int | torch.Tensor) -> torch.Tensor:
         """(verb_dim,) conditioning vector for a verb — by id, or directly from a CLIP text embedding.
 
@@ -234,6 +241,9 @@ class AffordanceMLP(nn.Module):
                 offset += 2 * H
                 h = h * (1.0 + gamma) + beta   # broadcast (1, H) over (V, H)
             h = self.drop(self.act(h))
+        if self.cfg.verb_conditioning == "cross_attn":
+            q = self.verb_query(self._verb_vector(verb_idx))           # (H_last,)
+            return (h @ q) / (h.shape[-1] ** 0.5) + self.attn_bias     # (V,) verb-query scores each vertex
         return self.out(h).squeeze(-1)
 
 
