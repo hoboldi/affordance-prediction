@@ -39,6 +39,8 @@ class MLPHeadConfig:
     #               same CLIP space as the per-vertex visual features.
     verb_embedding: str = "learned"
     verb_text_dim: int = 512      # dim of the frozen text embedding (CLIP ViT-B/32 projection = 512)
+    verb_proj_deep: bool = False  # text mode: deeper verb projection (512->512->256->verb_dim) for more
+                                  # capacity to separate similar CLIP text embeddings into distinct verb vectors
 
     @property
     def _verb_in_vertex(self) -> bool:
@@ -109,10 +111,17 @@ class AffordanceMLP(nn.Module):
                 if verb_text_embeddings is None:
                     verb_text_embeddings = torch.zeros(cfg.num_verbs, cfg.verb_text_dim)
                 self.register_buffer("verb_text", verb_text_embeddings.float())
-                self.verb_proj = nn.Sequential(
-                    nn.Linear(cfg.verb_text_dim, cfg.verb_dim), nn.ReLU(),
-                    nn.Linear(cfg.verb_dim, cfg.verb_dim),
-                )
+                if cfg.verb_proj_deep:
+                    self.verb_proj = nn.Sequential(
+                        nn.Linear(cfg.verb_text_dim, 512), nn.ReLU(),
+                        nn.Linear(512, 256), nn.ReLU(),
+                        nn.Linear(256, cfg.verb_dim),
+                    )
+                else:
+                    self.verb_proj = nn.Sequential(
+                        nn.Linear(cfg.verb_text_dim, cfg.verb_dim), nn.ReLU(),
+                        nn.Linear(cfg.verb_dim, cfg.verb_dim),
+                    )
             else:
                 self.verb_emb = nn.Embedding(cfg.num_verbs, cfg.verb_dim)
 
@@ -269,6 +278,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         input_layernorm=bool(model_cfg.get("input_layernorm", True)),
         verb_embedding=str(model_cfg.get("verb_embedding", "learned")),
         verb_text_dim=int(model_cfg.get("verb_text_dim", 512)),
+        verb_proj_deep=bool(model_cfg.get("verb_proj_deep", False)),
     )
 
 

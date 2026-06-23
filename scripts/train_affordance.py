@@ -192,6 +192,7 @@ def save_checkpoint(
                 "input_layernorm": model.cfg.input_layernorm,
                 "verb_embedding": model.cfg.verb_embedding,
                 "verb_text_dim": model.cfg.verb_text_dim,
+                "verb_proj_deep": model.cfg.verb_proj_deep,
             },
             "verb_to_idx": verb_to_idx,
         },
@@ -216,6 +217,8 @@ def main() -> None:
     p.add_argument("--verbs", nargs="*", default=None, help="Limit to these actions/verbs (e.g. grasp pour)")
     p.add_argument("--verb_embedding", default=None, choices=["learned", "text"],
                    help="Verb conditioning source (default: config/learned). 'text' = open-vocab CLIP text embedding")
+    p.add_argument("--verb_proj_deep", action="store_true",
+                   help="Open-vocab (text) mode: use a deeper verb projection (more capacity to separate verbs)")
     p.add_argument("--min_pred_std", type=float, default=0.02,
                    help="Min val prediction std for best.pt selection — refuses degenerate near-flat checkpoints "
                         "(random baseline ~0.002, developed ~0.06-0.09). last.pt always saved regardless.")
@@ -275,6 +278,8 @@ def main() -> None:
     model_cfg_raw["num_verbs"] = len(verbs)
     if args.verb_embedding is not None:
         model_cfg_raw["verb_embedding"] = args.verb_embedding
+    if args.verb_proj_deep:
+        model_cfg_raw["verb_proj_deep"] = True
     cfg = {**cfg, "model": model_cfg_raw}
 
     # ── Model ─────────────────────────────────────────────────────────────────
