@@ -56,6 +56,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device", default=None)
     p.add_argument("--skip_existing", action="store_true")
     p.add_argument("--limit", type=int, default=None, help="process at most N objects (debug)")
+    p.add_argument("--vsem_filename", default=VSEM_FILENAME,
+                   help="output filename per recon dir (use a distinct name to preserve old features)")
     return p.parse_args()
 
 
@@ -95,7 +97,7 @@ def main() -> None:
     wrapper = VLMWrapper(build_vlm_config(cfg))
     n_ok = n_skip = n_fail = 0
     for d in dirs:
-        vsem_path = d / VSEM_FILENAME
+        vsem_path = d / args.vsem_filename
         if args.skip_existing and vsem_path.is_file():
             n_skip += 1
             continue
@@ -137,7 +139,7 @@ def main() -> None:
     for raw in raw_rows:
         row = _parse_row(raw, data_root=data_root)
         if row.sam3d_reconstruction_dir is not None:
-            vp = row.sam3d_reconstruction_dir / VSEM_FILENAME
+            vp = row.sam3d_reconstruction_dir / args.vsem_filename
             if vp.is_file():
                 try:
                     raw["vertex_semantics_path"] = str(vp.resolve().relative_to(data_root.resolve()))

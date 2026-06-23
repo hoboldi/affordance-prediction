@@ -15,6 +15,7 @@ class MLPHeadConfig:
     normals_dim: int = 0         # set to 3 to include per-vertex surface normals
     pos_dim: int = 0             # set to 3 to include normalized per-vertex xyz position
     dino_vertex_dim: int = 0     # set to 128 for per-vertex DINOv2 patch features (alongside CLIP vlm)
+    dino_filename: str = "vertex_dino.pt"  # which per-recon-dir DINO file feeds dino_vertex (metadata; the dataset reads it)
 
     # Global (per-mesh constant) inputs — modulate the geometry stream via FiLM
     verb_dim: int = 512
@@ -290,6 +291,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         normals_dim=int(model_cfg.get("normals_dim", 0)),
         pos_dim=int(model_cfg.get("pos_dim", 0)),
         dino_vertex_dim=int(model_cfg.get("dino_vertex_dim", 0)),
+        dino_filename=str(model_cfg.get("dino_filename", "vertex_dino.pt")),
         verb_dim=int(model_cfg.get("verb_dim", 512)),
         num_verbs=int(model_cfg.get("num_verbs", 0)),
         dino_cls_dim=int(model_cfg.get("dino_cls_dim", 0)),

@@ -222,6 +222,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         load_vertex_labels_eager: bool | None = None,
         load_vertex_semantics_eager: bool | None = None,
         load_vertex_dino: bool = False,
+        dino_filename: str = "vertex_dino.pt",
         row_filter: Callable[[ManifestRow], bool] | None = None,
     ) -> None:
         cfg = cfg if cfg is not None else load_config()
@@ -247,6 +248,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         self._load_vertex_labels_eager = load_vertex_labels_eager
         self._load_vertex_semantics_eager = bool(load_vertex_semantics_eager)
         self._load_vertex_dino = bool(load_vertex_dino)
+        self._dino_filename = str(dino_filename)
         self._row_filter = row_filter
 
         rows = load_manifest_rows(self._manifest_path, data_root=self._data_root, split=split)
@@ -346,7 +348,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             out["vertex_positions"] = _load_vertex_positions(row.sam3d_reconstruction_dir)
 
             if self._load_vertex_dino:
-                _dino_pt = row.sam3d_reconstruction_dir / "vertex_dino.pt"
+                _dino_pt = row.sam3d_reconstruction_dir / self._dino_filename
                 if _dino_pt.is_file():
                     _d = torch.load(_dino_pt, map_location="cpu", weights_only=True)
                     out["dino_vertex_features"] = (_d["features"].float() if isinstance(_d, dict) and "features" in _d else _d.float())
