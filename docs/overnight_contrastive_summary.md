@@ -87,4 +87,9 @@ ones. Net characterization:
 - **v4** (open-vocab, no contrastive) — *structured* fields (std 0.14), weak distinctness (corr 0.84). Use when you need confident per-vertex scores.
 - **v6** (open-vocab + contrastive) — *distinct* + crisp verb-discrimination (synonym gap +0.91), but flat. Use when you need "which verb applies where."
 - **v5d** (learned + contrastive) — gets *both* (the learned embedding is unconstrained). Best when the verb set is fixed.
-A structured+distinct *open-vocab* model would need a more expressive verb head (deeper/unfrozen text projection or cross-attention) — left as future work.
+**Tested the capacity hypothesis (v7):** a *deeper* verb projection (512→512→256→128) + contrastive stays
+flat too (std 0.023, corr −0.50) — same as the shallow proj. So the open-vocab flatness is **fundamental,
+not a projection-capacity issue**: the frozen CLIP text vectors can't be coerced into confident *and*
+mutually-distinct fields by a deeper MLP. A structured+distinct *open-vocab* model would need a different
+**conditioning mechanism** — cross-attention (verb query × vertex keys), or unfreezing/fine-tuning the text
+encoder — which is a larger redesign left as future work (not a hyperparameter).
