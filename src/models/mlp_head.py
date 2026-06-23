@@ -14,6 +14,7 @@ class MLPHeadConfig:
     sam3d_dim: int = 0           # set to 8 when SAM3D SLAT vertex features are available
     normals_dim: int = 0         # set to 3 to include per-vertex surface normals
     pos_dim: int = 0             # set to 3 to include normalized per-vertex xyz position
+    dino_vertex_dim: int = 0     # set to 128 for per-vertex DINOv2 patch features (alongside CLIP vlm)
 
     # Global (per-mesh constant) inputs — modulate the geometry stream via FiLM
     verb_dim: int = 512
@@ -48,7 +49,7 @@ class MLPHeadConfig:
 
     @property
     def per_vertex_dim(self) -> int:
-        d = self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim
+        d = self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim + self.dino_vertex_dim
         return d + (self.verb_dim if self._verb_in_vertex else 0)
 
     @property
@@ -166,10 +167,12 @@ class AffordanceMLP(nn.Module):
         vlm_features: torch.Tensor | None,
         vertex_normals: torch.Tensor | None,
         vertex_positions: torch.Tensor | None,
+        dino_vertex: torch.Tensor | None = None,
     ) -> torch.Tensor:
         parts: list[torch.Tensor] = []
         for t, dim, name in [
             (vlm_features, self.cfg.vlm_dim, "vlm_features"),
+            (dino_vertex, self.cfg.dino_vertex_dim, "dino_vertex"),
             (slat_vertex, self.cfg.sam3d_dim, "slat_vertex"),
             (vertex_normals, self.cfg.normals_dim, "vertex_normals"),
             (vertex_positions, self.cfg.pos_dim, "vertex_positions"),
@@ -220,8 +223,9 @@ class AffordanceMLP(nn.Module):
         ss_dino_cls: torch.Tensor | None = None,
         vertex_normals: torch.Tensor | None = None,
         vertex_positions: torch.Tensor | None = None,
+        dino_vertex: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions)  # (V, per_vertex_dim)
+        h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions, dino_vertex)  # (V, per_vertex_dim)
         if self.in_norm is not None:
             h = self.in_norm(h)
 
@@ -285,6 +289,7 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         sam3d_dim=int(model_cfg.get("sam3d_dim", 0)),
         normals_dim=int(model_cfg.get("normals_dim", 0)),
         pos_dim=int(model_cfg.get("pos_dim", 0)),
+        dino_vertex_dim=int(model_cfg.get("dino_vertex_dim", 0)),
         verb_dim=int(model_cfg.get("verb_dim", 512)),
         num_verbs=int(model_cfg.get("num_verbs", 0)),
         dino_cls_dim=int(model_cfg.get("dino_cls_dim", 0)),

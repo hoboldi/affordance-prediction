@@ -147,6 +147,7 @@ def load_split(
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
         load_vertex_semantics_eager=True,  # load per-vertex CLIP features (vertex_semantics_path) for vlm_dim>0
+        load_vertex_dino=int((cfg.get("model") or {}).get("dino_vertex_dim", 0)) > 0,  # per-vertex DINO channel
         row_filter=_filter,
     )
 
@@ -185,6 +186,7 @@ def save_checkpoint(
                 "ss_dino_cls_dim": model.cfg.ss_dino_cls_dim,
                 "normals_dim": model.cfg.normals_dim,
                 "pos_dim": model.cfg.pos_dim,
+                "dino_vertex_dim": model.cfg.dino_vertex_dim,
                 "cond_dim": model.cfg.cond_dim,
                 "hidden_dims": list(model.cfg.hidden_dims),
                 "dropout": model.cfg.dropout,
@@ -241,6 +243,7 @@ def main() -> None:
     p.add_argument("--ss_dino_cls_dim", type=int, default=None, help="Override model.ss_dino_cls_dim from config")
     p.add_argument("--pos_dim", type=int, default=None, help="Override model.pos_dim (0 drops absolute vertex positions, forcing the head to use geometry instead of a height shortcut)")
     p.add_argument("--vlm_dim", type=int, default=None, help="Override model.vlm_dim (per-vertex CLIP feature dim; requires vertex_semantics_path in the manifest)")
+    p.add_argument("--dino_vertex_dim", type=int, default=None, help="Per-vertex DINOv2 channel dim (128); requires vertex_dino.pt in each recon dir. 0/None = CLIP-only.")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -284,6 +287,8 @@ def main() -> None:
         model_cfg_raw["pos_dim"] = args.pos_dim
     if args.vlm_dim is not None:
         model_cfg_raw["vlm_dim"] = args.vlm_dim
+    if args.dino_vertex_dim is not None:
+        model_cfg_raw["dino_vertex_dim"] = args.dino_vertex_dim
     model_cfg_raw["num_verbs"] = len(verbs)
     if args.verb_embedding is not None:
         model_cfg_raw["verb_embedding"] = args.verb_embedding
