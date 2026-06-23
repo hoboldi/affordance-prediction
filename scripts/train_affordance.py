@@ -75,6 +75,7 @@ def compute_metrics(
                 ss_dino_cls=_to(item.get("ss_dino_cls")),
                 vertex_normals=_to(item.get("vertex_normals")),
                 vertex_positions=_to(item.get("vertex_positions")),
+                dino_vertex=_to(item.get("dino_vertex_features")),
             )
             probs = torch.sigmoid(logits).cpu()
             per_obj_std.append(float(probs.std()))   # before masking: variation of the full predicted field
