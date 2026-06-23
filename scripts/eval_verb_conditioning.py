@@ -74,7 +74,7 @@ def main() -> None:
     v2i = ck["verb_to_idx"]
     _use_dino = int(ck["model_cfg"].get("dino_vertex_dim", 0)) > 0
 
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=_use_dino)
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=_use_dino, dino_filename=ck["model_cfg"].get("dino_filename", "vertex_dino.pt"))
 
     # Group manifest rows by object (reconstruction dir) -> {verb: row_index}
     by_obj: dict[str, dict[str, int]] = collections.defaultdict(dict)

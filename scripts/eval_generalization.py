@@ -57,7 +57,7 @@ def main():
     cfg = mlp_head_config_from_model_cfg(ck["model_cfg"])
     model = AffordanceMLP(cfg); model.load_state_dict(ck["model"]); model.eval()
     v2i = ck["verb_to_idx"]
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=int(cfg.dino_vertex_dim) > 0)
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=int(cfg.dino_vertex_dim) > 0, dino_filename=cfg.dino_filename)
 
     # 1. per-category AUPRC (capped per category/verb for speed)
     seen_cnt: dict = collections.defaultdict(int)

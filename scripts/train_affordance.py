@@ -128,6 +128,7 @@ def load_split(
     categories: list[str] | None = None,
     verbs: list[str] | None = None,
     load_vertex_dino: bool = False,
+    dino_filename: str = "vertex_dino.pt",
 ) -> DataRootDataset:
     cat_set = set(categories) if categories else None
     verb_set = set(verbs) if verbs else None
@@ -149,7 +150,8 @@ def load_split(
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
         load_vertex_semantics_eager=True,  # load per-vertex CLIP features (vertex_semantics_path) for vlm_dim>0
-        load_vertex_dino=load_vertex_dino,  # per-vertex DINO channel (vertex_dino.pt) when dino_vertex_dim>0
+        load_vertex_dino=load_vertex_dino,  # per-vertex DINO channel when dino_vertex_dim>0
+        dino_filename=dino_filename,
         row_filter=_filter,
     )
 
@@ -189,6 +191,7 @@ def save_checkpoint(
                 "normals_dim": model.cfg.normals_dim,
                 "pos_dim": model.cfg.pos_dim,
                 "dino_vertex_dim": model.cfg.dino_vertex_dim,
+                "dino_filename": model.cfg.dino_filename,
                 "cond_dim": model.cfg.cond_dim,
                 "hidden_dims": list(model.cfg.hidden_dims),
                 "dropout": model.cfg.dropout,
@@ -245,7 +248,8 @@ def main() -> None:
     p.add_argument("--ss_dino_cls_dim", type=int, default=None, help="Override model.ss_dino_cls_dim from config")
     p.add_argument("--pos_dim", type=int, default=None, help="Override model.pos_dim (0 drops absolute vertex positions, forcing the head to use geometry instead of a height shortcut)")
     p.add_argument("--vlm_dim", type=int, default=None, help="Override model.vlm_dim (per-vertex CLIP feature dim; requires vertex_semantics_path in the manifest)")
-    p.add_argument("--dino_vertex_dim", type=int, default=None, help="Per-vertex DINOv2 channel dim (128); requires vertex_dino.pt in each recon dir. 0/None = CLIP-only.")
+    p.add_argument("--dino_vertex_dim", type=int, default=None, help="Per-vertex DINOv2 channel dim (128); requires the dino file in each recon dir. 0/None = CLIP-only.")
+    p.add_argument("--dino_filename", default="vertex_dino.pt", help="per-recon-dir DINO feature file (e.g. vertex_dino_large.pt). Must match --dino_vertex_dim.")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -271,8 +275,8 @@ def main() -> None:
     # ── Datasets ──────────────────────────────────────────────────────────────
     log.info("Loading datasets …")
     _want_dino = bool(args.dino_vertex_dim and args.dino_vertex_dim > 0)
-    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino)
-    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino)
+    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename)
+    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename)
     log.info("train: %d samples  val: %s", len(ds_train), len(ds_val) if ds_val else "—")
 
     # ── Verbs (learned embedding table inside the model) ────────────────────────
@@ -292,6 +296,7 @@ def main() -> None:
         model_cfg_raw["vlm_dim"] = args.vlm_dim
     if args.dino_vertex_dim is not None:
         model_cfg_raw["dino_vertex_dim"] = args.dino_vertex_dim
+        model_cfg_raw["dino_filename"] = args.dino_filename
     model_cfg_raw["num_verbs"] = len(verbs)
     if args.verb_embedding is not None:
         model_cfg_raw["verb_embedding"] = args.verb_embedding

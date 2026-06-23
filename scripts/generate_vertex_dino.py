@@ -44,11 +44,11 @@ DINO_MODEL = "facebook/dinov2-base"  # 768-dim patch tokens, patch_size 14
 
 
 class DinoExtractor:
-    def __init__(self, device: str | None = None):
+    def __init__(self, device: str | None = None, model_name: str = DINO_MODEL):
         from transformers import AutoImageProcessor, AutoModel
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.processor = AutoImageProcessor.from_pretrained(DINO_MODEL)
-        self.model = AutoModel.from_pretrained(DINO_MODEL, use_safetensors=True).eval().to(self.device)
+        self.processor = AutoImageProcessor.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name, use_safetensors=True).eval().to(self.device)
         for p in self.model.parameters():
             p.requires_grad = False
         self.dim = int(self.model.config.hidden_size)
@@ -79,6 +79,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device", default=None)
     p.add_argument("--skip_existing", action="store_true")
     p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--dino_model", default=DINO_MODEL, help="HF DINOv2 model (e.g. facebook/dinov2-large, facebook/dinov2-with-registers-large)")
+    p.add_argument("--dino_filename", default=DINO_FILENAME, help="output filename per recon dir (use a distinct name to coexist with the default)")
     return p.parse_args()
 
 
@@ -104,8 +106,8 @@ def main() -> None:
     if args.limit:
         dirs = dirs[: args.limit]
 
-    extractor = DinoExtractor(args.device)
-    log.info("DINOv2 %s (dim=%d, grid=%dx%d) for %d objects", DINO_MODEL, extractor.dim, extractor.grid, extractor.grid, len(dirs))
+    extractor = DinoExtractor(args.device, args.dino_model)
+    log.info("DINOv2 %s (dim=%d, grid=%dx%d) -> %s reduce=%d for %d objects", args.dino_model, extractor.dim, extractor.grid, extractor.grid, args.dino_filename, args.reduce_dim, len(dirs))
 
     rng = np.random.default_rng(0)
     proj = None
@@ -114,7 +116,7 @@ def main() -> None:
 
     n_ok = n_skip = n_fail = 0
     for d in dirs:
-        out_path = d / DINO_FILENAME
+        out_path = d / args.dino_filename
         if args.skip_existing and out_path.is_file():
             n_skip += 1
             continue
@@ -146,7 +148,7 @@ def main() -> None:
     for raw in raw_rows:
         row = _parse_row(raw, data_root=data_root)
         if row.sam3d_reconstruction_dir is not None:
-            vp = row.sam3d_reconstruction_dir / DINO_FILENAME
+            vp = row.sam3d_reconstruction_dir / args.dino_filename
             if vp.is_file():
                 try:
                     raw["vertex_dino_path"] = str(vp.resolve().relative_to(data_root.resolve()))

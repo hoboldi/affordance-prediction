@@ -41,7 +41,7 @@ def _load(path):
     ck = torch.load(path, map_location="cpu", weights_only=False)
     m = AffordanceMLP(mlp_head_config_from_model_cfg(ck["model_cfg"]))
     m.load_state_dict(ck["model"]); m.eval()
-    return m, ck["verb_to_idx"], int(ck["model_cfg"].get("dino_vertex_dim", 0))
+    return m, ck["verb_to_idx"], int(ck["model_cfg"].get("dino_vertex_dim", 0)), ck["model_cfg"].get("dino_filename", "vertex_dino.pt")
 
 
 def parse_args():
@@ -55,9 +55,10 @@ def parse_args():
 
 def main():
     args = parse_args()
-    m3, v2i3, d3 = _load(args.v3)
-    m4, v2i4, d4 = _load(args.v4)
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=(d3 > 0 or d4 > 0))
+    m3, v2i3, d3, fn3 = _load(args.v3)
+    m4, v2i4, d4, fn4 = _load(args.v4)
+    _dino_fn = fn4 if d4 > 0 else fn3
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=(d3 > 0 or d4 > 0), dino_filename=_dino_fn)
     idx = {}
     for i, r in enumerate(ds.rows):
         cat = r.sample_id.split("__")[0]
