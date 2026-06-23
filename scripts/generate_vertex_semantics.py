@@ -53,6 +53,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--data_root", default=None)
     p.add_argument("--reduce_dim", type=int, default=128, help="random-projection target dim (0 = keep full 512)")
     p.add_argument("--num_views", type=int, default=None, help="override rendering.num_views")
+    p.add_argument("--elevation_rings", default=None, help="comma-sep elevations (deg) overriding cfg (view ablation)")
+    p.add_argument("--azimuths_per_ring", type=int, default=None, help="azimuths per ring overriding cfg (view ablation)")
     p.add_argument("--device", default=None)
     p.add_argument("--skip_existing", action="store_true")
     p.add_argument("--limit", type=int, default=None, help="process at most N objects (debug)")
@@ -67,6 +69,10 @@ def main() -> None:
     cfg.setdefault("rendering", {})["backend"] = "mesh"
     if args.num_views is not None:
         cfg["rendering"]["num_views"] = args.num_views
+    if args.elevation_rings is not None:
+        cfg["rendering"]["elevation_rings_deg"] = [float(x) for x in args.elevation_rings.split(",")]
+    if args.azimuths_per_ring is not None:
+        cfg["rendering"]["azimuths_per_ring"] = args.azimuths_per_ring
     if args.device:
         cfg.setdefault("vlm", {})["device"] = args.device
     clip_image_size = int(cfg.get("projection", {}).get("clip_image_size", 224))
