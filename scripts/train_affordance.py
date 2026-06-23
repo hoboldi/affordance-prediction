@@ -126,6 +126,7 @@ def load_split(
     filter_degenerate: bool = True,
     categories: list[str] | None = None,
     verbs: list[str] | None = None,
+    load_vertex_dino: bool = False,
 ) -> DataRootDataset:
     cat_set = set(categories) if categories else None
     verb_set = set(verbs) if verbs else None
@@ -147,7 +148,7 @@ def load_split(
         load_mesh_eager=False,
         load_vertex_labels_eager=True,
         load_vertex_semantics_eager=True,  # load per-vertex CLIP features (vertex_semantics_path) for vlm_dim>0
-        load_vertex_dino=int((cfg.get("model") or {}).get("dino_vertex_dim", 0)) > 0,  # per-vertex DINO channel
+        load_vertex_dino=load_vertex_dino,  # per-vertex DINO channel (vertex_dino.pt) when dino_vertex_dim>0
         row_filter=_filter,
     )
 
@@ -268,8 +269,9 @@ def main() -> None:
 
     # ── Datasets ──────────────────────────────────────────────────────────────
     log.info("Loading datasets …")
-    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs)
-    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs)
+    _want_dino = bool(args.dino_vertex_dim and args.dino_vertex_dim > 0)
+    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino)
+    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino)
     log.info("train: %d samples  val: %s", len(ds_train), len(ds_val) if ds_val else "—")
 
     # ── Verbs (learned embedding table inside the model) ────────────────────────
