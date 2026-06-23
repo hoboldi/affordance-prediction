@@ -1,0 +1,35 @@
+# Data & outputs
+data/
+outputs/
+exports/
+checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tools
+.DS_Store
+.claude
+*.log
+
+# PyTorch / ML artifacts
+*.pt
+*.pth
+wandb/

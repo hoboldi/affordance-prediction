@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - override /data: default
+  - override /training: default
+  - override /model: combined
+hydra:
+  run:
+    dir: outputs/overfitting/combined/single
+data:
+  subset: single
+  batch_size: 1
+  num_workers: 0
+training:
+  overfit: true
+  epochs: 200
+  lr_schedule: cosine
+  lr: 1e-3
+  early_stopping_patience: 30
+model:
+  dropout: 0.0

@@ -1,0 +1,8 @@
+epochs: 100
+lr: 1e-4
+seed: 42
+overfit: false
+early_stopping_patience: 0  # 0 = disabled
+target_loss: 0.0           # 0 = disabled; stop when val loss drops below this
+lr_schedule: cosine  # cosine | constant
+pos_weight: 1.0            # BCE positive-class weight; set >1 to upweight sparse positives
