@@ -238,7 +238,11 @@ def training_epoch_vertex_contrastive(
 
         loss = bce_sum / nv
         if contrastive_weight > 0 and len(preds) >= 2:
-            pair = [_pearson(preds[a], preds[b]) for a in range(len(preds)) for b in range(a + 1, len(preds))]
+            # Hinge: penalize only POSITIVE cross-verb correlation (clamp at 0). A raw correlation
+            # penalty has no floor and overshoots disjoint into strong anti-correlation (corr ~-0.7),
+            # which distorts common verbs (contain crashes). The hinge pushes pairs to uncorrelated/
+            # disjoint and then stops, matching the labels (corr ~-0.14, IoU 0) without over-separating.
+            pair = [_pearson(preds[a], preds[b]).clamp(min=0.0) for a in range(len(preds)) for b in range(a + 1, len(preds))]
             csim = torch.stack(pair).mean()
             loss = loss + contrastive_weight * csim
             sims.append(float(csim.detach().cpu()))
