@@ -19,6 +19,7 @@ def _item_to_device(item: dict[str, Any], device: torch.device) -> dict[str, Any
     out = dict(item)
     for key in (
         "vertex_features",
+        "dino_vertex_features",
         "vertex_affordance",
         "slat_vertex_features",
         "vertex_normals",
@@ -41,6 +42,7 @@ def _check_required_features(
 ) -> None:
     checks = [
         ("vlm_dim", "vertex_features"),
+        ("dino_vertex_dim", "dino_vertex_features"),
         ("sam3d_dim", "slat_vertex_features"),
         ("dino_cls_dim", "dino_cls"),
         ("ss_dino_cls_dim", "ss_dino_cls"),
@@ -88,6 +90,7 @@ def _forward(
         ss_dino_cls=item.get("ss_dino_cls"),
         vertex_normals=item.get("vertex_normals"),
         vertex_positions=item.get("vertex_positions"),
+        dino_vertex=item.get("dino_vertex_features"),
     )
 
 
@@ -151,7 +154,7 @@ def training_epoch_vertex_bce(
 
 
 _PER_VERTEX_KEYS = (
-    "vertex_features", "slat_vertex_features", "vertex_normals",
+    "vertex_features", "dino_vertex_features", "slat_vertex_features", "vertex_normals",
     "vertex_positions", "vertex_affordance", "vertex_visible_mask",
 )
 
