@@ -75,5 +75,16 @@ Open-vocab synonym-consistency — gap = corr(synonym, trained) − corr(unrelat
   (the 2D-scribble→project tool) to get ground truth — without it we can't know absolute quality.
 - **Fine verbs (press/open/lift)** remain teacher-capped (GEAL CAD→real domain gap) — needs a 2D
   affordance teacher, not addressed here.
-- **Optional tuning:** v6's flatness might be recoverable with a smaller contrastive λ for the open-vocab head.
 - **move** is the one verb contrastive didn't help (data-scarce: chairs only).
+
+## Follow-up: open-vocab λ-tune (negative result)
+Tried open-vocab + hinged contrastive at λ = 0.3 / 0.5 / 1.0 (v6b/v6c/v6) to recover contrast while
+keeping distinctness. Predictions stay **flat at every λ** (std 0.020 / 0.012 / 0.009) while distinct
+(corr −0.49 / −0.33 / −0.37). So the **structure-vs-distinctness trade-off is inherent to the frozen-text
+open-vocab head**, not a λ artifact: its verb vectors come from similar CLIP text embeddings via a small
+projection, so under contrastive pressure it can't form *confident* distinct fields and hedges to near-flat
+ones. Net characterization:
+- **v4** (open-vocab, no contrastive) — *structured* fields (std 0.14), weak distinctness (corr 0.84). Use when you need confident per-vertex scores.
+- **v6** (open-vocab + contrastive) — *distinct* + crisp verb-discrimination (synonym gap +0.91), but flat. Use when you need "which verb applies where."
+- **v5d** (learned + contrastive) — gets *both* (the learned embedding is unconstrained). Best when the verb set is fixed.
+A structured+distinct *open-vocab* model would need a more expressive verb head (deeper/unfrozen text projection or cross-attention) — left as future work.
