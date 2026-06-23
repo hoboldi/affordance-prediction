@@ -81,6 +81,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--dino_model", default=DINO_MODEL, help="HF DINOv2 model (e.g. facebook/dinov2-large, facebook/dinov2-with-registers-large)")
     p.add_argument("--dino_filename", default=DINO_FILENAME, help="output filename per recon dir (use a distinct name to coexist with the default)")
+    p.add_argument("--elevation_rings", default=None, help="comma-sep elevations (deg) overriding cfg, e.g. '43' or '33,52' (view ablation)")
+    p.add_argument("--azimuths_per_ring", type=int, default=None, help="azimuths per ring overriding cfg (view ablation)")
     return p.parse_args()
 
 
@@ -90,6 +92,10 @@ def main() -> None:
     cfg.setdefault("rendering", {})["backend"] = "mesh"
     if args.num_views is not None:
         cfg["rendering"]["num_views"] = args.num_views
+    if args.elevation_rings is not None:
+        cfg["rendering"]["elevation_rings_deg"] = [float(x) for x in args.elevation_rings.split(",")]
+    if args.azimuths_per_ring is not None:
+        cfg["rendering"]["azimuths_per_ring"] = args.azimuths_per_ring
     clip_image_size = int(cfg.get("projection", {}).get("clip_image_size", 224))
 
     data_root = Path(args.data_root).resolve() if args.data_root else resolve_data_root(cfg)

@@ -250,6 +250,7 @@ def main() -> None:
     p.add_argument("--vlm_dim", type=int, default=None, help="Override model.vlm_dim (per-vertex CLIP feature dim; requires vertex_semantics_path in the manifest)")
     p.add_argument("--dino_vertex_dim", type=int, default=None, help="Per-vertex DINOv2 channel dim (128); requires the dino file in each recon dir. 0/None = CLIP-only.")
     p.add_argument("--dino_filename", default="vertex_dino.pt", help="per-recon-dir DINO feature file (e.g. vertex_dino_large.pt). Must match --dino_vertex_dim.")
+    p.add_argument("--sam3d_dim", type=int, default=None, help="Override model.sam3d_dim (0 drops the per-vertex SLAT channel; ablation)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -297,6 +298,8 @@ def main() -> None:
     if args.dino_vertex_dim is not None:
         model_cfg_raw["dino_vertex_dim"] = args.dino_vertex_dim
         model_cfg_raw["dino_filename"] = args.dino_filename
+    if args.sam3d_dim is not None:
+        model_cfg_raw["sam3d_dim"] = args.sam3d_dim
     model_cfg_raw["num_verbs"] = len(verbs)
     if args.verb_embedding is not None:
         model_cfg_raw["verb_embedding"] = args.verb_embedding
