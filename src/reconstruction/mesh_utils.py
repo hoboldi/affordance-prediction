@@ -319,6 +319,12 @@ def save_reconstruction(
         )
         torch.save(slat_vertex, paths["slat_vertex_features"])
 
+    # Input-image camera: lets mesh vertices be projected back into the original photo (render-free features).
+    cam_pose = getattr(result, "pose", None)
+    cam_intr = getattr(result, "intrinsics", None)
+    if cam_pose is not None or cam_intr is not None:
+        torch.save({"pose": cam_pose, "intrinsics": cam_intr}, out_dir / "camera.pt")
+
     gl = getattr(result, "global_latent", None)
     if gl is not None:
         save_global_latent(gl, paths["global_latent"])
