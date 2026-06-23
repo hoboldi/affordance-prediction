@@ -9,6 +9,7 @@ import trimesh
 from datasets.mesh_loading import MeshData
 from rendering.camera_sampling import (
     CameraPose,
+    multi_ring_camera_poses,
     resolve_spherical_orbit_axis,
     spherical_camera_poses,
 )
@@ -53,6 +54,18 @@ class MeshRenderConfig:
     depth_tolerance: float = 0.05
     depth_relative_tolerance: float = 0.03
     render_geometry_aux: bool = True  # world normal RGB + depth visualization (uint8)
+    # --- Feature-render quality (per-vertex CLIP/DINO pipeline) ---
+    # Multiple elevation rings with staggered azimuths break the single-ring N-fold seam.
+    elevation_rings_deg: tuple[float, ...] | None = None  # e.g. (27,43,58); None = single ring (num_views)
+    azimuths_per_ring: int = 8
+    # Auto-fit: place the camera so the object's bounding sphere fills ~frame_fill of the frame
+    # (finer patches than a fixed radius that leaves the object at ~half-frame).
+    auto_fit_framing: bool = False
+    frame_fill: float = 0.85
+    # Unlit/flat-albedo RGB: no camera-attached directional light (which adds view-dependent shading
+    # that feeds fusion seams) — render true vertex-colour albedo, consistent across views.
+    unlit_albedo: bool = False
+    unlit_ambient: float = 0.7  # ambient gain for the unlit pass; <1 de-washes the (muted) SAM3D colours
 
 
 class MeshRenderer:
@@ -70,12 +83,34 @@ class MeshRenderer:
             ring_rotation_deg=self.config.orbit_ring_rotation_deg,
             ring_rotation_axis=self.config.orbit_ring_rotation_axis,
         )
+        # Framing: auto-fit camera distance so the object's bounding sphere fills ~frame_fill of the
+        # frame (finer patches), targeting the centroid. Otherwise use the fixed radius about origin.
+        if self.config.auto_fit_framing and ref.size:
+            centroid = ref.mean(axis=0)
+            obj_radius = float(np.linalg.norm(ref - centroid, axis=1).max())
+            half_fov = 0.5 * float(np.deg2rad(self.config.fov_deg))
+            radius = obj_radius / (float(np.tan(self.config.frame_fill * half_fov)) + 1e-9)
+            target: np.ndarray | None = centroid
+        else:
+            radius = self.config.camera_radius
+            target = None
+        if self.config.elevation_rings_deg:
+            return multi_ring_camera_poses(
+                self.config.azimuths_per_ring,
+                tuple(self.config.elevation_rings_deg),
+                radius=radius,
+                target=target,
+                orbit_axis=axis,
+                elevation_min_deg=self.config.elevation_min_deg,
+                elevation_max_deg=self.config.elevation_max_deg,
+            )
         return spherical_camera_poses(
             self.config.num_views,
-            radius=self.config.camera_radius,
+            radius=radius,
             elevation_deg=self.config.elevation_deg,
             elevation_min_deg=self.config.elevation_min_deg,
             elevation_max_deg=self.config.elevation_max_deg,
+            target=target,
             orbit_axis=axis,
             azimuth_offsets_deg=self.config.orbit_azimuth_offsets_deg,
         )
@@ -107,7 +142,8 @@ class MeshRenderer:
 
         try:
             for pose in poses:
-                scene = pyrender.Scene(bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=[0.55, 0.55, 0.55, 1.0])
+                amb = self.config.unlit_ambient if self.config.unlit_albedo else 0.55
+                scene = pyrender.Scene(bg_color=[0.0, 0.0, 0.0, 0.0], ambient_light=[amb, amb, amb, 1.0])
                 scene.add(py_mesh)
 
                 camera = pyrender.PerspectiveCamera(
@@ -115,8 +151,9 @@ class MeshRenderer:
                 )
                 cam_node = scene.add(camera, pose=pose.matrix)
 
-                light = pyrender.DirectionalLight(color=np.ones(3), intensity=4.0)
-                scene.add(light, pose=pose.matrix)
+                if not self.config.unlit_albedo:
+                    light = pyrender.DirectionalLight(color=np.ones(3), intensity=4.0)
+                    scene.add(light, pose=pose.matrix)
 
                 rgb, depth = renderer.render(scene)
                 rgb = rgb[:, :, :3].astype(np.uint8)

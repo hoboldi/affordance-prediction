@@ -38,6 +38,16 @@ def build_render_config(cfg: dict[str, Any]) -> MeshRenderConfig:
         depth_tolerance=float(r.get("depth_tolerance", 0.05)),
         depth_relative_tolerance=float(r.get("depth_relative_tolerance", 0.03)),
         render_geometry_aux=bool(r.get("render_geometry_aux", True)),
+        elevation_rings_deg=(
+            tuple(float(e) for e in r["elevation_rings_deg"])
+            if isinstance(r.get("elevation_rings_deg"), (list, tuple)) and len(r["elevation_rings_deg"]) > 0
+            else None
+        ),
+        azimuths_per_ring=int(r.get("azimuths_per_ring", 8)),
+        auto_fit_framing=bool(r.get("auto_fit_framing", False)),
+        frame_fill=float(r.get("frame_fill", 0.85)),
+        unlit_albedo=bool(r.get("unlit_albedo", False)),
+        unlit_ambient=float(r.get("unlit_ambient", 0.7)),
     )
 
 
