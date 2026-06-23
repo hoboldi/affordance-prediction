@@ -70,6 +70,10 @@ class ReconstructionResult:
     ss_dino_patches: torch.Tensor | None = None   # (N_patches, 768) spatial patch tokens — SS embedder
     gaussian_splat: Any | None = None
     mesh_scene: Any | None = None
+    # Input-image camera (lets us project mesh vertices back into the original photo — render-free
+    # per-vertex features). pose places the object in camera space; intrinsics maps camera->image.
+    pose: dict[str, Any] | None = None       # {rotation (quat), translation, scale[, downsample_factor]}
+    intrinsics: torch.Tensor | None = None   # (3,3) inferred from the input-image pointmap
 
 
 @dataclass(frozen=True)
@@ -253,6 +257,16 @@ class SAM3DWrapper:
             )
             ss_return["scale"] = ss_return["scale"] * ss_return["downsample_factor"]
 
+            # Capture the input-image camera (object pose + intrinsics) so mesh vertices can be
+            # projected back into the original photo later (render-free per-vertex features).
+            _cpu = lambda v: v.detach().squeeze(0).cpu() if torch.is_tensor(v) else v  # noqa: E731
+            camera_pose = {
+                k: _cpu(ss_return[k])
+                for k in ("rotation", "translation", "scale", "downsample_factor")
+                if k in ss_return and ss_return[k] is not None
+            }
+            camera_intrinsics = _cpu(pointmap_dict.get("intrinsics"))
+
             shape_latent = ss_return["shape"].squeeze(0).cpu()
             coords = ss_return["coords"]
 
@@ -302,6 +316,8 @@ class SAM3DWrapper:
             ss_dino_patches=ss_dino_patches,
             gaussian_splat=outputs.get("gs"),
             mesh_scene=outputs.get("glb"),
+            pose=camera_pose or None,
+            intrinsics=camera_intrinsics,
         )
 
 
