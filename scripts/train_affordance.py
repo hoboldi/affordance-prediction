@@ -224,6 +224,8 @@ def main() -> None:
     p.add_argument("--verbs", nargs="*", default=None, help="Limit to these actions/verbs (e.g. grasp pour)")
     p.add_argument("--verb_embedding", default=None, choices=["learned", "text"],
                    help="Verb conditioning source (default: config/learned). 'text' = open-vocab CLIP text embedding")
+    p.add_argument("--hidden_dims", type=int, nargs="*", default=None,
+                   help="Geometry-trunk widths, e.g. '512 256 128' for a bigger/deeper head (default cfg: 256 128)")
     p.add_argument("--verb_proj_deep", action="store_true",
                    help="Open-vocab (text) mode: use a deeper verb projection (more capacity to separate verbs)")
     p.add_argument("--verb_conditioning", default=None, choices=["concat", "film", "cross_attn"],
@@ -307,6 +309,8 @@ def main() -> None:
         model_cfg_raw["verb_proj_deep"] = True
     if args.verb_conditioning is not None:
         model_cfg_raw["verb_conditioning"] = args.verb_conditioning
+    if args.hidden_dims is not None:
+        model_cfg_raw["hidden_dims"] = list(args.hidden_dims)
     cfg = {**cfg, "model": model_cfg_raw}
 
     # ── Model ─────────────────────────────────────────────────────────────────
