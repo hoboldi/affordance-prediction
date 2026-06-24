@@ -3,7 +3,9 @@
 Loads each object's mesh.glb in the SAME vertex order the model uses (datasets.mesh_loading.load_mesh,
 process=False), serves it to a browser three.js viewer, lets you orbit + brush-paint the affordance region
 for a chosen verb directly on the 3D surface, and saves per-vertex binary labels (native order) to
-``gt_labels/<sample_id>__<verb>.pt`` for an honest, pipeline-independent eval set.
+``human_gt_labels/<sample_id>__<verb>.pt`` for an honest, pipeline-independent eval set. This is kept
+strictly separate from GEAL's teacher pseudolabels (those live in the data dir as
+``reconstructions/<obj>/vertex_pseudolabels_<verb>.pt`` — different dir AND different filename scheme).
 
 Run:  PYTHONPATH=src python scripts/mesh_painter.py --port 8765
 Then open http://localhost:8765  (forward the port if remote).
@@ -24,7 +26,7 @@ from datasets.mesh_loading import load_mesh
 
 VERBS = ["grasp", "contain", "pour", "sit", "move"]
 OBJECTS: list[dict] = []      # [{name, mesh_path}]
-GT_DIR = _REPO / "gt_labels"
+GT_DIR = _REPO / "human_gt_labels"   # human ground truth ONLY; never GEAL pseudolabels
 
 HTML = r"""<!doctype html><html><head><meta charset=utf-8><title>Affordance painter</title>
 <style>body{margin:0;font-family:sans-serif;overflow:hidden}#bar{position:fixed;top:0;left:0;right:0;
