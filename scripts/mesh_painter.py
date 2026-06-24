@@ -39,8 +39,8 @@ background:#222;color:#eee;padding:6px 10px;z-index:10;display:flex;gap:10px;ali
  <button id=save>Save</button><span class=tag id=painted></span><span id=status></span>
 </div>
 <canvas id=c></canvas>
-<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/OrbitControls.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 let renderer,scene,cam,controls,mesh,geom,labels,nV,erasing=false,painting=false,curObj=0;
@@ -127,6 +127,12 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path); q = parse_qs(u.query)
         if u.path == "/":
             self._send(200, "text/html", HTML.encode())
+        elif u.path.startswith("/vendor/"):
+            fp = _REPO / "scripts" / "painter_vendor" / Path(u.path).name
+            if fp.is_file():
+                self._send(200, "application/javascript", fp.read_bytes())
+            else:
+                self._send(404, "text/plain", b"nope")
         elif u.path == "/api/objects":
             self._send(200, "application/json", json.dumps({"objects": [o["name"] for o in OBJECTS], "verbs": VERBS}).encode())
         elif u.path == "/api/mesh":
