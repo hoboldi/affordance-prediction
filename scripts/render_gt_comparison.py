@@ -50,6 +50,7 @@ def parse_args():
     p.add_argument("--manifest", required=True)
     p.add_argument("--out", default=str(_REPO_ROOT / "outputs/renders/gt_comparison.png"))
     p.add_argument("--subsample", type=int, default=13000)
+    p.add_argument("--prefer", default="", help="force a specific instance per category, e.g. 'laptop=112_13268_23634,vase=...'")
     return p.parse_args()
 
 
@@ -59,10 +60,13 @@ def main():
     m4, v2i4, d4, fn4 = _load(args.v4)
     _dino_fn = fn4 if d4 > 0 else fn3
     ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=(d3 > 0 or d4 > 0), dino_filename=_dino_fn)
+    prefer = dict(kv.split("=") for kv in args.prefer.split(",") if "=" in kv)
     idx = {}
     for i, r in enumerate(ds.rows):
         cat = r.sample_id.split("__")[0]
         if (cat, r.verb) in PAIRS and (cat, r.verb) not in idx:
+            if cat in prefer and prefer[cat] not in r.sample_id:
+                continue  # wait for the explicitly-preferred instance of this category
             idx[(cat, r.verb)] = i
     pairs = [p for p in PAIRS if p in idx]
 
