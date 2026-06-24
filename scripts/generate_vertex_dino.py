@@ -44,26 +44,36 @@ DINO_MODEL = "facebook/dinov2-base"  # 768-dim patch tokens, patch_size 14
 
 
 class DinoExtractor:
-    def __init__(self, device: str | None = None, model_name: str = DINO_MODEL):
+    def __init__(self, device: str | None = None, model_name: str = DINO_MODEL, image_size: int | None = None):
         from transformers import AutoImageProcessor, AutoModel
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.image_size = image_size  # finer patch grid: e.g. 448 -> 32x32 (vs default 224 -> 16x16)
         self.processor = AutoImageProcessor.from_pretrained(model_name)
+        if image_size is not None:  # we resize ourselves; stop the processor from resizing/cropping back to 224
+            self.processor.do_resize = False
+            if hasattr(self.processor, "do_center_crop"):
+                self.processor.do_center_crop = False
         self.model = AutoModel.from_pretrained(model_name, use_safetensors=True).eval().to(self.device)
         for p in self.model.parameters():
             p.requires_grad = False
         self.dim = int(self.model.config.hidden_size)
         # Determine the patch grid from an actual forward (robust to processor config / register tokens).
         with torch.inference_mode():
-            inp = self.processor(images=Image.fromarray(np.zeros((64, 64, 3), np.uint8)), return_tensors="pt").to(self.device)
+            inp = self._proc(np.zeros(((image_size or 64), (image_size or 64), 3), np.uint8))
             n_tok = self.model(**inp).last_hidden_state.shape[1] - 1  # minus CLS
         self.grid = int(round(n_tok ** 0.5))
+
+    def _proc(self, img: np.ndarray):
+        pil = Image.fromarray(img.astype(np.uint8))
+        if self.image_size is not None:
+            pil = pil.resize((self.image_size, self.image_size), Image.BILINEAR)
+        return self.processor(images=pil, return_tensors="pt").to(self.device)
 
     @torch.inference_mode()
     def patches(self, images: list[np.ndarray]) -> list[PatchFeatures]:
         out: list[PatchFeatures] = []
         for img in images:
-            inp = self.processor(images=Image.fromarray(img.astype(np.uint8)), return_tensors="pt").to(self.device)
-            hidden = self.model(**inp).last_hidden_state  # (1, 1+N, D)
+            hidden = self.model(**self._proc(img)).last_hidden_state  # (1, 1+N, D)
             patch = hidden[0, 1:, :].cpu().float()        # drop CLS -> (N, D)
             out.append(PatchFeatures(patches=patch, grid_h=self.grid, grid_w=self.grid, feature_dim=patch.shape[-1]))
         return out
@@ -81,6 +91,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--dino_model", default=DINO_MODEL, help="HF DINOv2 model (e.g. facebook/dinov2-large, facebook/dinov2-with-registers-large)")
     p.add_argument("--dino_filename", default=DINO_FILENAME, help="output filename per recon dir (use a distinct name to coexist with the default)")
+    p.add_argument("--dino_image_size", type=int, default=None, help="DINO input size; 448 -> 32x32 patches (finer localization) vs default 224 -> 16x16")
     p.add_argument("--elevation_rings", default=None, help="comma-sep elevations (deg) overriding cfg, e.g. '43' or '33,52' (view ablation)")
     p.add_argument("--azimuths_per_ring", type=int, default=None, help="azimuths per ring overriding cfg (view ablation)")
     return p.parse_args()
@@ -112,7 +123,7 @@ def main() -> None:
     if args.limit:
         dirs = dirs[: args.limit]
 
-    extractor = DinoExtractor(args.device, args.dino_model)
+    extractor = DinoExtractor(args.device, args.dino_model, image_size=args.dino_image_size)
     log.info("DINOv2 %s (dim=%d, grid=%dx%d) -> %s reduce=%d for %d objects", args.dino_model, extractor.dim, extractor.grid, extractor.grid, args.dino_filename, args.reduce_dim, len(dirs))
 
     rng = np.random.default_rng(0)
