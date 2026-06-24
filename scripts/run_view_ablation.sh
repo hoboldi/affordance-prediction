@@ -35,7 +35,7 @@ for N in "$@"; do
     OUT=outputs/abl_v${N}_$TAG
     echo "[$(date +%H:%M)] train N=$N $TAG -> $OUT" >> "$LOG"
     CUDA_VISIBLE_DEVICES=$GPU PYTHONPATH=src $PY scripts/train_affordance.py \
-      --manifest "$MAN" --output_dir "$OUT" --epochs 30 --device cuda --grad_accum 8 \
+      --manifest "$MAN" --output_dir "$OUT" --epochs 15 --device cuda --grad_accum 8 \
       --pos_dim 0 --vlm_dim 128 --dino_vertex_dim 128 --dino_filename "$DINOF" \
       --sam3d_dim "$SLAT" --contrastive_weight 1.0 >> "$LOG" 2>&1
     {
