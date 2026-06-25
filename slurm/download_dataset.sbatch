@@ -7,4 +7,6 @@
 #SBATCH --mem=16G
 #SBATCH --partition=all
 
+export HF_TOKEN=$(cat .hf_token)
+
 uv run python scripts/download_dataset.py

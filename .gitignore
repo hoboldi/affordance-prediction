@@ -29,6 +29,9 @@ htmlcov/
 .claude
 *.log
 
+# Secrets
+.hf_token
+
 # PyTorch / ML artifacts
 *.pt
 *.pth
