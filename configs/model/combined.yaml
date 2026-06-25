@@ -1,9 +1,9 @@
 name: pn2_mlp
 verb_embedding_dim: 64
 # PointNet++ encoder
-sa1_n: 512
-sa2_n: 128
+sa1_n: 256
+sa2_n: 64
 k: 16
 # Shared MLP decoder
-layer_dims: [1024, 1024, 512, 256]
+layer_dims: [256, 128]
 dropout: 0.0

@@ -7,6 +7,9 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, ConstantLR
 from torch.utils.data import DataLoader
 
+from affordance.evaluation.metrics import compute_metrics
+from affordance.evaluation.visualize import save_prediction_plys
+
 log = logging.getLogger(__name__)
 
 
@@ -109,6 +112,44 @@ class Trainer:
             "scheduler_state_dict": self.scheduler.state_dict(),
             "val_loss": val_loss,
         }, self.checkpoint_dir / name)
+
+    @torch.no_grad()
+    def evaluate(self, loader: DataLoader) -> dict[str, float]:
+        best_ckpt = self.checkpoint_dir / "best.pt"
+        if best_ckpt.exists():
+            ckpt = torch.load(best_ckpt, map_location=self.device, weights_only=True)
+            self.model.load_state_dict(ckpt["model_state_dict"])
+            log.info(f"evaluate: loaded best.pt (epoch {ckpt['epoch']}, val_loss={ckpt['val_loss']:.4f})")
+        self.model.eval()
+        all_probs, all_targets = [], []
+        for batch in loader:
+            batch = self._move_batch(batch)
+            logits_list = self.model(batch)
+            for logits, targets, visible in zip(logits_list, batch["pseudolabels"], batch["vsem_visible"]):
+                targets = targets.to(logits.device)
+                mask = visible.bool().to(logits.device)
+                all_probs.append(torch.sigmoid(logits[mask]))
+                all_targets.append(targets[mask])
+        metrics = compute_metrics(torch.cat(all_probs), torch.cat(all_targets))
+        log.info("test  " + "  ".join(f"{k}={v:.4f}" for k, v in metrics.items()))
+        return metrics
+
+    @torch.no_grad()
+    def visualize(self, loader: DataLoader, output_dir: Path) -> None:
+        self.model.eval()
+        for batch in loader:
+            batch = self._move_batch(batch)
+            logits_list = self.model(batch)
+            for i, (logits, targets, visible) in enumerate(zip(
+                logits_list, batch["pseudolabels"], batch["vsem_visible"]
+            )):
+                targets = targets.to(logits.device)
+                pred = torch.sigmoid(logits)
+                name = f"{batch['sample_id'][i]}_{batch['verb'][i]}"
+                save_prediction_plys(
+                    batch["vertex_positions"][i], targets, pred, visible, output_dir, name
+                )
+        log.info(f"saved visualizations to {output_dir}")
 
     def load_checkpoint(self, path: str | Path) -> int:
         ckpt = torch.load(path, map_location=self.device, weights_only=True)

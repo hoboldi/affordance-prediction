@@ -79,6 +79,7 @@ def main(cfg: DictConfig) -> None:
         )
     log.info(f"model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
+    checkpoint_dir = Path(HydraConfig.get().runtime.output_dir) / "checkpoints"
     trainer = Trainer(
         model=model,
         train_loader=train_loader,
@@ -88,8 +89,16 @@ def main(cfg: DictConfig) -> None:
         early_stopping_patience=cfg.training.early_stopping_patience,
         target_loss=cfg.training.target_loss,
         lr_schedule=cfg.training.lr_schedule,
+        checkpoint_dir=checkpoint_dir,
     )
     trainer.train()
+
+    test_ds = train_ds if cfg.training.overfit else build_dataset(cfg, split="test")
+    test_loader = get_dataloader(test_ds, batch_size=cfg.data.batch_size, shuffle=False, num_workers=cfg.data.num_workers)
+    log.info(f"evaluating on {len(test_ds)} test samples")
+    trainer.evaluate(test_loader)
+    vis_dir = Path(HydraConfig.get().runtime.output_dir) / "visualizations"
+    trainer.visualize(test_loader, vis_dir)
 
 
 if __name__ == "__main__":
