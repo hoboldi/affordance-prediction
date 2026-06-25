@@ -63,3 +63,18 @@ VERDICT corr_learn=-0.500 iou_learn=0.000 std=0.1655
 VERDICT corr_learn=0.036 iou_learn=0.000 std=0.1731
 
 ### ov_concat_bighead (open-vocab concat + deep_verb_proj + 512/256/128) 14:37
+  contain     AUPRC=0.315 (n= 39)  pred_std=0.1223
+  grasp       AUPRC=0.291 (n= 29)  pred_std=0.1607
+  move        AUPRC=0.490 (n= 10)  pred_std=0.1530
+  pour        AUPRC=0.462 (n= 29)  pred_std=0.1995
+  sit         AUPRC=0.418 (n= 10)  pred_std=0.1443
+VERDICT corr_learn=0.039 iou_learn=0.001 std=0.1556
+
+### scale_25 (open-vocab concat, 25% = 240 train) 20:53
+  contain     AUPRC=0.248 (n= 39)  pred_std=0.0994
+  grasp       AUPRC=0.182 (n= 29)  pred_std=0.1158
+  move        AUPRC=0.255 (n= 10)  pred_std=0.1019
+  pour        AUPRC=0.317 (n= 29)  pred_std=0.1232
+  sit         AUPRC=0.264 (n= 10)  pred_std=0.1009
+VERDICT corr_learn=0.991 iou_learn=0.905 std=0.1098
+
