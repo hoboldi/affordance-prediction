@@ -1,0 +1,104 @@
+project:
+  seed: 42
+
+paths:
+  # Bulk pipeline data lives on /home (cmr2): source images, reconstructions+latents, manifests.
+  # Absolute so host venvs and the SAM3D Docker container (same path mounted) resolve identically.
+  data_root: /home/datasets/customDatasets/cmr2
+  output_root: outputs
+  cache_root: /home/datasets/customDatasets/cmr2/cache
+
+dataset:
+  # JSONL manifest under data_root — see docs/data_layout.md
+  manifest_filename: manifest.jsonl
+  load_mesh_eager: false
+  load_vertex_labels_eager: true
+
+# Supervision: per-vertex affordance pseudolabels from the frozen GEAL teacher.
+# GEAL code lives in external/geal (gitignored); weights go in external/geal/ckpt/ (fetch separately
+# from https://huggingface.co/datasets/dylanorange/geal). OmniObject3D ingestion: configs/omniobject3d.yaml.
+labeling:
+  geal_ckpt: external/geal/ckpt/piad_seen.pt
+  geal_question_csv: null    # optional Affordance-Question.csv for GEAL's canonical phrasings
+  n_points: 2048             # surface points fed to GEAL per object
+
+reconstruction:
+  # Requires HF download into sam-3d-objects/checkpoints/hf/ — see sam-3d-objects/doc/setup.md §2
+  sam3d_config: sam-3d-objects/checkpoints/hf/pipeline.yaml
+  decode_formats:
+    - gaussian
+    - mesh
+  compile: false
+  # Cache the global shape latent per object so it is computed once, not every training step.
+  # Latents are written to: <paths.cache_root>/sam3d/<object_stem>/global_latent.pt
+  cache_latents: true
+
+rendering:
+  num_views: 6
+  image_size: 512
+  fov_deg: 60.0
+  camera_radius: 2.0
+  # Pitch above XZ (Y-up). Policy: effective orbit band is intersected with [25°, 60°]
+  # (broader than a narrow band; still avoids ~0° horizon-grazing and near–top-down extremes).
+  elevation_deg: 42.5
+  elevation_min_deg: 25.0
+  elevation_max_deg: 60.0
+  # Orbit pole (⟂ azimuth ring): null + orbit_axis_mode, or explicit [x,y,z] in mesh/splat frame.
+  orbit_axis: null
+  orbit_axis_mode: world
+  orbit_ring_rotation_deg: 0.0
+  orbit_ring_rotation_axis: [1.0, 0.0, 0.0]
+  # --- Per-vertex feature-render quality (CLIP/DINO pipeline) ---
+  # Multiple elevation rings with staggered azimuths break the single-ring 6-fold azimuthal seam
+  # (24 views = 3 rings x 8). Auto-fit framing fills the frame for finer patches. Unlit albedo gives
+  # true, view-consistent vertex colour. Facing-weighted fusion (in project_to_mesh) smooths seams.
+  elevation_rings_deg: [33.0, 52.0]   # 2 rings x 8 = 16 views: star gone (sweep), ~33% less than 24
+  azimuths_per_ring: 8
+  auto_fit_framing: true
+  frame_fill: 0.85
+  unlit_albedo: true
+  unlit_ambient: 0.6   # de-wash the muted SAM3D vertex colours (ambient 1.0 brightens 130->210)
+  # Second pyrender pass: world normals as RGB + 3-channel depth visualization (uint8) for SAM/VLM aux.
+  render_geometry_aux: true
+  depth_tolerance: 0.05
+  depth_relative_tolerance: 0.03
+  # mesh | gaussian | both — gaussian/both use splat RGB when splat_path exists (else mesh RGB).
+  # For coherent appearance + vertex projection, point mesh_path and splat_path at the same
+  # SAM3D reconstruction (see cfg_with_sam3d_reconstruction). Example ply alone is for smoke tests.
+  backend: gaussian
+  mesh_path: data/sample.glb
+  splat_path: examples/gaussian_splat/tiny_gaussians.ply
+
+projection:
+  clip_image_size: 224  # CLIP input side length (ViT-B/32)
+
+vlm:
+  model_name: openai/clip-vit-base-patch32
+  device: null  # auto: cuda / mps / cpu
+  max_batch_size: 8
+  sample_verbs:
+    - grasp
+    - sit on
+    - open
+    - pour from
+
+model:
+  vlm_dim: 0            # set to 512 to include CLIP VLM vertex features; 0 = disabled
+  verb_dim: 128         # learned verb embedding dim (table size = num_verbs, set at runtime)
+  verb_conditioning: concat  # concat = verb appended per-vertex (can localize per verb); film = global level only
+  sam3d_dim: 8          # per-vertex SLAT features from SAM3D
+  dino_cls_dim: 1024    # SLAT-stage DINOv2 CLS token (dinov2_vitl14_reg → 1024-dim)
+  ss_dino_cls_dim: 1024 # SS-stage DINOv2 CLS token
+  normals_dim: 3        # per-vertex surface normals
+  pos_dim: 0            # absolute xyz position OFF: it let the head learn a "low Y = affordance" height
+                        # shortcut (uniform lower-bright preds) instead of geometry. pos_dim=0 gives the same
+                        # unseen AUPRC (~0.29) but geometry-driven preds (chair seat, container interiors).
+  cond_dim: 128         # global (conditioning) encoder output dim
+  hidden_dims: [256, 128]
+  dropout: 0.1
+
+training:
+  batch_size: 4
+  learning_rate: 1.0e-4
+  num_epochs: 50
+  pos_weight: 5.0   # upweight positives to compensate ~6% positive rate; try 5–10

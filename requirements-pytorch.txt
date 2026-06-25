@@ -1,0 +1,11 @@
+# Install as a matched pair BEFORE requirements.txt / pip install -e .
+# Do not upgrade torch and torchvision independently.
+#
+#   pip install -r requirements-pytorch.txt
+#
+# Fresh env (recommended if you see torchvision::nms or libjpeg errors):
+#   pip uninstall -y torch torchvision torchaudio
+#   pip install -r requirements-pytorch.txt
+
+torch>=2.6
+torchvision>=0.21

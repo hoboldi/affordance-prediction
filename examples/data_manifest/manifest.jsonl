@@ -1,0 +1,1 @@
+{"sample_id": "tiny", "verb": "grasp", "split": "train", "mesh_path": "meshes/tiny.obj", "vertex_affordance_path": "labels/tiny_vertex_affordance.npy"}
