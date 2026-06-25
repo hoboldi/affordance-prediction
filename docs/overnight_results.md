@@ -78,3 +78,19 @@ VERDICT corr_learn=0.039 iou_learn=0.001 std=0.1556
   sit         AUPRC=0.264 (n= 10)  pred_std=0.1009
 VERDICT corr_learn=0.991 iou_learn=0.905 std=0.1098
 
+### ov_concat_big (open-vocab concat, ~1436 data, early-stopped @ best ep13) 11:00
+  contain     AUPRC=0.291 (n= 44)  pred_std=0.0831
+  grasp       AUPRC=0.301 (n= 31)  pred_std=0.0932
+  move        AUPRC=0.241 (n=  6)  pred_std=0.1107
+  pour        AUPRC=0.561 (n= 37)  pred_std=0.1345
+  sit         AUPRC=0.473 (n=  5)  pred_std=0.1206
+VERDICT corr_learn=0.242 iou_learn=0.062 std=0.1036
+
+### ov_concat_big — eval on 1180 eval set (fair comparison) 11:02
+  contain     AUPRC=0.300 (n= 39)  pred_std=0.0951
+  grasp       AUPRC=0.289 (n= 29)  pred_std=0.1263
+  move        AUPRC=0.462 (n= 10)  pred_std=0.1408
+  pour        AUPRC=0.589 (n= 29)  pred_std=0.1529
+  sit         AUPRC=0.464 (n= 10)  pred_std=0.1443
+VERDICT corr_learn=0.012 iou_learn=0.014 std=0.1252
+
