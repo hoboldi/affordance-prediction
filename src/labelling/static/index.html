@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Affordance Labeller</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; font-size: 13px; background: #1a1a1a; color: #ddd; display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+#sidebar { width: 260px; min-width: 260px; display: flex; flex-direction: column; background: #242424; border-right: 1px solid #333; }
+#sidebar-header { padding: 10px; border-bottom: 1px solid #333; }
+#sidebar-header h1 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #eee; }
+#search { width: 100%; padding: 5px 8px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #ddd; font-size: 12px; }
+#filters { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+#filters select { flex: 1; min-width: 80px; padding: 3px 4px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #ddd; font-size: 11px; }
+#filter-labeled { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #aaa; cursor: pointer; }
+#filter-labeled input { cursor: pointer; }
+#sample-list { flex: 1; overflow-y: auto; }
+.sample-group { border-bottom: 1px solid #2e2e2e; }
+.sample-stem { padding: 6px 10px; font-size: 11px; color: #888; background: #1e1e1e; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.sample-stem:hover { background: #282828; }
+.sample-stem.expanded { color: #bbb; }
+.stem-label { font-family: monospace; }
+.sample-verbs { display: none; padding: 2px 0; }
+.sample-verbs.open { display: block; }
+.verb-row { padding: 4px 10px 4px 22px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.verb-row:hover { background: #2e2e2e; }
+.verb-row.active { background: #1e3a2a; color: #5dde8a; }
+.verb-tag { font-size: 11px; flex: 1; }
+.labeled-dot { width: 7px; height: 7px; border-radius: 50%; background: #5dde8a; display: none; }
+.labeled-dot.visible { display: inline-block; }
+.split-badge { font-size: 9px; padding: 1px 4px; border-radius: 3px; background: #333; color: #888; }
+#stats-footer { padding: 8px 10px; border-top: 1px solid #333; font-size: 11px; color: #666; }
+
+/* ── Main ── */
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#toolbar { padding: 6px 10px; background: #1e1e1e; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mode-btn { padding: 4px 10px; border: 1px solid #444; border-radius: 4px; background: #2a2a2a; color: #aaa; cursor: pointer; font-size: 12px; }
+.mode-btn:hover { background: #333; }
+.mode-btn.active { background: #1e3a2a; color: #5dde8a; border-color: #3a6a4a; }
+.sep { width: 1px; height: 20px; background: #333; margin: 0 2px; }
+#brush-ctrl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #888; }
+#brush-ctrl button { width: 20px; height: 20px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; }
+#brush-size-val { min-width: 38px; text-align: center; color: #ccc; }
+#btn-reset { padding: 4px 8px; border: 1px solid #555; border-radius: 4px; background: #2a2a2a; color: #aaa; cursor: pointer; font-size: 11px; }
+#btn-reset:hover { background: #333; }
+#btn-save { padding: 4px 12px; border: 1px solid #3a6a4a; border-radius: 4px; background: #1e3a2a; color: #5dde8a; cursor: pointer; font-size: 12px; font-weight: 600; }
+#btn-save:hover { background: #254a34; }
+#btn-save:disabled { opacity: 0.4; cursor: default; }
+#sample-title { flex: 1; font-size: 12px; color: #888; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#label-stats { font-size: 11px; color: #666; white-space: nowrap; }
+#shortcuts-hint { font-size: 10px; color: #555; }
+
+#canvas-wrap { flex: 1; position: relative; }
+canvas { display: block; width: 100%; height: 100%; }
+#status { padding: 4px 10px; background: #1a1a1a; border-top: 1px solid #222; font-size: 11px; color: #666; min-height: 22px; }
+#status.ok { color: #5dde8a; }
+#status.err { color: #e05555; }
+#loading-overlay { position: absolute; inset: 0; background: rgba(26,26,26,0.85); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #888; z-index: 10; }
+#loading-overlay.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>Affordance Labeller</h1>
+    <input id="search" type="text" placeholder="Search stem…">
+    <div id="filters">
+      <select id="cat-filter"><option value="">All categories</option></select>
+      <select id="verb-filter"><option value="">All verbs</option></select>
+    </div>
+    <label id="filter-labeled"><input type="checkbox" id="hide-labeled"> Hide labelled</label>
+  </div>
+  <div id="sample-list"></div>
+  <div id="stats-footer" id="stats-footer">—</div>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+  <div id="toolbar">
+    <button class="mode-btn active" id="btn-orbit" title="O">⊙ Orbit</button>
+    <button class="mode-btn" id="btn-paint" title="P">✏ Paint</button>
+    <button class="mode-btn" id="btn-erase" title="E">⌫ Erase</button>
+    <div class="sep"></div>
+    <div id="brush-ctrl">
+      Brush: <button id="btn-smaller" title="[">−</button>
+      <span id="brush-size-val">0.050</span>
+      <button id="btn-larger" title="]">+</button>
+    </div>
+    <div class="sep"></div>
+    <button id="btn-reset" title="R">Reset to pseudo</button>
+    <button id="btn-save" title="S" disabled>Save</button>
+    <div class="sep"></div>
+    <span id="sample-title">No sample loaded</span>
+    <span id="label-stats"></span>
+    <span id="shortcuts-hint">O/P/E · [/] · S · R</span>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="loading-overlay">Loading…</div>
+  </div>
+  <div id="status">Select a sample from the sidebar.</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const API = 'http://127.0.0.1:8765';
+
+// ── State ──────────────────────────────────────────────────────────────
+const S = {
+  samples: [],       // full sample list from server
+  current: null,     // { sample_id, stem, verb }
+  N: 0,
+  positions: null,   // Float32Array (N*3)
+  shading:   null,   // Float32Array (N) precomputed dot-product
+  labels:    null,   // Float32Array (N) working copy
+  mode: 'orbit',     // 'orbit' | 'paint' | 'erase'
+  brushRadius: 0.05,
+  dirty: false,
+  painting: false,
+  paintValue: 1.0,
+};
+
+// ── Three.js ───────────────────────────────────────────────────────────
+const canvas   = document.getElementById('canvas');
+const wrap     = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setClearColor(0x141414);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 100);
+camera.position.set(0, 0, 2.5);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+
+// Point cloud objects
+let pointCloud = null;
+let geometry   = null;
+let colorAttr  = null;
+
+// Brush cursor (wireframe sphere)
+const brushGeo  = new THREE.SphereGeometry(1, 16, 8);
+const brushMat  = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.35 });
+const brushMesh = new THREE.Mesh(brushGeo, brushMat);
+brushMesh.visible = false;
+scene.add(brushMesh);
+
+// Raycaster
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points = { threshold: 0.02 };
+
+// ── Resize ────────────────────────────────────────────────────────────
+function resize() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(wrap);
+resize();
+
+// ── Render loop ───────────────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── Color utilities ───────────────────────────────────────────────────
+const LIGHT = new THREE.Vector3(0.5, 0.8, 0.6).normalize();
+
+function precomputeShading(normArr) {
+  const n = normArr.length / 3;
+  const sh = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const nx = normArr[i*3], ny = normArr[i*3+1], nz = normArr[i*3+2];
+    sh[i] = Math.max(0.15, LIGHT.x*nx + LIGHT.y*ny + LIGHT.z*nz);
+  }
+  return sh;
+}
+
+function updateColors() {
+  if (!colorAttr) return;
+  const c = colorAttr.array;
+  const sh = S.shading;
+  const lbl = S.labels;
+  const N = S.N;
+  for (let i = 0; i < N; i++) {
+    const s = sh[i];
+    const v = lbl[i];
+    // Interpolate: grey (0.55,0.55,0.60) → green (0.05,0.95,0.25)
+    c[i*3]   = s * (0.55 + v * (0.05 - 0.55));
+    c[i*3+1] = s * (0.55 + v * (0.95 - 0.55));
+    c[i*3+2] = s * (0.60 + v * (0.25 - 0.60));
+  }
+  colorAttr.needsUpdate = true;
+  refreshLabelStats();
+}
+
+function refreshLabelStats() {
+  if (!S.labels) return;
+  let pos = 0;
+  for (let i = 0; i < S.N; i++) if (S.labels[i] > 0.5) pos++;
+  const pct = ((pos / S.N) * 100).toFixed(1);
+  document.getElementById('label-stats').textContent = `${pos.toLocaleString()} / ${S.N.toLocaleString()} (${pct}%)`;
+}
+
+// ── Binary fetch helpers ───────────────────────────────────────────────
+async function fetchBinary(url) {
+  const r = await fetch(url);
+  if (r.status === 204) return null;
+  if (!r.ok) throw new Error(`${r.status} ${url}`);
+  return new Float32Array(await r.arrayBuffer());
+}
+
+// ── Load sample ───────────────────────────────────────────────────────
+async function loadSample(meta) {
+  setLoading(true);
+  setStatus('Loading…');
+
+  // Clean up previous
+  if (pointCloud) { scene.remove(pointCloud); pointCloud.geometry.dispose(); pointCloud = null; }
+  geometry = null; colorAttr = null;
+  S.positions = null; S.shading = null; S.labels = null; S.N = 0; S.dirty = false;
+
+  try {
+    const [pos, nrm, pseudo, manual] = await Promise.all([
+      fetchBinary(`${API}/api/vertices/${meta.stem}`),
+      fetchBinary(`${API}/api/normals/${meta.stem}`),
+      fetchBinary(`${API}/api/pseudolabels/${meta.stem}/${meta.verb}`),
+      fetchBinary(`${API}/api/manuallabels/${meta.stem}/${meta.verb}`),
+    ]);
+
+    if (!pos) throw new Error('No vertex data');
+    S.N = pos.length / 3;
+    S.positions = pos;
+    S.shading   = nrm ? precomputeShading(nrm) : new Float32Array(S.N).fill(0.7);
+    S.labels    = manual ? manual.slice() : (pseudo ? pseudo.slice() : new Float32Array(S.N));
+    S.current   = meta;
+
+    // Auto-set brush radius = 2% of bounding-box diagonal
+    {
+      let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity,zmin=Infinity,zmax=-Infinity;
+      for (let i = 0; i < S.N; i++) {
+        const x=pos[i*3],y=pos[i*3+1],z=pos[i*3+2];
+        if(x<xmin)xmin=x; if(x>xmax)xmax=x;
+        if(y<ymin)ymin=y; if(y>ymax)ymax=y;
+        if(z<zmin)zmin=z; if(z>zmax)zmax=z;
+      }
+      const diag = Math.sqrt((xmax-xmin)**2+(ymax-ymin)**2+(zmax-zmin)**2);
+      S.brushRadius = Math.max(0.005, diag * 0.02);
+      brushMesh.scale.setScalar(S.brushRadius);
+      document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
+    }
+
+    // Build Three.js geometry
+    geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const cols = new Float32Array(S.N * 3);
+    colorAttr = new THREE.BufferAttribute(cols, 3);
+    geometry.setAttribute('color', colorAttr);
+    updateColors();
+
+    const mat = new THREE.PointsMaterial({ vertexColors: true, size: 0.004, sizeAttenuation: true });
+    pointCloud = new THREE.Points(geometry, mat);
+    scene.add(pointCloud);
+
+    // Fit camera to bounding box
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const span = Math.max(size.x, size.y, size.z);
+    controls.target.copy(center);
+    camera.position.copy(center).addScaledVector(new THREE.Vector3(0.3, 0.3, 1).normalize(), span * 2);
+    controls.update();
+
+    document.getElementById('sample-title').textContent = `${meta.stem}  ·  ${meta.verb}`;
+    document.getElementById('btn-save').disabled = false;
+    setStatus(manual ? `Loaded (manual labels present)` : pseudo ? `Loaded (pseudolabels as starting point)` : `Loaded (blank labels)`);
+    highlightActive(meta.sample_id);
+    S.dirty = false;
+  } catch (e) {
+    setStatus('Error: ' + e.message, true);
+    console.error(e);
+  }
+  setLoading(false);
+}
+
+// ── Painting ──────────────────────────────────────────────────────────
+const mouse = new THREE.Vector2();
+
+function getMouseNDC(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x =  ((e.clientX - rect.left)  / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+}
+
+function tryPaint(e) {
+  if (!S.current || !pointCloud) return;
+  getMouseNDC(e);
+  raycaster.setFromCamera(mouse, camera);
+  raycaster.params.Points.threshold = S.brushRadius;
+
+  const hits = raycaster.intersectObject(pointCloud);
+  if (!hits.length) { brushMesh.visible = false; return; }
+
+  const hp = hits[0].point;
+  brushMesh.position.copy(hp);
+  brushMesh.scale.setScalar(S.brushRadius);
+  brushMesh.visible = (S.mode !== 'orbit');
+
+  if (!S.painting) return;
+
+  // Gaussian falloff: weight = exp(-3 * (d/r)^2), so weight=1 at center, ~0.05 at edge.
+  // For erase mode we drive toward 0; for paint mode toward 1.
+  // New value = old + weight * (target - old), clamped to [0,1].
+  const r2 = S.brushRadius * S.brushRadius;
+  const pos = S.positions;
+  const lbl = S.labels;
+  const target = S.paintValue;   // 1.0 (paint) or 0.0 (erase)
+  let changed = false;
+  for (let i = 0; i < S.N; i++) {
+    const dx = pos[i*3]   - hp.x;
+    const dy = pos[i*3+1] - hp.y;
+    const dz = pos[i*3+2] - hp.z;
+    const d2 = dx*dx + dy*dy + dz*dz;
+    if (d2 < r2) {
+      const weight = Math.exp(-3 * d2 / r2);
+      const next = Math.min(1, Math.max(0, lbl[i] + weight * (target - lbl[i])));
+      if (Math.abs(next - lbl[i]) > 1e-4) { lbl[i] = next; changed = true; }
+    }
+  }
+  if (changed) { updateColors(); S.dirty = true; }
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (S.mode === 'orbit') return;
+  tryPaint(e);
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (S.mode === 'orbit') return;
+  e.preventDefault();
+  S.painting   = true;
+  S.paintValue = (e.button === 2 || S.mode === 'erase') ? 0.0 : 1.0;
+  tryPaint(e);
+});
+
+canvas.addEventListener('mouseup',    () => { S.painting = false; });
+canvas.addEventListener('mouseleave', () => { S.painting = false; brushMesh.visible = false; });
+canvas.addEventListener('contextmenu', e => { if (S.mode !== 'orbit') e.preventDefault(); });
+
+// ── Save ──────────────────────────────────────────────────────────────
+async function save() {
+  if (!S.current || !S.labels) return;
+  setStatus('Saving…');
+  try {
+    const r = await fetch(`${API}/api/manuallabels/${S.current.stem}/${S.current.verb}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: S.labels.buffer,
+    });
+    if (!r.ok) throw new Error(await r.text());
+    S.dirty = false;
+    setStatus('Saved ✓');
+    markLabelled(S.current.sample_id);
+  } catch (e) {
+    setStatus('Save failed: ' + e.message, true);
+  }
+}
+
+// ── Mode & brush controls ─────────────────────────────────────────────
+function setMode(m) {
+  S.mode = m;
+  controls.enabled = (m === 'orbit');
+  brushMesh.visible = false;
+  ['orbit','paint','erase'].forEach(id =>
+    document.getElementById('btn-' + id).classList.toggle('active', id === m));
+}
+
+document.getElementById('btn-orbit').onclick = () => setMode('orbit');
+document.getElementById('btn-paint').onclick = () => setMode('paint');
+document.getElementById('btn-erase').onclick = () => setMode('erase');
+
+document.getElementById('btn-smaller').onclick = () => {
+  S.brushRadius = Math.max(0.002, S.brushRadius * 0.75);
+  document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
+};
+document.getElementById('btn-larger').onclick = () => {
+  S.brushRadius = Math.min(2, S.brushRadius * 1.33);
+  document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
+};
+
+document.getElementById('btn-save').onclick = save;
+
+document.getElementById('btn-reset').onclick = async () => {
+  if (!S.current) return;
+  const pseudo = await fetchBinary(`${API}/api/pseudolabels/${S.current.stem}/${S.current.verb}`);
+  S.labels = pseudo ? pseudo.slice() : new Float32Array(S.N);
+  updateColors();
+  S.dirty = true;
+  setStatus('Reset to pseudolabels');
+};
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  switch (e.key.toLowerCase()) {
+    case 'o': setMode('orbit'); break;
+    case 'p': setMode('paint'); break;
+    case 'e': setMode('erase'); break;
+    case 's': if (!e.ctrlKey && !e.metaKey) save(); break;
+    case 'r': document.getElementById('btn-reset').click(); break;
+    case '[': document.getElementById('btn-smaller').click(); break;
+    case ']': document.getElementById('btn-larger').click(); break;
+  }
+});
+
+// ── Sample list ───────────────────────────────────────────────────────
+async function fetchSamples() {
+  const r = await fetch(`${API}/api/samples`);
+  S.samples = await r.json();
+  populateFilters();
+  renderList();
+  const footer = document.getElementById('stats-footer');
+  const labelled = S.samples.filter(s => s.has_manual).length;
+  footer.textContent = `${labelled} / ${S.samples.length} labelled`;
+}
+
+function populateFilters() {
+  const cats  = [...new Set(S.samples.map(s => s.category))].sort();
+  const verbs = [...new Set(S.samples.map(s => s.verb))].sort();
+  const catSel  = document.getElementById('cat-filter');
+  const verbSel = document.getElementById('verb-filter');
+  cats.forEach(c  => { const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
+  verbs.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; verbSel.appendChild(o); });
+}
+
+function getFiltered() {
+  const q    = document.getElementById('search').value.toLowerCase();
+  const cat  = document.getElementById('cat-filter').value;
+  const verb = document.getElementById('verb-filter').value;
+  const hide = document.getElementById('hide-labeled').checked;
+  return S.samples.filter(s =>
+    (!q    || s.stem.includes(q) || s.sample_id.includes(q)) &&
+    (!cat  || s.category === cat) &&
+    (!verb || s.verb === verb) &&
+    (!hide || !s.has_manual)
+  );
+}
+
+function renderList() {
+  const filtered = getFiltered();
+  const list = document.getElementById('sample-list');
+  list.innerHTML = '';
+
+  // Group by stem
+  const groups = new Map();
+  for (const s of filtered) {
+    if (!groups.has(s.stem)) groups.set(s.stem, []);
+    groups.get(s.stem).push(s);
+  }
+
+  for (const [stem, verbs] of groups) {
+    const grp = document.createElement('div');
+    grp.className = 'sample-group';
+
+    const header = document.createElement('div');
+    header.className = 'sample-stem';
+    header.innerHTML = `<span class="stem-label">${stem}</span><span class="split-badge">${verbs[0].split}</span>`;
+    header.onclick = () => {
+      header.classList.toggle('expanded');
+      verbsDiv.classList.toggle('open');
+    };
+    grp.appendChild(header);
+
+    const verbsDiv = document.createElement('div');
+    verbsDiv.className = 'sample-verbs';
+
+    for (const s of verbs) {
+      const row = document.createElement('div');
+      row.className = 'verb-row';
+      row.dataset.sampleId = s.sample_id;
+      row.innerHTML = `
+        <span class="labeled-dot ${s.has_manual ? 'visible' : ''}" id="dot-${s.sample_id.replace(/[^a-z0-9]/gi,'_')}"></span>
+        <span class="verb-tag">${s.verb}</span>`;
+      row.onclick = () => loadSample(s);
+      verbsDiv.appendChild(row);
+    }
+
+    grp.appendChild(verbsDiv);
+    list.appendChild(grp);
+  }
+}
+
+function highlightActive(sample_id) {
+  document.querySelectorAll('.verb-row').forEach(r => {
+    r.classList.toggle('active', r.dataset.sampleId === sample_id);
+  });
+  // Expand parent group
+  document.querySelectorAll('.verb-row.active').forEach(r => {
+    r.closest('.sample-verbs').classList.add('open');
+    r.closest('.sample-group').querySelector('.sample-stem').classList.add('expanded');
+  });
+}
+
+function markLabelled(sample_id) {
+  // Update in-memory state
+  const s = S.samples.find(x => x.sample_id === sample_id);
+  if (s) s.has_manual = true;
+  // Show dot
+  const safe = sample_id.replace(/[^a-z0-9]/gi, '_');
+  const dot = document.getElementById('dot-' + safe);
+  if (dot) dot.classList.add('visible');
+  // Update footer
+  const labelled = S.samples.filter(s => s.has_manual).length;
+  document.getElementById('stats-footer').textContent = `${labelled} / ${S.samples.length} labelled`;
+}
+
+// ── Filter listeners ──────────────────────────────────────────────────
+['search','cat-filter','verb-filter','hide-labeled'].forEach(id =>
+  document.getElementById(id).addEventListener('input', renderList));
+
+// ── UI helpers ────────────────────────────────────────────────────────
+function setLoading(on) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !on);
+}
+function setStatus(msg, err=false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = err ? 'err' : 'ok';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
+setLoading(false);
+fetchSamples();
+</script>
+</body>
+</html>
