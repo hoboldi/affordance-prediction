@@ -1,7 +1,6 @@
 name: pn2_mlp
 verb_embedding_dim: 64
 # PointNet++ encoder
-n_sub: 4096
 sa1_n: 512
 sa2_n: 128
 k: 16

@@ -1,6 +1,5 @@
 name: pointnet++
 verb_embedding_dim: 64
-n_sub: 4096    # random subsample before SA layers
 sa1_n: 512     # SA level-1 output points
 sa2_n: 128     # SA level-2 output points
 k: 16          # k-NN neighbors per SA layer

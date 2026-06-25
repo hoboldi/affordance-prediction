@@ -57,7 +57,6 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.model.name == "pointnet++":
         model = PointNetPlusPlusHead(
-            n_sub=cfg.model.n_sub,
             sa1_n=cfg.model.sa1_n,
             sa2_n=cfg.model.sa2_n,
             k=cfg.model.k,
@@ -65,7 +64,6 @@ def main(cfg: DictConfig) -> None:
         )
     elif cfg.model.name == "pn2_mlp":
         model = PN2MLPHead(
-            n_sub=cfg.model.n_sub,
             sa1_n=cfg.model.sa1_n,
             sa2_n=cfg.model.sa2_n,
             k=cfg.model.k,
@@ -90,7 +88,6 @@ def main(cfg: DictConfig) -> None:
         early_stopping_patience=cfg.training.early_stopping_patience,
         target_loss=cfg.training.target_loss,
         lr_schedule=cfg.training.lr_schedule,
-        pos_weight=cfg.training.pos_weight,
     )
     trainer.train()
 

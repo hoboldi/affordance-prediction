@@ -64,7 +64,7 @@ class SetAbstraction(nn.Module):
         returns: new_xyz (n_out, 3), new_feat (n_out, out_channels)
         """
         N = xyz.shape[0]
-        idx = torch.randperm(N, device=xyz.device)[:self.n_out]
+        idx = torch.linspace(0, N - 1, self.n_out, device=xyz.device).long()
         new_xyz = xyz[idx]                                     # (n_out, 3)
 
         knn_idx = _knn(xyz, new_xyz, self.k)                  # (n_out, k)
@@ -109,25 +109,21 @@ class PointNetPlusPlusHead(nn.Module):
 
     Processing pipeline:
       full N vertices
-        → random subsample to n_sub
-          → SA1 (n_sub → sa1_n)
-            → SA2 (sa1_n → sa2_n)
-          ← FP2 (sa2 → sa1 resolution)
-        ← FP1 (sa1 → n_sub resolution)
-      ← FP0 chunked interpolation (n_sub → full N)
+        → SA1 (N → sa1_n)
+          → SA2 (sa1_n → sa2_n)
+        ← FP2 (sa2 → sa1 resolution)
+      ← FP1 (sa1 → full N)
       → concat global features → output MLP → (N,)
     """
 
     def __init__(
         self,
-        n_sub: int = 4096,     # random subsample before SA
         sa1_n: int = 512,
         sa2_n: int = 128,
         k: int = 16,
         verb_embedding_dim: int = 64,
     ):
         super().__init__()
-        self.n_sub = n_sub
         self.verb_embedding = nn.Embedding(len(VERBS), verb_embedding_dim)
 
         # per-vertex feature dim (same as mlp_head)
@@ -181,22 +177,13 @@ class PointNetPlusPlusHead(nn.Module):
             # Per-vertex features
             pv_feat = self._build_per_vertex(vpos, vnorm, slat_vf, vsem_f, vsem_vis)  # (N, 143)
 
-            # --- Subsample ---
-            n_sub = min(self.n_sub, N)
-            sub_idx = torch.randperm(N, device=vpos.device)[:n_sub]
-            sub_xyz  = vpos[sub_idx]    # (n_sub, 3)
-            sub_feat = pv_feat[sub_idx] # (n_sub, 143)
-
             # --- Encoder ---
-            sa1_xyz, sa1_feat = self.sa1(sub_xyz, sub_feat)   # (sa1_n, 128)
+            sa1_xyz, sa1_feat = self.sa1(vpos, pv_feat)       # (sa1_n, 128)
             sa2_xyz, sa2_feat = self.sa2(sa1_xyz, sa1_feat)   # (sa2_n, 256)
 
-            # --- Decoder ---
+            # --- Decoder: FP1 goes all the way back to full N ---
             fp2_feat = self.fp2(sa1_xyz, sa2_xyz, sa1_feat, sa2_feat)  # (sa1_n, 256)
-            fp1_feat = self.fp1(sub_xyz, sa1_xyz, sub_feat, fp2_feat)  # (n_sub, 128)
-
-            # --- Upsample to full N (chunked) ---
-            full_feat = _interpolate(sub_xyz, fp1_feat, vpos, k=3)  # (N, 128)
+            full_feat = self.fp1(vpos, sa1_xyz, pv_feat, fp2_feat)     # (N, 128)
 
             # --- Output MLP ---
             g_exp = global_feat.unsqueeze(0).expand(N, -1)           # (N, global_dim)

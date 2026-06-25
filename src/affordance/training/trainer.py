@@ -10,26 +10,25 @@ from torch.utils.data import DataLoader
 log = logging.getLogger(__name__)
 
 
-def _masked_bce_loss(
+def _masked_kl_loss(
     logits: torch.Tensor,
     targets: torch.Tensor,
     mask: torch.Tensor,
-    pos_weight: float = 1.0,
 ) -> torch.Tensor:
-    pw = torch.tensor(pos_weight, device=logits.device, dtype=logits.dtype)
-    loss = nn.functional.binary_cross_entropy_with_logits(
-        logits, targets, pos_weight=pw, reduction="none"
-    )
-    return (loss * mask).sum() / mask.sum().clamp(min=1)
+    # KL(targets || sigmoid(logits)) = BCE(logits, targets) - H(targets)
+    bce = nn.functional.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+    t = targets.clamp(1e-7, 1 - 1e-7)
+    entropy = -(t * t.log() + (1 - t) * (1 - t).log())
+    return ((bce - entropy) * mask).sum() / mask.sum().clamp(min=1)
 
 
-def _run_batch(batch: dict, model: nn.Module, pos_weight: float = 1.0) -> torch.Tensor:
+def _run_batch(batch: dict, model: nn.Module) -> torch.Tensor:
     logits_list = model(batch)
     total_loss = torch.tensor(0.0, device=logits_list[0].device)
     for logits, targets, visible in zip(logits_list, batch["pseudolabels"], batch["vsem_visible"]):
         targets = targets.to(logits.device)
         visible = visible.float().to(logits.device)
-        total_loss = total_loss + _masked_bce_loss(logits, targets, visible, pos_weight)
+        total_loss = total_loss + _masked_kl_loss(logits, targets, visible)
     return total_loss / len(logits_list)
 
 
@@ -47,7 +46,6 @@ class Trainer:
         early_stopping_min_delta: float = 1e-4,
         lr_schedule: str = "cosine",  # "cosine" | "constant"
         target_loss: float = 0.0,  # stop early if val loss drops below this
-        pos_weight: float = 1.0,   # upweight positive-label vertices in BCE
     ):
         self.model = model.to(device)
         self.train_loader = train_loader
@@ -65,7 +63,6 @@ class Trainer:
         else:
             self.scheduler = ConstantLR(self.optimizer, factor=1.0, total_iters=epochs)
         self.target_loss = target_loss
-        self.pos_weight = pos_weight
         self.best_val_loss = float("inf")
         self._epochs_without_improvement = 0
 
@@ -85,7 +82,7 @@ class Trainer:
         total_loss = 0.0
         for step, batch in enumerate(self.train_loader):
             batch = self._move_batch(batch)
-            loss = _run_batch(batch, self.model, self.pos_weight)
+            loss = _run_batch(batch, self.model)
             self.optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -101,7 +98,7 @@ class Trainer:
         total_loss = 0.0
         for batch in self.val_loader:
             batch = self._move_batch(batch)
-            total_loss += _run_batch(batch, self.model, self.pos_weight).item()
+            total_loss += _run_batch(batch, self.model).item()
         return total_loss / len(self.val_loader)
 
     def save_checkpoint(self, epoch: int, val_loss: float, name: str = "checkpoint.pt") -> None:
