@@ -1,8 +1,5 @@
-# Data & outputs
-data/
-outputs/
-exports/
-checkpoints/
+# Data
+data/*
 
 # Python
 __pycache__/
@@ -17,7 +14,6 @@ build/
 
 # Jupyter
 .ipynb_checkpoints/
-notebooks/.ipynb_checkpoints/
 
 # Testing
 .pytest_cache/
@@ -35,9 +31,18 @@ htmlcov/
 # PyTorch / ML artifacts
 *.pt
 *.pth
+*.ply
 wandb/
 
 # SLURM
 slurm/
 slurm-*.out
 *.sbatch
+
+# Training outputs (directory tracked via .gitkeep)
+outputs/**
+!outputs/.gitkeep
+
+# Exports (directory tracked via .gitkeep)
+exports/**
+!exports/.gitkeep
