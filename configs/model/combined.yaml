@@ -11,8 +11,8 @@ num_verbs: 9
 verb_conditioning: concat
 verb_embedding: learned
 # Global FiLM conditioning
-dino_cls_dim: 0
-ss_dino_cls_dim: 0
+dino_cls_dim: 1024
+ss_dino_cls_dim: 1024
 cond_dim: 128
 # Head
 hidden_dims: [256, 128]
