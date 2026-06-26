@@ -21,7 +21,9 @@ body { font-family: system-ui, sans-serif; font-size: 13px; background: #1a1a1a;
 .sample-stem { padding: 6px 10px; font-size: 11px; color: #888; background: #1e1e1e; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 .sample-stem:hover { background: #282828; }
 .sample-stem.expanded { color: #bbb; }
+.sample-stem.is-flagged { background: #1e1414; }
 .stem-label { font-family: monospace; }
+.stem-badges { display: flex; gap: 4px; align-items: center; }
 .sample-verbs { display: none; padding: 2px 0; }
 .sample-verbs.open { display: block; }
 .verb-row { padding: 4px 10px 4px 22px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
@@ -30,6 +32,8 @@ body { font-family: system-ui, sans-serif; font-size: 13px; background: #1a1a1a;
 .verb-tag { font-size: 11px; flex: 1; }
 .labeled-dot { width: 7px; height: 7px; border-radius: 50%; background: #5dde8a; display: none; }
 .labeled-dot.visible { display: inline-block; }
+.flagged-dot { width: 7px; height: 7px; border-radius: 50%; background: #e05555; display: none; }
+.flagged-dot.visible { display: inline-block; }
 .split-badge { font-size: 9px; padding: 1px 4px; border-radius: 3px; background: #333; color: #888; }
 #stats-footer { padding: 8px 10px; border-top: 1px solid #333; font-size: 11px; color: #666; }
 
@@ -40,17 +44,72 @@ body { font-family: system-ui, sans-serif; font-size: 13px; background: #1a1a1a;
 .mode-btn:hover { background: #333; }
 .mode-btn.active { background: #1e3a2a; color: #5dde8a; border-color: #3a6a4a; }
 .sep { width: 1px; height: 20px; background: #333; margin: 0 2px; }
-#brush-ctrl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #888; }
-#brush-ctrl button { width: 20px; height: 20px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; }
+#brush-ctrl, #depth-ctrl { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #888; }
+#brush-ctrl button, #depth-ctrl button { width: 20px; height: 20px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 13px; line-height: 1; }
 #brush-size-val { min-width: 38px; text-align: center; color: #ccc; }
+#depth-val { min-width: 52px; text-align: center; color: #ccc; }
 #btn-reset { padding: 4px 8px; border: 1px solid #555; border-radius: 4px; background: #2a2a2a; color: #aaa; cursor: pointer; font-size: 11px; }
 #btn-reset:hover { background: #333; }
+#btn-clear-gt { padding: 4px 8px; border: 1px solid #644; border-radius: 4px; background: #2a1a1a; color: #e07777; cursor: pointer; font-size: 11px; }
+#btn-clear-gt:hover { background: #3a2020; }
+#btn-clear-gt:disabled { opacity: 0.4; cursor: default; }
 #btn-save { padding: 4px 12px; border: 1px solid #3a6a4a; border-radius: 4px; background: #1e3a2a; color: #5dde8a; cursor: pointer; font-size: 12px; font-weight: 600; }
 #btn-save:hover { background: #254a34; }
 #btn-save:disabled { opacity: 0.4; cursor: default; }
+#btn-flag { padding: 4px 10px; border: 1px solid #555; border-radius: 4px; background: #2a2a2a; color: #888; cursor: pointer; font-size: 12px; }
+#btn-flag:hover { background: #333; }
+#btn-flag.flagged { background: #3a1a1a; color: #e05555; border-color: #6a3a3a; }
+#btn-flag:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Clip ── */
+#clip-ctrl { display: none; align-items: center; gap: 5px; font-size: 12px; color: #888; flex-wrap: wrap; }
+#clip-ctrl.open { display: flex; }
+.clip-presets { display: flex; gap: 2px; }
+.clip-presets button { padding: 2px 6px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 11px; }
+.clip-presets button:hover { background: #333; }
+#btn-fromview { padding: 2px 6px; border: 1px solid #556; border-radius: 3px; background: #242a30; color: #8ac; cursor: pointer; font-size: 11px; }
+#btn-fromview:hover { background: #2a3040; }
+.clip-angle { display: flex; align-items: center; gap: 2px; font-size: 11px; color: #777; }
+.clip-angle input[type=range] { width: 60px; accent-color: #5dde8a; }
+.clip-angle span { font-size: 10px; color: #555; min-width: 28px; }
+#clip-slider { width: 70px; accent-color: #5dde8a; }
+#btn-flip-clip { padding: 2px 7px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 11px; white-space: nowrap; }
+#btn-flip-clip:hover { background: #333; }
+
 #sample-title { flex: 1; font-size: 12px; color: #888; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #label-stats { font-size: 11px; color: #666; white-space: nowrap; }
-#shortcuts-hint { font-size: 10px; color: #555; }
+#shortcuts-hint { font-size: 10px; color: #555; white-space: nowrap; }
+
+/* ── Verb hint ── */
+#verb-hint { padding: 5px 12px; font-size: 12px; color: #9dcebb; background: #1c2820; border-bottom: 1px solid #263830; display: none; line-height: 1.6; }
+#verb-hint.visible { display: block; }
+#verb-hint strong { color: #5dde8a; text-transform: capitalize; }
+#verb-hint .hint-tip { color: #6aaa88; font-size: 11px; margin-left: 8px; }
+
+/* ── Annotation planes panel ── */
+#plane-panel { background: #14141e; border-bottom: 1px solid #2a2a40; display: none; flex-direction: column; gap: 3px; padding: 5px 10px 6px; }
+#plane-panel.open { display: flex; }
+#plane-panel-header { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #556; margin-bottom: 1px; }
+#plane-panel-header span { flex: 1; }
+#btn-add-plane { padding: 2px 9px; border: 1px solid #446; border-radius: 3px; background: #1c1c2e; color: #8899ff; cursor: pointer; font-size: 11px; }
+#btn-add-plane:hover { background: #24243a; }
+#plane-list { display: flex; flex-direction: column; gap: 3px; max-height: 130px; overflow-y: auto; }
+.aplane-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 2px 0; border-top: 1px solid #1e1e2a; }
+.aplane-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px currentColor; }
+.aplane-presets { display: flex; gap: 2px; }
+.aplane-presets button { padding: 1px 5px; border: 1px solid #444; border-radius: 2px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 10px; }
+.aplane-presets button:hover { background: #333; }
+.ap-view { padding: 1px 5px; border: 1px solid #446 !important; background: #1c1c2e !important; color: #88aaff !important; cursor: pointer; font-size: 10px; border-radius: 2px; }
+.ap-view:hover { background: #24243a !important; }
+.ap-flip { padding: 1px 6px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 10px; white-space: nowrap; }
+.ap-flip:hover { background: #333; }
+.ap-del { padding: 1px 6px; border: 1px solid #544; border-radius: 3px; background: #221a1a; color: #e05555; cursor: pointer; font-size: 11px; font-weight: bold; }
+.ap-del:hover { background: #2e2020; }
+.ap-enable { cursor: pointer; }
+.ap-angle { display: flex; align-items: center; gap: 2px; font-size: 10px; color: #666; }
+.ap-angle input[type=range] { width: 52px; accent-color: #8899ff; }
+.ap-angle span { font-size: 9px; color: #555; min-width: 24px; }
+.ap-pos { width: 60px; accent-color: #8899ff; }
 
 #canvas-wrap { flex: 1; position: relative; }
 canvas { display: block; width: 100%; height: 100%; }
@@ -75,7 +134,7 @@ canvas { display: block; width: 100%; height: 100%; }
     <label id="filter-labeled"><input type="checkbox" id="hide-labeled"> Hide labelled</label>
   </div>
   <div id="sample-list"></div>
-  <div id="stats-footer" id="stats-footer">—</div>
+  <div id="stats-footer">—</div>
 </div>
 
 <!-- ── Main ── -->
@@ -90,14 +149,49 @@ canvas { display: block; width: 100%; height: 100%; }
       <span id="brush-size-val">0.050</span>
       <button id="btn-larger" title="]">+</button>
     </div>
+    <div id="depth-ctrl">
+      Depth: <button id="btn-depth-less">−</button>
+      <span id="depth-val">×0.40</span>
+      <button id="btn-depth-more">+</button>
+    </div>
     <div class="sep"></div>
     <button id="btn-reset" title="R">Reset to pseudo</button>
+    <button id="btn-clear-gt" title="C" disabled>Clear GT</button>
     <button id="btn-save" title="S" disabled>Save</button>
+    <div class="sep"></div>
+    <button class="mode-btn" id="btn-clip" title="X">✂ Clip</button>
+    <div id="clip-ctrl">
+      <div class="clip-presets">
+        <button data-t="0"  data-p="0"  title="Y axis">Y</button>
+        <button data-t="90" data-p="90" title="X axis">X</button>
+        <button data-t="0"  data-p="90" title="Z axis">Z</button>
+        <button id="btn-fromview" title="Align to camera view">From view</button>
+      </div>
+      <div class="clip-angle" title="Horizontal spin">H<input type="range" id="clip-theta" min="0" max="360" value="0"><span id="theta-val">0°</span></div>
+      <div class="clip-angle" title="Vertical tilt">V<input type="range" id="clip-phi"   min="0" max="180" value="0"><span id="phi-val">0°</span></div>
+      <input type="range" id="clip-slider" min="0" max="100" value="50" title="Position">
+      <button id="btn-flip-clip">▲ top</button>
+    </div>
+    <div class="sep"></div>
+    <button class="mode-btn" id="btn-planes" title="A">⊞ Planes</button>
+    <button id="btn-flag" title="F" disabled>⚑ Flag bad</button>
     <div class="sep"></div>
     <span id="sample-title">No sample loaded</span>
     <span id="label-stats"></span>
-    <span id="shortcuts-hint">O/P/E · [/] · S · R</span>
+    <span id="shortcuts-hint">O/P/E · [/] · S · R · C clear · X clip · A planes · F flag</span>
   </div>
+
+  <div id="verb-hint"></div>
+
+  <!-- ── Annotation planes panel ── -->
+  <div id="plane-panel">
+    <div id="plane-panel-header">
+      <span>Paint mask planes — only vertices on the ▲ side of each enabled plane get painted</span>
+      <button id="btn-add-plane">＋ Add plane</button>
+    </div>
+    <div id="plane-list"></div>
+  </div>
+
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
     <div id="loading-overlay">Loading…</div>
@@ -117,30 +211,47 @@ canvas { display: block; width: 100%; height: 100%; }
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const API = 'http://127.0.0.1:8765';
 
-// ── State ──────────────────────────────────────────────────────────────
-const S = {
-  samples: [],       // full sample list from server
-  current: null,     // { sample_id, stem, verb }
-  N: 0,
-  positions: null,   // Float32Array (N*3)
-  shading:   null,   // Float32Array (N) precomputed dot-product
-  labels:    null,   // Float32Array (N) working copy
-  mode: 'orbit',     // 'orbit' | 'paint' | 'erase'
-  brushRadius: 0.05,
-  dirty: false,
-  painting: false,
-  paintValue: 1.0,
+// ── Verb descriptions ──────────────────────────────────────────────────
+const VERB_DESC = {
+  grasp:   { text: 'Paint the surface a hand wraps around — cylindrical body or handle. Avoid base and rim.', tip: null },
+  contain: { text: 'Paint the interior cavity or concave opening. Clip Y + keep top, orbit looking down, then paint inside.', tip: 'interior' },
+  pour:    { text: 'Paint the lip or spout where liquid exits — usually a thin band at the top opening rim.', tip: null },
+  sit:     { text: 'Paint the horizontal seat surface only. Not the backrest, arms, or legs.', tip: null },
+  lift:    { text: 'Paint underside edges or handles a hand grips from below. Clip Y + keep bottom to expose the underside.', tip: 'underside' },
+  press:   { text: 'Paint key tops, button faces, or any flat surface meant to be pressed.', tip: null },
+  display: { text: 'Paint the front-facing screen or display surface only.', tip: null },
+  open:    { text: 'Paint the opening edge, lid rim, door panel, or hinge area.', tip: null },
+  move:    { text: 'Paint graspable outer surfaces — similar to grasp but broader; includes handles, body, and sides.', tip: null },
 };
 
-// ── Three.js ───────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────
+const S = {
+  samples: [], current: null,
+  N: 0, positions: null, normals: null, shading: null, labels: null,
+  mode: 'orbit',
+  brushRadius: 0.05,
+  depthLimit: 'surface', // 'surface' = normal-dot visibility; number = slab fraction
+  dirty: false, painting: false, paintValue: 1.0,
+  isMesh: false,
+  // clip
+  clipEnabled: false, clipFlipped: false, clipTheta: 0, clipPhi: 0, bbox: null,
+  // annotation planes
+  annotPlanes: [],
+  // flag
+  flagged: false,
+};
+
+// ── Three.js setup ─────────────────────────────────────────────────────
 const canvas   = document.getElementById('canvas');
 const wrap     = document.getElementById('canvas-wrap');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(devicePixelRatio);
 renderer.setClearColor(0x141414);
+renderer.localClippingEnabled = true;
 
 const scene  = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 100);
@@ -149,24 +260,31 @@ camera.position.set(0, 0, 2.5);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
+controls.enableZoom = true;
 
-// Point cloud objects
-let pointCloud = null;
-let geometry   = null;
-let colorAttr  = null;
+let renderObject = null, geometry = null, colorAttr = null;
 
-// Brush cursor (wireframe sphere)
-const brushGeo  = new THREE.SphereGeometry(1, 16, 8);
-const brushMat  = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.35 });
-const brushMesh = new THREE.Mesh(brushGeo, brushMat);
+const clipPlane   = new THREE.Plane();
+const camDir      = new THREE.Vector3();
+const _vizTmp     = new THREE.Vector3();
+const _slabNormal = new THREE.Vector3();
+
+// Brush cursor
+const brushMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 16, 8),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.35 })
+);
 brushMesh.visible = false;
 scene.add(brushMesh);
 
-// Raycaster
 const raycaster = new THREE.Raycaster();
-raycaster.params.Points = { threshold: 0.02 };
 
-// ── Resize ────────────────────────────────────────────────────────────
+function loadGLTF(url) {
+  return new Promise((resolve, reject) =>
+    new GLTFLoader().load(url, resolve, undefined, reject));
+}
+
+// ── Resize ─────────────────────────────────────────────────────────────
 function resize() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
   renderer.setSize(w, h, false);
@@ -176,45 +294,26 @@ function resize() {
 new ResizeObserver(resize).observe(wrap);
 resize();
 
-// ── Render loop ───────────────────────────────────────────────────────
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-}
+function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
 animate();
 
-// ── Color utilities ───────────────────────────────────────────────────
+// ── Color utilities ────────────────────────────────────────────────────
 const LIGHT = new THREE.Vector3(0.5, 0.8, 0.6).normalize();
 
-function precomputeShading(normArr) {
-  const n = normArr.length / 3;
-  const sh = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const nx = normArr[i*3], ny = normArr[i*3+1], nz = normArr[i*3+2];
-    sh[i] = Math.max(0.15, LIGHT.x*nx + LIGHT.y*ny + LIGHT.z*nz);
-  }
+function precomputeShading(arr) {
+  const n = arr.length / 3, sh = new Float32Array(n);
+  for (let i = 0; i < n; i++)
+    sh[i] = Math.max(0.15, LIGHT.x*arr[i*3] + LIGHT.y*arr[i*3+1] + LIGHT.z*arr[i*3+2]);
   return sh;
 }
 
 function updateColors() {
   if (!colorAttr) return;
-  const c = colorAttr.array;
-  const sh = S.shading;
-  const lbl = S.labels;
-  const N = S.N;
+  const c = colorAttr.array, sh = S.shading, lbl = S.labels, N = S.N;
   for (let i = 0; i < N; i++) {
-    const s = sh[i];
-    const v = lbl[i];
-    if (v > 0.5) {
-      c[i*3]   = 0.05 * s;
-      c[i*3+1] = 0.95 * s;
-      c[i*3+2] = 0.25 * s;
-    } else {
-      c[i*3]   = 0.55 * s;
-      c[i*3+1] = 0.55 * s;
-      c[i*3+2] = 0.60 * s;
-    }
+    const s = sh ? sh[i] : 0.7;
+    if (lbl[i] > 0.5) { c[i*3]=0.05*s; c[i*3+1]=0.95*s; c[i*3+2]=0.25*s; }
+    else               { c[i*3]=0.55*s; c[i*3+1]=0.55*s; c[i*3+2]=0.60*s; }
   }
   colorAttr.needsUpdate = true;
   refreshLabelStats();
@@ -225,10 +324,10 @@ function refreshLabelStats() {
   let pos = 0;
   for (let i = 0; i < S.N; i++) if (S.labels[i] > 0.5) pos++;
   const pct = ((pos / S.N) * 100).toFixed(1);
-  document.getElementById('label-stats').textContent = `${pos.toLocaleString()} / ${S.N.toLocaleString()} (${pct}%)`;
+  document.getElementById('label-stats').textContent =
+    `${pos.toLocaleString()} / ${S.N.toLocaleString()} (${pct}%)`;
 }
 
-// ── Binary fetch helpers ───────────────────────────────────────────────
 async function fetchBinary(url) {
   const r = await fetch(url);
   if (r.status === 204) return null;
@@ -236,172 +335,488 @@ async function fetchBinary(url) {
   return new Float32Array(await r.arrayBuffer());
 }
 
-// ── Load sample ───────────────────────────────────────────────────────
+// ── Clip plane ─────────────────────────────────────────────────────────
+function clipNormalFromAngles(theta, phi, sign) {
+  const t = theta * Math.PI / 180, p = phi * Math.PI / 180;
+  return new THREE.Vector3(
+    sign * Math.sin(p) * Math.sin(t),
+    sign * Math.cos(p),
+    sign * Math.sin(p) * Math.cos(t)
+  );
+}
+
+function bboxProjectRange(n) {
+  const b = S.bbox;
+  let mn = Infinity, mx = -Infinity;
+  for (const x of [b.min.x, b.max.x])
+    for (const y of [b.min.y, b.max.y])
+      for (const z of [b.min.z, b.max.z]) {
+        const d = n.x*x + n.y*y + n.z*z;
+        mn = Math.min(mn, d); mx = Math.max(mx, d);
+      }
+  return { mn, mx };
+}
+
+function updateClipPlane() {
+  if (!renderObject) return;
+  if (!S.clipEnabled || !S.bbox) {
+    renderObject.material.clippingPlanes = [];
+    renderObject.material.needsUpdate = true;
+    return;
+  }
+  const sign = S.clipFlipped ? -1 : 1;
+  const n = clipNormalFromAngles(S.clipTheta, S.clipPhi, sign);
+  const { mn, mx } = bboxProjectRange(n);
+  const pos = mn + (parseInt(document.getElementById('clip-slider').value) / 100) * (mx - mn);
+  clipPlane.normal.copy(n);
+  clipPlane.constant = -pos;
+  renderObject.material.clippingPlanes = [clipPlane];
+  renderObject.material.needsUpdate = true;
+}
+
+function isVisible(pt) {
+  if (!S.clipEnabled) return true;
+  _vizTmp.set(pt.x, pt.y, pt.z);
+  return clipPlane.distanceToPoint(_vizTmp) >= 0;
+}
+
+// ── Annotation planes ──────────────────────────────────────────────────
+const PLANE_COLORS = [0x00e5ff, 0xffee00, 0xff44cc, 0x44ff88, 0xff8800, 0xbb88ff];
+let _nextPlaneId = 0;
+
+function createPlaneVizMesh(colorHex) {
+  const group = new THREE.Group();
+
+  // Dense wireframe grid — drawn on top of everything so it's always readable
+  const geo = new THREE.PlaneGeometry(1, 1, 14, 14);
+  const wire = new THREE.WireframeGeometry(geo);
+  const lineMat = new THREE.LineBasicMaterial({
+    color: colorHex, transparent: true, opacity: 0.80, depthTest: false,
+  });
+  const lines = new THREE.LineSegments(wire, lineMat);
+  lines.renderOrder = 3;
+  group.add(lines);
+
+  // Solid outline border (the 4 edges of the plane square)
+  const border = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-0.5, -0.5, 0), new THREE.Vector3( 0.5, -0.5, 0),
+      new THREE.Vector3( 0.5,  0.5, 0), new THREE.Vector3(-0.5,  0.5, 0),
+    ]),
+    new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 1.0, depthTest: false })
+  );
+  border.renderOrder = 3;
+  group.add(border);
+
+  // Translucent fill
+  const fill = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false })
+  );
+  group.add(fill);
+
+  return group;
+}
+
+function updateAnnotPlaneMesh(ap) {
+  if (!S.bbox) return;
+  const sign = ap.flip ? -1 : 1;
+  const n = clipNormalFromAngles(ap.theta, ap.phi, sign);
+  const { mn, mx } = bboxProjectRange(n);
+  const pos = mn + (ap.pct / 100) * (mx - mn);
+
+  // Update THREE.Plane (keeps points where n·x + c >= 0, i.e. n·x >= pos)
+  ap.threePlane.normal.copy(n);
+  ap.threePlane.constant = -pos;
+
+  // Size = 1.5× bbox diagonal
+  const b = S.bbox;
+  const diag = Math.sqrt((b.max.x-b.min.x)**2 + (b.max.y-b.min.y)**2 + (b.max.z-b.min.z)**2);
+  ap.vizMesh.scale.setScalar(diag * 1.5);
+
+  // Position: point on the plane along the normal
+  ap.vizMesh.position.set(n.x * pos, n.y * pos, n.z * pos);
+
+  // Orientation: rotate PlaneGeometry's +Z to match n
+  const zAxis = new THREE.Vector3(0, 0, 1);
+  const dot = zAxis.dot(n);
+  if (Math.abs(dot) > 0.9999) {
+    ap.vizMesh.rotation.set(dot < 0 ? Math.PI : 0, 0, 0);
+  } else {
+    ap.vizMesh.setRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(zAxis, n));
+  }
+
+  ap.vizMesh.visible = ap.enabled;
+}
+
+function clearAnnotPlanes() {
+  S.annotPlanes.forEach(ap => scene.remove(ap.vizMesh));
+  S.annotPlanes = [];
+  document.getElementById('plane-list').innerHTML = '';
+}
+
+function addAnnotPlane() {
+  const id = _nextPlaneId++;
+  const colorHex = PLANE_COLORS[id % PLANE_COLORS.length];
+  const colorCss = '#' + colorHex.toString(16).padStart(6, '0');
+  const ap = {
+    id, colorHex, colorCss,
+    theta: 0, phi: 0, pct: 50, flip: false, enabled: true,
+    threePlane: new THREE.Plane(),
+    vizMesh: createPlaneVizMesh(colorHex),
+  };
+  scene.add(ap.vizMesh);
+  S.annotPlanes.push(ap);
+  if (S.bbox) updateAnnotPlaneMesh(ap);
+
+  // ── Build row UI ──
+  const row = document.createElement('div');
+  row.className = 'aplane-row';
+  row.id = `ap-${id}`;
+  row.innerHTML = `
+    <span class="aplane-dot" style="background:${colorCss};color:${colorCss}"></span>
+    <input type="checkbox" class="ap-enable" checked title="Enable/disable">
+    <div class="aplane-presets">
+      <button data-t="0"  data-p="0"  title="Y axis (horizontal cut)">Y</button>
+      <button data-t="90" data-p="90" title="X axis (left-right cut)">X</button>
+      <button data-t="0"  data-p="90" title="Z axis (front-back cut)">Z</button>
+      <button class="ap-view" title="Align to current camera view">View</button>
+    </div>
+    <div class="ap-angle">H<input type="range" class="ap-theta" min="0" max="360" value="0"><span class="ap-tv">0°</span></div>
+    <div class="ap-angle">V<input type="range" class="ap-phi"   min="0" max="180" value="0"><span class="ap-pv">0°</span></div>
+    <input type="range" class="ap-pos" min="0" max="100" value="50" title="Plane position">
+    <button class="ap-flip">▲ top</button>
+    <button class="ap-del" title="Remove plane">✕</button>`;
+
+  const enableCb  = row.querySelector('.ap-enable');
+  const thetaR    = row.querySelector('.ap-theta');
+  const phiR      = row.querySelector('.ap-phi');
+  const thetaV    = row.querySelector('.ap-tv');
+  const phiV      = row.querySelector('.ap-pv');
+  const posR      = row.querySelector('.ap-pos');
+  const flipBtn   = row.querySelector('.ap-flip');
+
+  function refresh() { updateAnnotPlaneMesh(ap); }
+
+  enableCb.onchange = () => { ap.enabled = enableCb.checked; ap.vizMesh.visible = ap.enabled; };
+
+  thetaR.oninput = () => { ap.theta = +thetaR.value; thetaV.textContent = Math.round(ap.theta) + '°'; refresh(); };
+  phiR.oninput   = () => { ap.phi   = +phiR.value;   phiV.textContent   = Math.round(ap.phi)   + '°'; refresh(); };
+  posR.oninput   = () => { ap.pct   = +posR.value; refresh(); };
+
+  flipBtn.onclick = () => {
+    ap.flip = !ap.flip;
+    flipBtn.textContent = ap.flip ? '▼ bot' : '▲ top';
+    refresh();
+  };
+
+  row.querySelector('.ap-del').onclick = () => {
+    scene.remove(ap.vizMesh);
+    S.annotPlanes.splice(S.annotPlanes.indexOf(ap), 1);
+    row.remove();
+  };
+
+  row.querySelectorAll('.aplane-presets button[data-t]').forEach(btn => {
+    btn.onclick = () => {
+      ap.theta = +btn.dataset.t; ap.phi = +btn.dataset.p;
+      thetaR.value = ap.theta; phiR.value = ap.phi;
+      thetaV.textContent = Math.round(ap.theta) + '°';
+      phiV.textContent   = Math.round(ap.phi)   + '°';
+      refresh();
+    };
+  });
+
+  row.querySelector('.ap-view').onclick = () => {
+    camera.getWorldDirection(camDir);
+    ap.theta = ((Math.atan2(camDir.x, camDir.z) * 180 / Math.PI) + 360) % 360;
+    ap.phi   = Math.acos(Math.max(-1, Math.min(1, camDir.y))) * 180 / Math.PI;
+    thetaR.value = Math.round(ap.theta); phiR.value = Math.round(ap.phi);
+    thetaV.textContent = Math.round(ap.theta) + '°';
+    phiV.textContent   = Math.round(ap.phi)   + '°';
+    refresh();
+  };
+
+  document.getElementById('plane-list').appendChild(row);
+}
+
+// Returns false if pt is on the blocked side of any enabled annotation plane
+function isInAnnotRegion(px, py, pz) {
+  if (!S.annotPlanes.length) return true;
+  _vizTmp.set(px, py, pz);
+  for (const ap of S.annotPlanes)
+    if (ap.enabled && ap.threePlane.distanceToPoint(_vizTmp) < 0) return false;
+  return true;
+}
+
+// ── Load sample ────────────────────────────────────────────────────────
 async function loadSample(meta) {
   setLoading(true);
   setStatus('Loading…');
 
-  // Clean up previous
-  if (pointCloud) { scene.remove(pointCloud); pointCloud.geometry.dispose(); pointCloud = null; }
+  if (renderObject) { scene.remove(renderObject); renderObject.geometry.dispose(); renderObject = null; }
   geometry = null; colorAttr = null;
-  S.positions = null; S.shading = null; S.labels = null; S.N = 0; S.dirty = false;
+  S.positions = null; S.normals = null; S.shading = null; S.labels = null; S.N = 0;
+  S.dirty = false; S.bbox = null; S.isMesh = false;
+  clearAnnotPlanes();
 
   try {
-    const [pos, nrm, pseudo, manual] = await Promise.all([
-      fetchBinary(`${API}/api/vertices/${meta.stem}`),
-      fetchBinary(`${API}/api/normals/${meta.stem}`),
+    const [pseudo, manual, gltf] = await Promise.all([
       fetchBinary(`${API}/api/pseudolabels/${meta.stem}/${meta.verb}`),
       fetchBinary(`${API}/api/manuallabels/${meta.stem}/${meta.verb}`),
+      loadGLTF(`${API}/api/mesh/${meta.stem}`).catch(() => null),
     ]);
+    S.current = meta;
 
-    if (!pos) throw new Error('No vertex data');
-    S.N = pos.length / 3;
-    S.positions = pos;
-    S.shading   = nrm ? precomputeShading(nrm) : new Float32Array(S.N).fill(0.7);
-    S.labels    = manual ? manual.slice() : (pseudo ? pseudo.slice() : new Float32Array(S.N));
-    S.current   = meta;
+    if (gltf) {
+      let meshChild = null;
+      gltf.scene.traverse(c => { if (!meshChild && c.isMesh) meshChild = c; });
+      if (!meshChild) throw new Error('No mesh in GLB');
 
-    // Auto-set brush radius = 2% of bounding-box diagonal
-    {
-      let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity,zmin=Infinity,zmax=-Infinity;
-      for (let i = 0; i < S.N; i++) {
-        const x=pos[i*3],y=pos[i*3+1],z=pos[i*3+2];
-        if(x<xmin)xmin=x; if(x>xmax)xmax=x;
-        if(y<ymin)ymin=y; if(y>ymax)ymax=y;
-        if(z<zmin)zmin=z; if(z>zmax)zmax=z;
-      }
-      const diag = Math.sqrt((xmax-xmin)**2+(ymax-ymin)**2+(zmax-zmin)**2);
-      S.brushRadius = Math.max(0.005, diag * 0.02);
-      brushMesh.scale.setScalar(S.brushRadius);
-      document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
+      geometry = meshChild.geometry.clone();
+      meshChild.updateWorldMatrix(true, false);
+      geometry.applyMatrix4(meshChild.matrixWorld);
+
+      const posAttr = geometry.getAttribute('position');
+      S.N = posAttr.count;
+      S.positions = new Float32Array(posAttr.array.buffer, posAttr.array.byteOffset, S.N * 3);
+      const nrmAttr = geometry.getAttribute('normal');
+      S.normals = nrmAttr ? new Float32Array(nrmAttr.array.buffer, nrmAttr.array.byteOffset, S.N * 3) : null;
+      S.shading = S.normals ? precomputeShading(S.normals) : null;
+
+      const raw = manual ?? pseudo;
+      S.labels = (raw && raw.length === S.N) ? raw.slice() : new Float32Array(S.N);
+      if (raw && raw.length !== S.N) console.warn(`Label/mesh vertex count mismatch — starting blank`);
+
+      const cols = new Float32Array(S.N * 3);
+      colorAttr = new THREE.BufferAttribute(cols, 3);
+      geometry.setAttribute('color', colorAttr);
+      updateColors();
+
+      renderObject = new THREE.Mesh(geometry,
+        new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      scene.add(renderObject);
+      S.isMesh = true;
+      raycaster.params.Points = { threshold: 0.005 };
+
+    } else {
+      const [pos, nrm] = await Promise.all([
+        fetchBinary(`${API}/api/vertices/${meta.stem}`),
+        fetchBinary(`${API}/api/normals/${meta.stem}`),
+      ]);
+      if (!pos) throw new Error('No vertex data');
+      S.N = pos.length / 3;
+      S.positions = pos;
+      S.normals = nrm ?? null;
+      S.shading = nrm ? precomputeShading(nrm) : null;
+      S.labels  = (manual ?? pseudo)?.slice() ?? new Float32Array(S.N);
+
+      geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const cols = new Float32Array(S.N * 3);
+      colorAttr = new THREE.BufferAttribute(cols, 3);
+      geometry.setAttribute('color', colorAttr);
+      updateColors();
+
+      renderObject = new THREE.Points(geometry,
+        new THREE.PointsMaterial({ vertexColors: true, size: 0.004, sizeAttenuation: true }));
+      scene.add(renderObject);
+      raycaster.params.Points = { threshold: 0.02 };
     }
 
-    // Build Three.js geometry
-    geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const cols = new Float32Array(S.N * 3);
-    colorAttr = new THREE.BufferAttribute(cols, 3);
-    geometry.setAttribute('color', colorAttr);
-    updateColors();
+    // Bbox
+    const pos = S.positions;
+    let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity,zmin=Infinity,zmax=-Infinity;
+    for (let i = 0; i < S.N; i++) {
+      const x=pos[i*3],y=pos[i*3+1],z=pos[i*3+2];
+      if(x<xmin)xmin=x; if(x>xmax)xmax=x;
+      if(y<ymin)ymin=y; if(y>ymax)ymax=y;
+      if(z<zmin)zmin=z; if(z>zmax)zmax=z;
+    }
+    S.bbox = { min:{x:xmin,y:ymin,z:zmin}, max:{x:xmax,y:ymax,z:zmax} };
+    const diag = Math.sqrt((xmax-xmin)**2+(ymax-ymin)**2+(zmax-zmin)**2);
+    S.brushRadius = Math.max(0.005, diag * 0.02);
+    brushMesh.scale.setScalar(S.brushRadius);
+    document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
 
-    const mat = new THREE.PointsMaterial({ vertexColors: true, size: 0.004, sizeAttenuation: true });
-    pointCloud = new THREE.Points(geometry, mat);
-    scene.add(pointCloud);
-
-    // Fit camera to bounding box
     geometry.computeBoundingBox();
     const box = geometry.boundingBox;
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const span = Math.max(size.x, size.y, size.z);
+    const center = new THREE.Vector3(); box.getCenter(center);
+    const size   = new THREE.Vector3(); box.getSize(size);
+    const span   = Math.max(size.x, size.y, size.z);
     controls.target.copy(center);
     camera.position.copy(center).addScaledVector(new THREE.Vector3(0.3, 0.3, 1).normalize(), span * 2);
     controls.update();
 
+    document.getElementById('clip-slider').value = 50;
+    updateClipPlane();
+    showVerbHint(meta.verb);
+    fetchFlagStatus(meta.stem);
+
     document.getElementById('sample-title').textContent = `${meta.stem}  ·  ${meta.verb}`;
     document.getElementById('btn-save').disabled = false;
-    setStatus(manual ? `Loaded (manual labels present)` : pseudo ? `Loaded (pseudolabels as starting point)` : `Loaded (blank labels)`);
+    document.getElementById('btn-clear-gt').disabled = false;
+    document.getElementById('btn-flag').disabled = false;
+    const src = manual ? 'manual' : pseudo ? 'pseudo' : 'blank';
+    setStatus(`Loaded ${S.isMesh ? 'mesh' : 'points'} · ${src} · ${S.N.toLocaleString()} vertices`);
     highlightActive(meta.sample_id);
     S.dirty = false;
-  } catch (e) {
+  } catch(e) {
     setStatus('Error: ' + e.message, true);
     console.error(e);
   }
   setLoading(false);
 }
 
-// ── Painting ──────────────────────────────────────────────────────────
+// ── Verb hint ──────────────────────────────────────────────────────────
+function showVerbHint(verb) {
+  const el = document.getElementById('verb-hint');
+  const desc = VERB_DESC[verb];
+  if (!desc) { el.className = ''; el.innerHTML = ''; return; }
+  const tip = desc.tip ? `<span class="hint-tip">Tip: use ✂ Clip (X) to expose ${desc.tip}.</span>` : '';
+  el.innerHTML = `<strong>${verb}:</strong> ${desc.text}${tip}`;
+  el.className = 'visible';
+}
+
+// ── Flag ───────────────────────────────────────────────────────────────
+async function fetchFlagStatus(stem) {
+  try {
+    const r = await fetch(`${API}/api/flag/${encodeURIComponent(stem)}`);
+    if (!r.ok) return;
+    const { flagged } = await r.json();
+    S.flagged = flagged; updateFlagUI();
+  } catch {}
+}
+
+async function toggleFlag() {
+  if (!S.current) return;
+  try {
+    const r = await fetch(`${API}/api/flag/${encodeURIComponent(S.current.stem)}`, { method: 'POST' });
+    if (!r.ok) throw new Error(await r.text());
+    const { flagged } = await r.json();
+    S.flagged = flagged; updateFlagUI();
+    const safe = S.current.stem.replace(/[^a-z0-9]/gi, '_');
+    document.getElementById('flagdot-' + safe)?.classList.toggle('visible', flagged);
+    document.getElementById('stemhdr-' + safe)?.classList.toggle('is-flagged', flagged);
+    S.samples.forEach(s => { if (s.stem === S.current.stem) s.is_flagged = flagged; });
+    setStatus(flagged ? 'Flagged as bad reconstruction' : 'Flag removed');
+  } catch(e) { setStatus('Flag failed: ' + e.message, true); }
+}
+
+function updateFlagUI() {
+  const btn = document.getElementById('btn-flag');
+  btn.classList.toggle('flagged', S.flagged);
+  btn.textContent = S.flagged ? '⚑ Flagged' : '⚑ Flag bad';
+}
+
+// ── Painting ───────────────────────────────────────────────────────────
 const mouse = new THREE.Vector2();
 
 function getMouseNDC(e) {
   const rect = canvas.getBoundingClientRect();
-  mouse.x =  ((e.clientX - rect.left)  / rect.width)  * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
 }
 
 function tryPaint(e) {
-  if (!S.current || !pointCloud) return;
+  if (!S.current || !renderObject) return;
   getMouseNDC(e);
   raycaster.setFromCamera(mouse, camera);
-  raycaster.params.Points.threshold = S.brushRadius;
+  if (!S.isMesh) raycaster.params.Points.threshold = S.brushRadius;
 
-  const hits = raycaster.intersectObject(pointCloud);
+  const hits = raycaster.intersectObject(renderObject).filter(h => isVisible(h.point));
   if (!hits.length) { brushMesh.visible = false; return; }
 
   const hp = hits[0].point;
   brushMesh.position.copy(hp);
   brushMesh.scale.setScalar(S.brushRadius);
   brushMesh.visible = (S.mode !== 'orbit');
-
   if (!S.painting) return;
 
-  const r2 = S.brushRadius * S.brushRadius;
-  const pos = S.positions;
-  const lbl = S.labels;
-  const val = S.paintValue;
+  // For slab mode: build the slab normal from the hit face so depth is measured
+  // perpendicular to the clicked surface regardless of camera angle.
+  let snx = 0, sny = 0, snz = 0, depthR = Infinity;
+  const surfaceMode = S.depthLimit === 'surface';
+  if (!surfaceMode) {
+    camera.getWorldDirection(camDir);
+    if (S.isMesh && hits[0].face) {
+      _slabNormal.copy(hits[0].face.normal)
+        .transformDirection(renderObject.matrixWorld).normalize();
+      if (camDir.dot(_slabNormal) > 0) _slabNormal.negate();
+    } else {
+      _slabNormal.copy(camDir);
+    }
+    snx = _slabNormal.x; sny = _slabNormal.y; snz = _slabNormal.z;
+    depthR = isFinite(S.depthLimit) ? S.depthLimit * S.brushRadius : Infinity;
+  }
+
+  const r2  = S.brushRadius * S.brushRadius;
+  const nrm = S.normals;
+  const camX = camera.position.x, camY = camera.position.y, camZ = camera.position.z;
+
+  const pos = S.positions, lbl = S.labels, val = S.paintValue;
   let changed = false;
   for (let i = 0; i < S.N; i++) {
-    const dx = pos[i*3]   - hp.x;
-    const dy = pos[i*3+1] - hp.y;
-    const dz = pos[i*3+2] - hp.z;
-    if (dx*dx + dy*dy + dz*dz < r2) {
-      if (lbl[i] !== val) { lbl[i] = val; changed = true; }
+    const px = pos[i*3], py = pos[i*3+1], pz = pos[i*3+2];
+    if (!isVisible({x:px,y:py,z:pz})) continue;
+    if (!isInAnnotRegion(px, py, pz)) continue;
+    const dx = px-hp.x, dy = py-hp.y, dz = pz-hp.z;
+    if (dx*dx+dy*dy+dz*dz >= r2) continue;
+    if (surfaceMode) {
+      // Only paint vertices whose normal faces the camera — filters back-facing
+      // geometry (far wall, inside of a surface seen from outside, etc.)
+      if (nrm) {
+        const dot = nrm[i*3]*(px-camX) + nrm[i*3+1]*(py-camY) + nrm[i*3+2]*(pz-camZ);
+        if (dot > 0) continue; // normal points away from camera → not visible
+      }
+    } else {
+      if (isFinite(depthR) && Math.abs(dx*snx+dy*sny+dz*snz) > depthR) continue;
     }
+    if (lbl[i] !== val) { lbl[i] = val; changed = true; }
   }
   if (changed) { updateColors(); S.dirty = true; }
 }
 
-canvas.addEventListener('mousemove', e => {
-  if (S.mode === 'orbit') return;
-  tryPaint(e);
-});
-
-canvas.addEventListener('mousedown', e => {
+canvas.addEventListener('mousemove',   e => { if (S.mode !== 'orbit') tryPaint(e); });
+canvas.addEventListener('mousedown',   e => {
   if (S.mode === 'orbit') return;
   e.preventDefault();
-  S.painting   = true;
+  S.painting = true;
   S.paintValue = (e.button === 2 || S.mode === 'erase') ? 0.0 : 1.0;
   tryPaint(e);
 });
-
 canvas.addEventListener('mouseup',    () => { S.painting = false; });
 canvas.addEventListener('mouseleave', () => { S.painting = false; brushMesh.visible = false; });
 canvas.addEventListener('contextmenu', e => { if (S.mode !== 'orbit') e.preventDefault(); });
 
-// ── Save ──────────────────────────────────────────────────────────────
+// ── Save ───────────────────────────────────────────────────────────────
 async function save() {
   if (!S.current || !S.labels) return;
   setStatus('Saving…');
   try {
     const r = await fetch(`${API}/api/manuallabels/${S.current.stem}/${S.current.verb}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: S.labels.buffer,
+      method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: S.labels.buffer,
     });
     if (!r.ok) throw new Error(await r.text());
-    S.dirty = false;
-    setStatus('Saved ✓');
+    S.dirty = false; setStatus('Saved ✓');
     markLabelled(S.current.sample_id);
-  } catch (e) {
-    setStatus('Save failed: ' + e.message, true);
-  }
+  } catch(e) { setStatus('Save failed: ' + e.message, true); }
 }
 
-// ── Mode & brush controls ─────────────────────────────────────────────
+// ── Mode ───────────────────────────────────────────────────────────────
 function setMode(m) {
   S.mode = m;
-  controls.enabled = (m === 'orbit');
+  controls.enableRotate = (m === 'orbit');
+  controls.enablePan    = (m === 'orbit');
+  controls.enableZoom   = true;
   brushMesh.visible = false;
   ['orbit','paint','erase'].forEach(id =>
-    document.getElementById('btn-' + id).classList.toggle('active', id === m));
+    document.getElementById('btn-'+id).classList.toggle('active', id === m));
 }
-
 document.getElementById('btn-orbit').onclick = () => setMode('orbit');
 document.getElementById('btn-paint').onclick = () => setMode('paint');
 document.getElementById('btn-erase').onclick = () => setMode('erase');
 
+// ── Brush ──────────────────────────────────────────────────────────────
 document.getElementById('btn-smaller').onclick = () => {
   S.brushRadius = Math.max(0.002, S.brushRadius * 0.75);
   document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
@@ -411,18 +826,94 @@ document.getElementById('btn-larger').onclick = () => {
   document.getElementById('brush-size-val').textContent = S.brushRadius.toFixed(3);
 };
 
-document.getElementById('btn-save').onclick = save;
+// ── Depth ──────────────────────────────────────────────────────────────
+// 'surface' = normal-dot visibility mode (default); numbers = slab depth fraction
+const DEPTH_STEPS = ['surface', 0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.10, 0.20, 0.30, 0.40, 0.60, 0.80, 1.20, Infinity];
+const depthFmt = v => v === 'surface' ? 'Surface' : (isFinite(v) ? `×${v.toPrecision(2)}` : '×∞');
+document.getElementById('depth-val').textContent = depthFmt(S.depthLimit);
+document.getElementById('btn-depth-less').onclick = () => {
+  const idx = DEPTH_STEPS.indexOf(S.depthLimit);
+  S.depthLimit = DEPTH_STEPS[Math.max(0, idx - 1)];
+  document.getElementById('depth-val').textContent = depthFmt(S.depthLimit);
+};
+document.getElementById('btn-depth-more').onclick = () => {
+  const idx = DEPTH_STEPS.indexOf(S.depthLimit);
+  S.depthLimit = DEPTH_STEPS[Math.min(DEPTH_STEPS.length - 1, idx + 1)];
+  document.getElementById('depth-val').textContent = depthFmt(S.depthLimit);
+};
 
+// ── Reset / Save ───────────────────────────────────────────────────────
+document.getElementById('btn-save').onclick = save;
 document.getElementById('btn-reset').onclick = async () => {
   if (!S.current) return;
   const pseudo = await fetchBinary(`${API}/api/pseudolabels/${S.current.stem}/${S.current.verb}`);
-  S.labels = pseudo ? pseudo.slice() : new Float32Array(S.N);
-  updateColors();
-  S.dirty = true;
-  setStatus('Reset to pseudolabels');
+  S.labels = pseudo?.slice() ?? new Float32Array(S.N);
+  updateColors(); S.dirty = true; setStatus('Reset to pseudolabels');
+};
+document.getElementById('btn-clear-gt').onclick = () => {
+  if (!S.current || !S.labels) return;
+  S.labels.fill(0);
+  updateColors(); S.dirty = true; setStatus('Cleared all GT labels');
 };
 
-// ── Keyboard shortcuts ────────────────────────────────────────────────
+// ── Clip controls ──────────────────────────────────────────────────────
+function setClipAngles(theta, phi) {
+  S.clipTheta = theta; S.clipPhi = phi;
+  document.getElementById('clip-theta').value = Math.round(theta);
+  document.getElementById('clip-phi').value   = Math.round(phi);
+  document.getElementById('theta-val').textContent = Math.round(theta) + '°';
+  document.getElementById('phi-val').textContent   = Math.round(phi)   + '°';
+  updateClipPlane();
+}
+
+function toggleClip() {
+  S.clipEnabled = !S.clipEnabled;
+  document.getElementById('btn-clip').classList.toggle('active', S.clipEnabled);
+  document.getElementById('clip-ctrl').classList.toggle('open', S.clipEnabled);
+  updateClipPlane();
+}
+document.getElementById('btn-clip').onclick = toggleClip;
+
+document.querySelectorAll('.clip-presets button[data-t]').forEach(btn =>
+  btn.onclick = () => setClipAngles(+btn.dataset.t, +btn.dataset.p));
+
+document.getElementById('btn-fromview').onclick = () => {
+  camera.getWorldDirection(camDir);
+  setClipAngles(
+    ((Math.atan2(camDir.x, camDir.z) * 180 / Math.PI) + 360) % 360,
+    Math.acos(Math.max(-1, Math.min(1, camDir.y))) * 180 / Math.PI
+  );
+};
+
+document.getElementById('clip-theta').oninput = e => {
+  S.clipTheta = +e.target.value;
+  document.getElementById('theta-val').textContent = Math.round(S.clipTheta) + '°';
+  updateClipPlane();
+};
+document.getElementById('clip-phi').oninput = e => {
+  S.clipPhi = +e.target.value;
+  document.getElementById('phi-val').textContent = Math.round(S.clipPhi) + '°';
+  updateClipPlane();
+};
+document.getElementById('clip-slider').oninput = updateClipPlane;
+document.getElementById('btn-flip-clip').onclick = () => {
+  S.clipFlipped = !S.clipFlipped;
+  document.getElementById('btn-flip-clip').textContent = S.clipFlipped ? '▼ bottom' : '▲ top';
+  updateClipPlane();
+};
+
+// ── Planes panel ───────────────────────────────────────────────────────
+document.getElementById('btn-planes').onclick = () => {
+  const panel = document.getElementById('plane-panel');
+  panel.classList.toggle('open');
+  document.getElementById('btn-planes').classList.toggle('active', panel.classList.contains('open'));
+};
+document.getElementById('btn-add-plane').onclick = addAnnotPlane;
+
+// ── Flag ───────────────────────────────────────────────────────────────
+document.getElementById('btn-flag').onclick = toggleFlag;
+
+// ── Keyboard shortcuts ─────────────────────────────────────────────────
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   switch (e.key.toLowerCase()) {
@@ -431,26 +922,28 @@ window.addEventListener('keydown', e => {
     case 'e': setMode('erase'); break;
     case 's': if (!e.ctrlKey && !e.metaKey) save(); break;
     case 'r': document.getElementById('btn-reset').click(); break;
+    case 'c': document.getElementById('btn-clear-gt').click(); break;
     case '[': document.getElementById('btn-smaller').click(); break;
     case ']': document.getElementById('btn-larger').click(); break;
+    case 'x': toggleClip(); break;
+    case 'a': document.getElementById('btn-planes').click(); break;
+    case 'f': if (S.current) toggleFlag(); break;
   }
 });
 
-// ── Sample list ───────────────────────────────────────────────────────
+// ── Sample list ────────────────────────────────────────────────────────
 async function fetchSamples() {
   const r = await fetch(`${API}/api/samples`);
   S.samples = await r.json();
-  populateFilters();
-  renderList();
-  const footer = document.getElementById('stats-footer');
+  populateFilters(); renderList();
   const labelled = S.samples.filter(s => s.has_manual).length;
-  footer.textContent = `${labelled} / ${S.samples.length} labelled`;
+  document.getElementById('stats-footer').textContent = `${labelled} / ${S.samples.length} labelled`;
 }
 
 function populateFilters() {
   const cats  = [...new Set(S.samples.map(s => s.category))].sort();
   const verbs = [...new Set(S.samples.map(s => s.verb))].sort();
-  const catSel  = document.getElementById('cat-filter');
+  const catSel = document.getElementById('cat-filter');
   const verbSel = document.getElementById('verb-filter');
   cats.forEach(c  => { const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
   verbs.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; verbSel.appendChild(o); });
@@ -465,37 +958,36 @@ function getFiltered() {
     (!q    || s.stem.includes(q) || s.sample_id.includes(q)) &&
     (!cat  || s.category === cat) &&
     (!verb || s.verb === verb) &&
-    (!hide || !s.has_manual)
-  );
+    (!hide || !s.has_manual));
 }
 
 function renderList() {
-  const filtered = getFiltered();
   const list = document.getElementById('sample-list');
   list.innerHTML = '';
-
-  // Group by stem
   const groups = new Map();
-  for (const s of filtered) {
+  for (const s of getFiltered()) {
     if (!groups.has(s.stem)) groups.set(s.stem, []);
     groups.get(s.stem).push(s);
   }
-
   for (const [stem, verbs] of groups) {
     const grp = document.createElement('div');
     grp.className = 'sample-group';
+    const safe = stem.replace(/[^a-z0-9]/gi, '_');
+    const isFlagged = !!verbs[0].is_flagged;
 
     const header = document.createElement('div');
-    header.className = 'sample-stem';
-    header.innerHTML = `<span class="stem-label">${stem}</span><span class="split-badge">${verbs[0].split}</span>`;
-    header.onclick = () => {
-      header.classList.toggle('expanded');
-      verbsDiv.classList.toggle('open');
-    };
-    grp.appendChild(header);
-
+    header.className = 'sample-stem' + (isFlagged ? ' is-flagged' : '');
+    header.id = 'stemhdr-' + safe;
+    header.innerHTML = `
+      <span class="stem-label">${stem}</span>
+      <div class="stem-badges">
+        <span class="flagged-dot ${isFlagged ? 'visible' : ''}" id="flagdot-${safe}"></span>
+        <span class="split-badge">${verbs[0].split}</span>
+      </div>`;
     const verbsDiv = document.createElement('div');
     verbsDiv.className = 'sample-verbs';
+    header.onclick = () => { header.classList.toggle('expanded'); verbsDiv.classList.toggle('open'); };
+    grp.appendChild(header);
 
     for (const s of verbs) {
       const row = document.createElement('div');
@@ -507,17 +999,14 @@ function renderList() {
       row.onclick = () => loadSample(s);
       verbsDiv.appendChild(row);
     }
-
     grp.appendChild(verbsDiv);
     list.appendChild(grp);
   }
 }
 
 function highlightActive(sample_id) {
-  document.querySelectorAll('.verb-row').forEach(r => {
-    r.classList.toggle('active', r.dataset.sampleId === sample_id);
-  });
-  // Expand parent group
+  document.querySelectorAll('.verb-row').forEach(r =>
+    r.classList.toggle('active', r.dataset.sampleId === sample_id));
   document.querySelectorAll('.verb-row.active').forEach(r => {
     r.closest('.sample-verbs').classList.add('open');
     r.closest('.sample-group').querySelector('.sample-stem').classList.add('expanded');
@@ -525,33 +1014,22 @@ function highlightActive(sample_id) {
 }
 
 function markLabelled(sample_id) {
-  // Update in-memory state
   const s = S.samples.find(x => x.sample_id === sample_id);
   if (s) s.has_manual = true;
-  // Show dot
-  const safe = sample_id.replace(/[^a-z0-9]/gi, '_');
-  const dot = document.getElementById('dot-' + safe);
-  if (dot) dot.classList.add('visible');
-  // Update footer
+  document.getElementById('dot-' + sample_id.replace(/[^a-z0-9]/gi,'_'))?.classList.add('visible');
   const labelled = S.samples.filter(s => s.has_manual).length;
   document.getElementById('stats-footer').textContent = `${labelled} / ${S.samples.length} labelled`;
 }
 
-// ── Filter listeners ──────────────────────────────────────────────────
 ['search','cat-filter','verb-filter','hide-labeled'].forEach(id =>
   document.getElementById(id).addEventListener('input', renderList));
 
-// ── UI helpers ────────────────────────────────────────────────────────
-function setLoading(on) {
-  document.getElementById('loading-overlay').classList.toggle('hidden', !on);
-}
+function setLoading(on) { document.getElementById('loading-overlay').classList.toggle('hidden', !on); }
 function setStatus(msg, err=false) {
   const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = err ? 'err' : 'ok';
+  el.textContent = msg; el.className = err ? 'err' : 'ok';
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────
 setLoading(false);
 fetchSamples();
 </script>

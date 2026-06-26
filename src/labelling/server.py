@@ -38,7 +38,20 @@ class _Handler(BaseHTTPRequestHandler):
                 self._serve_tensor(stem, f"vertex_pseudolabels_{verb}.pt")
             elif path.startswith("/api/manuallabels/"):
                 stem, verb = self._split2(path[len("/api/manuallabels/"):])
-                self._serve_tensor(stem, f"vertex_manuallabels_{verb}.pt")
+                self._serve_manual(stem, verb)
+            elif path.startswith("/api/flag/"):
+                stem = unquote(path[len("/api/flag/"):])
+                flag = self.data_root / "reconstructions" / stem / ".bad_reconstruction"
+                self._json({"flagged": flag.exists()})
+            elif path.startswith("/api/mesh/"):
+                stem = unquote(path[len("/api/mesh/"):])
+                mesh_path = self.data_root / "reconstructions" / stem / "mesh.glb"
+                if not mesh_path.exists():
+                    self.send_response(204)
+                    self._cors()
+                    self.end_headers()
+                    return
+                self._respond(200, mesh_path.read_bytes(), "model/gltf-binary")
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -52,9 +65,20 @@ class _Handler(BaseHTTPRequestHandler):
                 length = int(self.headers["Content-Length"])
                 raw = self.rfile.read(length)
                 arr = np.frombuffer(raw, dtype=np.float32).copy()
-                out = self.data_root / "reconstructions" / stem / f"vertex_manuallabels_{verb}.pt"
+                out = self._gt_path(stem, verb)
+                out.parent.mkdir(parents=True, exist_ok=True)
                 torch.save(torch.from_numpy(arr), out)
                 self._respond(200, b"ok", "text/plain")
+            elif path.startswith("/api/flag/"):
+                stem = unquote(path[len("/api/flag/"):])
+                flag = self.data_root / "reconstructions" / stem / ".bad_reconstruction"
+                if flag.exists():
+                    flag.unlink()
+                    flagged = False
+                else:
+                    flag.touch()
+                    flagged = True
+                self._json({"flagged": flagged})
             else:
                 self.send_error(404)
         except Exception as exc:
@@ -69,13 +93,30 @@ class _Handler(BaseHTTPRequestHandler):
     # helpers
     # ------------------------------------------------------------------
 
+    def _gt_path(self, stem: str, verb: str) -> Path:
+        """Canonical path for a saved GT label file."""
+        return self.data_root / "human_gt_labels" / stem / f"vertex_manuallabels_{verb}.pt"
+
+    def _serve_manual(self, stem: str, verb: str):
+        """Serve manual labels from gt_labels/ folder."""
+        path = self._gt_path(stem, verb)
+        if not path.exists():
+            self.send_response(204)
+            self._cors()
+            self.end_headers()
+            return
+        t = torch.load(path, map_location="cpu", weights_only=True)
+        arr = t.numpy().astype(np.float32)
+        self._respond(200, arr.tobytes(), "application/octet-stream")
+
     def _samples_summary(self) -> list[dict]:
         out = []
         for s in self.samples:
             stem = Path(s["sam3d_reconstruction_dir"]).name
             verb = s["verb"]
-            has_manual = (
-                self.data_root / "reconstructions" / stem / f"vertex_manuallabels_{verb}.pt"
+            has_manual = self._gt_path(stem, verb).exists()
+            is_flagged = (
+                self.data_root / "reconstructions" / stem / ".bad_reconstruction"
             ).exists()
             out.append(
                 {
@@ -85,6 +126,7 @@ class _Handler(BaseHTTPRequestHandler):
                     "category": s["category"],
                     "split": s.get("split", ""),
                     "has_manual": has_manual,
+                    "is_flagged": is_flagged,
                 }
             )
         return out
