@@ -1,9 +1,24 @@
 name: pn2_mlp
-verb_embedding_dim: 64
-# PointNet++ encoder
+# Per-vertex inputs to AffordanceMLP head
+vlm_dim: 128        # CLIP patch features JL-projected 512→128
+sam3d_dim: 0        # PN2 encoder handles geometry — not passed directly to head
+normals_dim: 0      # same
+pos_dim: 0          # same
+dino_vertex_dim: 128  # PN2 encoder output → injected as dino_vertex
+# Verb conditioning
+verb_dim: 64
+num_verbs: 9
+verb_conditioning: concat
+verb_embedding: learned
+# Global FiLM conditioning
+dino_cls_dim: 0
+ss_dino_cls_dim: 0
+cond_dim: 128
+# Head
+hidden_dims: [256, 128]
+dropout: 0.1
+input_layernorm: true
+# PN2 encoder settings (full-mesh geometry)
 sa1_n: 256
 sa2_n: 64
 k: 16
-# Shared MLP decoder
-layer_dims: [256, 128]
-dropout: 0.0

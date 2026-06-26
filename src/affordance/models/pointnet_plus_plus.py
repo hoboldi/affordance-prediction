@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 
-from affordance.data.dataset import VERBS
-from affordance.models.mlp_head import GLOBAL_DIM, VERTEX_DIM
-
 # ---------------------------------------------------------------------------
 # Primitives
 # ---------------------------------------------------------------------------
@@ -98,96 +95,3 @@ class FeaturePropagation(nn.Module):
         return self.mlp(combined)
 
 
-# ---------------------------------------------------------------------------
-# Full model
-# ---------------------------------------------------------------------------
-
-class PointNetPlusPlusHead(nn.Module):
-    """
-    PointNet++ encoder with hierarchical SA + FP, then per-vertex output MLP
-    conditioned on global features (DINO, shape latent, verb).
-
-    Processing pipeline:
-      full N vertices
-        → SA1 (N → sa1_n)
-          → SA2 (sa1_n → sa2_n)
-        ← FP2 (sa2 → sa1 resolution)
-      ← FP1 (sa1 → full N)
-      → concat global features → output MLP → (N,)
-    """
-
-    def __init__(
-        self,
-        sa1_n: int = 512,
-        sa2_n: int = 128,
-        k: int = 16,
-        verb_embedding_dim: int = 64,
-    ):
-        super().__init__()
-        self.verb_embedding = nn.Embedding(len(VERBS), verb_embedding_dim)
-
-        # per-vertex feature dim (same as mlp_head)
-        pv = VERTEX_DIM  # 143
-
-        self.sa1 = SetAbstraction(sa1_n, k, pv, [64, 64, 128])
-        self.sa2 = SetAbstraction(sa2_n, k, 128, [128, 128, 256])
-
-        self.fp2 = FeaturePropagation(256 + 128, [256, 256], k=3)
-        self.fp1 = FeaturePropagation(256 + pv,  [128, 128], k=3)
-        # FP0: chunked interpolation only (no learned MLP) — sub → full N
-
-        global_dim = GLOBAL_DIM + verb_embedding_dim  # 2067 + 64 = 2131
-
-        self.output_mlp = nn.Sequential(
-            nn.Linear(128 + global_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Linear(256, 1),
-        )
-
-    def _build_per_vertex(self, vpos, vnorm, slat_vf, vsem_f, vsem_vis):
-        return torch.cat([
-            vpos, vnorm, slat_vf, vsem_f,
-            vsem_vis.unsqueeze(-1).float(),
-        ], dim=-1)  # (N, 143)
-
-    def forward(self, batch: dict) -> list[torch.Tensor]:
-        verb_emb            = self.verb_embedding(batch["verb_idx"])
-        dino_patches_pooled = batch["dino_patches"].mean(dim=1)
-        shape_latent_pooled = batch["shape_latent"].mean(dim=1)
-
-        outputs = []
-        for i, (vpos, vnorm, slat_vf, vsem_f, vsem_vis, slat_c, slat_ft) in enumerate(zip(
-            batch["vertex_positions"], batch["vertex_normals"],
-            batch["slat_vertex_features"], batch["vsem_features"],
-            batch["vsem_visible"], batch["slat_coords"], batch["slat_feats"],
-        )):
-            N = vpos.shape[0]
-
-            # Global feature vector (same for every vertex in this sample)
-            slat_coords_pooled = slat_c.float().mean(0)
-            slat_feats_pooled  = slat_ft.mean(0)
-            global_feat = torch.cat([
-                batch["dino_cls"][i], dino_patches_pooled[i],
-                shape_latent_pooled[i], slat_coords_pooled,
-                slat_feats_pooled, verb_emb[i],
-            ])  # (global_dim,)
-
-            # Per-vertex features
-            pv_feat = self._build_per_vertex(vpos, vnorm, slat_vf, vsem_f, vsem_vis)  # (N, 143)
-
-            # --- Encoder ---
-            sa1_xyz, sa1_feat = self.sa1(vpos, pv_feat)       # (sa1_n, 128)
-            sa2_xyz, sa2_feat = self.sa2(sa1_xyz, sa1_feat)   # (sa2_n, 256)
-
-            # --- Decoder: FP1 goes all the way back to full N ---
-            fp2_feat = self.fp2(sa1_xyz, sa2_xyz, sa1_feat, sa2_feat)  # (sa1_n, 256)
-            full_feat = self.fp1(vpos, sa1_xyz, pv_feat, fp2_feat)     # (N, 128)
-
-            # --- Output MLP ---
-            g_exp = global_feat.unsqueeze(0).expand(N, -1)           # (N, global_dim)
-            x = torch.cat([full_feat, g_exp], dim=-1)                # (N, 128+global_dim)
-            outputs.append(self.output_mlp(x).squeeze(-1))           # (N,)
-
-        return outputs

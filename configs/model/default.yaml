@@ -1,4 +1,20 @@
 name: mlp_head
-verb_embedding_dim: 64
-layer_dims: [512, 256, 128]
-dropout: 0.0
+# Per-vertex inputs
+vlm_dim: 128        # CLIP patch features JL-projected 512→128
+sam3d_dim: 8        # SLAT vertex features
+normals_dim: 3
+pos_dim: 3
+dino_vertex_dim: 0  # no PN2 encoder for plain mlp_head
+# Verb conditioning (closed-set learned embedding)
+verb_dim: 64
+num_verbs: 9
+verb_conditioning: concat
+verb_embedding: learned
+# Global FiLM conditioning (disabled unless dino_cls data is available)
+dino_cls_dim: 0
+ss_dino_cls_dim: 0
+cond_dim: 128
+# Head
+hidden_dims: [256, 128]
+dropout: 0.1
+input_layernorm: true
