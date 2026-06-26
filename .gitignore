@@ -36,3 +36,8 @@ htmlcov/
 *.pt
 *.pth
 wandb/
+
+# SLURM
+slurm/
+slurm-*.out
+*.sbatch
