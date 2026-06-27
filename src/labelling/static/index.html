@@ -103,6 +103,8 @@ body { font-family: system-ui, sans-serif; font-size: 13px; background: #1a1a1a;
 .ap-view:hover { background: #24243a !important; }
 .ap-flip { padding: 1px 6px; border: 1px solid #444; border-radius: 3px; background: #2a2a2a; color: #ccc; cursor: pointer; font-size: 10px; white-space: nowrap; }
 .ap-flip:hover { background: #333; }
+.ap-fill { padding: 1px 5px; border: 1px solid #3a5a3a; border-radius: 3px; background: #1a2e1a; color: #7dce7d; cursor: pointer; font-size: 10px; white-space: nowrap; }
+.ap-fill:hover { background: #22381c; }
 .ap-del { padding: 1px 6px; border: 1px solid #544; border-radius: 3px; background: #221a1a; color: #e05555; cursor: pointer; font-size: 11px; font-weight: bold; }
 .ap-del:hover { background: #2e2020; }
 .ap-enable { cursor: pointer; }
@@ -486,6 +488,8 @@ function addAnnotPlane() {
     <div class="ap-angle">V<input type="range" class="ap-phi"   min="0" max="180" value="0"><span class="ap-pv">0°</span></div>
     <input type="range" class="ap-pos" min="0" max="100" value="50" title="Plane position">
     <button class="ap-flip">▲ top</button>
+    <button class="ap-fill ap-fill-above" title="Fill all vertices on the ▲ (positive normal) side of this plane">Fill▲</button>
+    <button class="ap-fill ap-fill-below" title="Fill all vertices on the ▼ (negative) side of this plane">Fill▼</button>
     <button class="ap-del" title="Remove plane">✕</button>`;
 
   const enableCb  = row.querySelector('.ap-enable');
@@ -515,6 +519,9 @@ function addAnnotPlane() {
     S.annotPlanes.splice(S.annotPlanes.indexOf(ap), 1);
     row.remove();
   };
+
+  row.querySelector('.ap-fill-above').onclick = () => fillByPlane(ap, true);
+  row.querySelector('.ap-fill-below').onclick = () => fillByPlane(ap, false);
 
   row.querySelectorAll('.aplane-presets button[data-t]').forEach(btn => {
     btn.onclick = () => {
@@ -546,6 +553,22 @@ function isInAnnotRegion(px, py, pz) {
   for (const ap of S.annotPlanes)
     if (ap.enabled && ap.threePlane.distanceToPoint(_vizTmp) < 0) return false;
   return true;
+}
+
+// Fill (label = 1) all vertices on one side of a plane
+function fillByPlane(ap, positiveSide) {
+  if (!S.positions || !S.labels) return;
+  const pos = S.positions, lbl = S.labels;
+  let changed = false;
+  for (let i = 0; i < S.N; i++) {
+    _vizTmp.set(pos[i*3], pos[i*3+1], pos[i*3+2]);
+    const d = ap.threePlane.distanceToPoint(_vizTmp);
+    if (positiveSide ? d >= 0 : d < 0) {
+      if (lbl[i] !== 1.0) { lbl[i] = 1.0; changed = true; }
+    }
+  }
+  if (changed) { updateColors(); S.dirty = true; }
+  setStatus(changed ? `Filled ${positiveSide ? '▲' : '▼'} side` : `Nothing new to fill`);
 }
 
 // ── Load sample ────────────────────────────────────────────────────────
