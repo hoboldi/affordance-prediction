@@ -38,3 +38,20 @@ per-vertex DINOv2 + no contrastive loss + SLAT(8) + normals; trained on GEAL pse
   mesh-graph / neighborhood refinement.
 - **Human-eval set** (`scripts/mesh_painter.py` → `human_gt_labels/`): every number above is vs the GEAL
   teacher; a small human-labelled set is the honest validation and the only way to push *past* GEAL.
+
+## UPDATE 2026-06-26 — open-vocab NEW BEST: GNN + 3D-geometry + verb-in-backbone = 0.525 per-verb
+Compound of: chunked/checkpointed EdgeConv GNN over a kNN mesh graph + 5-ch per-vertex geometry (height/concavity/curvature/normal-up/radial) + verb concatenated into the backbone (not just head).
+| model | vocab | per-verb | corr | note |
+|---|---|---|---|---|
+| **GNN+geom+verb_in_backbone** | open | **0.525** | 0.090 | NEW BEST; contain 0.570, beats closed champ |
+| closed cross-attn | closed | 0.484 | -0.50 | prior overall best |
+| finer-DINO MLP | open | 0.455 | 0.002 | prior open-vocab best |
+| MLP+geom | open | 0.419 | 0.619 | geometry helps contain but collapses verbs |
+| GNN-alone | open | 0.384 | 0.940 | verb collapse (verb only at head) |
+Key findings: (1) geometry (concavity) is the containment signal — contain 0.262->0.570 across the stack; (2) a relational backbone needs the verb injected into it (head-only -> collapse corr 0.94); (3) geometry must be verb-GATED (MLP+geom collapsed corr 0.62) — the GNN-with-verb-in-backbone does this, keeping geometry's gains AND verb distinctness.
+
+## CORRECTION 2026-06-26: '0.525 NEW BEST (GNN+geom)' above is GEAL-AGREEMENT, not human-correctness.
+Human-GT eval re-ranked (overall mean vs human): MLP(finer-DINO) 0.545 > GEAL teacher 0.533 > GNN+geom 0.437. The GNN+geom GEAL-win was teacher-mimicry (contain 0.570-vs-GEAL but 0.435-vs-human). REAL current best vs human = finer-DINO MLP (outputs/ov_concat_finepatch). See overnight_results.md human-GT leaderboard.
+
+## Human-GT fine-tune (overnight 2026-06-27): head-only FT = NO GAIN; full FT blocked by shared-box contention.
+Held-out val (vs human): base MLP 0.578 trained; head-only FT 0.579 (flat, overfits). Full FT pending a free GPU window. Conclusion: distillation/FT capped at the teacher on 120 in-distribution objects; bottleneck = label quantity -> active learning + held-out-object test.

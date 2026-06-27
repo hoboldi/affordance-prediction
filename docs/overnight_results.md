@@ -94,3 +94,108 @@ VERDICT corr_learn=0.242 iou_learn=0.062 std=0.1036
   sit         AUPRC=0.464 (n= 10)  pred_std=0.1443
 VERDICT corr_learn=0.012 iou_learn=0.014 std=0.1252
 
+### baseline ov_concat_big on BALANCED eval (n~80-120/verb) — reference for finer-patch comparison 13:22
+  contain 0.302 (n=117) | grasp 0.285 (n=79) | move 0.472 (n=92) | pour 0.554 (n=87) | sit 0.522 (n=92) | mean 0.427 | corr 0.002
+
+### FINER DINO 32x32 (ov_concat_finepatch) vs baseline — BALANCED eval 23:22 — VERDICT: WIN +6.6%
+  verb     | finer32 | base   | delta
+  contain  | 0.262   | 0.302  | -0.040  (regressed — interior/volume)
+  grasp    | 0.330   | 0.285  | +0.045  (WEAK-VERB WIN)
+  move     | 0.536   | 0.472  | +0.064
+  pour     | 0.626   | 0.554  | +0.072
+  sit      | 0.521   | 0.522  | -0.001
+  MEAN     | 0.455   | 0.427  | +0.028  (+6.6%); corr -0.052 vs +0.002 (better distinctness)
+  => new best OPEN-VOCAB (0.455); gap to closed champion 0.484 shrinks 0.057 -> 0.029. Finer patches sharpen surface/handle (grasp/pour/move up) but hurt interior (contain down).
+
+### GNN ep12 (mid-training, stopped) on BALANCED eval 07:04 — VERDICT: verb-conditioning COLLAPSE
+  verb     | GNN    | MLP    | delta
+  contain  | 0.345  | 0.262  | +0.083  (generic saliency overlaps interior)
+  grasp    | 0.320  | 0.330  | -0.010
+  move     | 0.296  | 0.536  | -0.240  (needs distinct region -> craters)
+  pour     | 0.486  | 0.626  | -0.140
+  sit      | 0.471  | 0.521  | -0.050
+  MEAN     | 0.384  | 0.455  | -0.071
+  corr_learn 0.940 vs MLP 0.002  <-- predicts ~SAME map for every verb (collapse)
+  ROOT CAUSE: verb concatenated only at shallow HEAD, after verb-agnostic EdgeConv backbone -> backbone saliency dominates, head can't re-localize. FIX: inject verb into the GNN backbone (per-vertex, before EdgeConv), like the MLP does at input.
+  agg trajectory ep1-12: .266 .328 .357 .377 .372 .393 .423 .452 .457 .465 .469 .471 (~28min/ep, checkpointed). Stopped at ep12 (plateau).
+
+### GEOMETRY-ONLY (MLP+geom ep4 best) on BALANCED 09:26 — contain WIN, verb partial-collapse
+  contain 0.419 (MLP .262, +0.157 BIG) | grasp 0.333 (+.003) | move 0.473 (-.063) | pour 0.563 (-.063) | sit 0.306 (MLP .521, -0.215) | MEAN 0.419 vs MLP 0.455 (-0.036)
+  corr_learn 0.619 vs MLP 0.002 -> geometry is verb-AGNOSTIC+dominant -> partial collapse. Helps geometry-aligned (contain) but hurts verb-specific (sit/move/pour). FIX=verb must GATE geometry (GNN verb_in_backbone+geom, next). Caveat: best.pt=ep4 early agg-peak; agg declined after (ep8 .473).
+
+### *** GNN+geom+verb_in_backbone (best.pt ep12) on BALANCED 23:12 — NEW BEST, compound WIN ***
+  verb     | GNN+geom | MLP    | MLP+geom | GNN-alone
+  contain  | 0.570    | 0.262  | 0.419    | 0.345   (+0.308 vs MLP!! geometry+relational aggregation)
+  grasp    | 0.373    | 0.330  | 0.333    | 0.320   (best-ever, +0.043)
+  move     | 0.546    | 0.536  | 0.473    | 0.296   (recovered)
+  pour     | 0.613    | 0.626  | 0.563    | 0.486   (held)
+  sit      | 0.523    | 0.521  | 0.306    | 0.471   (recovered from MLP+geom collapse)
+  MEAN     | 0.525    | 0.455  | 0.419    | 0.384   (+0.070 / +15% over MLP; BEATS closed-vocab champ 0.484)
+  corr_learn 0.090 (MLP .002, MLP+geom .619 collapse, GNN-alone .940) -> verb_in_backbone FIXED the collapse.
+  CONCLUSION: compound effect confirmed. geometry supplies signal + GNN aggregates relationally + verb_in_backbone keeps verbs distinct. Each piece necessary. agg trajectory ep1-18 peaked ep12 0.499 (best.pt=ep12 mature).
+
+
+## *** HONEST LEADERBOARD vs HUMAN GT 2026-06-26 23:28 — GEAL ranking OVERTURNED ***
+Per-verb AUPRC vs human_gt_labels (254/265 labels; 11 keyboards missing from manifest). In-distribution objects; press/lift/open are UNSEEN verbs.
+| verb | GNN+geom | MLP(finer) | GEAL teacher |
+|---|---|---|---|
+| contain | 0.435 | 0.552 | 0.498 |
+| display | 0.294 | 0.579 | 0.726 |
+| grasp   | 0.299 | 0.293 | 0.424 |
+| move    | 0.687 | 0.671 | 0.718 |
+| pour    | 0.609 | 0.697 | 0.646 |
+| sit     | 0.596 | 0.794 | 0.526 |
+| TRAINED mean | 0.487 | **0.598** | 0.590 |
+| unseen lift/open/press mean | 0.095 | 0.122 | **0.243** |
+| OVERALL mean | 0.437 | **0.545** | 0.533 |
+
+FINDINGS (the reason human GT was essential):
+1. RANKING REVERSED. GEAL-agreement said GNN+geom 0.525 > closed 0.484 > MLP 0.455. HUMAN says MLP 0.545 > GEAL 0.533 > GNN+geom 0.437. The GNN+geom's GEAL win was TEACHER-MIMICRY: its contain 0.570-vs-GEAL is 0.435-vs-human (< MLP's 0.552). Optimizing GEAL-agreement steered us wrong.
+2. TEACHER IS THE CEILING (empirical). Best model (MLP) trained-mean 0.598 ~= GEAL 0.590. Distillation matches, does not exceed.
+3. OPEN-VOCAB to NOVEL verbs is weak. Models fail on open/press (CLIP-text extrapolation misses); GEAL's direct labels do better (unseen 0.243 vs model ~0.10).
+IMPLICATIONS: use human GT as the selection+eval metric (not GEAL-agg); MLP(finer-DINO) is the real current best; to EXCEED the teacher, fine-tune on human GT (only way past the ceiling, now confirmed); re-test whether geometry helps when trained/selected vs human (GEAL-optimization may have hidden its real value).
+
+### HUMAN VAL baselines (42-obj held-out, vs human) — FT reference 23:45
+  MLP(ov_concat_finepatch): trained 0.578 | unseen 0.130 | overall 0.536
+  GNN+geom(gnn_geom):       trained 0.521 | unseen 0.090 | overall 0.455
+  GEAL teacher:             trained 0.551 | unseen 0.331 | overall 0.509
+  => MLP best on val; GEAL strong on unseen (direct labels). FT must beat MLP 0.578 trained / 0.536 overall.
+
+### HUMAN-FT head-only MLP seed0 — NO GAIN (head-only too limited) 00:09
+  early-stop ep9; val_mean peaked ep1 0.427 then fell monotonically (overfit: train_bce 3.77->1.36, val down).
+  best.pt(ep1) val: trained 0.578 overall 0.540 | last.pt(ep9): trained 0.579 unseen 0.094(base .130) overall 0.552.
+  trained-mean FLAT vs base 0.578 (contain 0.582->0.623 but offset by other verbs; unseen DOWN). Frozen backbone can't adapt to human truth.
+  ACTION: pivot to FULL fine-tune (--no_freeze_backbone, lr 3e-5). Skipped head-only seeds1-2/GNN as clearly unproductive.
+
+## HUMAN-GT FINE-TUNE — interim verdict 2026-06-27 01:05 (partial: shared-box contention)
+- HEAD-ONLY FT (MLP, frozen backbone): NO GAIN. val trained-mean flat 0.578->0.579, unseen DOWN .130->.094, overfits (train_bce falls, val_mean falls). Frozen features can't adapt to human truth.
+- FULL FT (MLP, --no_freeze_backbone, subsampled 60k verts): could NOT complete tonight. Subsampling made it ~45s/ep when box idle, but the shared box got saturated by another user (GPU1 92% util / 18GB, load avg ~38) -> my run crawled >22min/ep -> killed to yield (shared-box policy). Retry queued for a free GPU window.
+- STANDING CONCLUSION: on 120 in-distribution human-labeled objects, fine-tuning has not exceeded the GEAL teacher (head-only flat; full pending a free window). With the earlier leaderboard reversal (MLP real-best ~0.545 vs human; GEAL-best GNN+geom is human-worst), the bottleneck is LABEL QUANTITY/DIVERSITY + in-distribution objects, not the FT recipe.
+- NEXT: active-learning to label high-value objects; a held-out-OBJECT human test; re-attempt full FT (+seeds) in a free GPU window; complete geometry-vs-human leaderboard.
+
+
+## PHASE D SYNTHESIS — Human-GT fine-tune investigation 2026-06-27 02:40
+GOAL: can fine-tuning on human GT exceed the GEAL teacher? Metric: held-out 42-obj val, per-verb AUPRC vs human.
+VAL baselines: MLP 0.578 trained / 0.536 overall | GEAL 0.551 trained | GNN+geom 0.521.
+RESULTS:
+- HEAD-ONLY FT (frozen backbone): NO GAIN. trained-mean flat 0.578->0.579, unseen DOWN .130->.094, overfits (val_mean fell from ep1). Frozen features can't adapt to human truth.
+- FULL FT (--no_freeze_backbone, subsampled 60k verts): could NOT complete. Repeatedly CPU-bound-stalled (proc 17 cores / GPU0 0% util / 0 epochs) under the loaded shared box (other user's sustained GPU1 job since ~00:30). 3 launches killed to yield. NOTE: two SEPARATE A40s (not MIG); the stall is the CPU/IO data path under box load, not GPU0 compute. Pending a free window.
+VERDICT (tonight): on 120 in-distribution human-labeled objects, fine-tuning has NOT exceeded the teacher (head-only flat; full pending free box).
+BIGGER PICTURE: GEAL-agreement is misleading (GNN+geom 0.525-vs-GEAL is human-WORST 0.437; MLP is real-best 0.545). Teacher is the empirical ceiling (best model ~= GEAL trained-mean).
+BOTTLENECK: label quantity/diversity (120 in-distribution objs), NOT the FT recipe.
+RECOMMENDATIONS: (1) ACTIVE-LEARNING labeling (high-uncertainty / GEAL-vs-model-disagreement / weak verbs) to maximize value/label. (2) HELD-OUT-OBJECT human test (objects never in GEAL training) for true generalization. (3) Re-run full-FT (+seeds) in a free GPU window to settle if unfreezing helps. (4) Novel-verb open-vocab weak (open/press ~0.1 vs GEAL 0.33) -> compositional/LLM-grounded verbs.
+
+## GEOMETRY-vs-HUMAN leaderboard 06:42 — geometry HURTS vs human (full set, trained-mean)
+  MLP base 0.598 (real best) > GEAL 0.590 > GNN+geom 0.487 > MLP+geom 0.417   [overall: MLP .545 > GEAL .533 > GNN+geom .437 > MLP+geom .430]
+  => every geometry/relational addition that WON on GEAL-agreement DEGRADED human-correctness (overfit teacher quirks). Plain finer-DINO MLP is unambiguously best vs human.
+  (gnn_finepatch eval skipped: old ckpt predates verb_in_backbone -> state_dict mismatch; it was the verb-collapsed GNN.)
+FULL-FT: abandoned tonight after 4 attempts — subsampled full-backward still >13min/epoch even on a FREE box (perf issue on large meshes, needs mesh-decimation/batched-vertex engineering). Head-only negative + this geometry-hurts result make the verdict robust.
+FINAL OVERNIGHT VERDICT: the simplest model (finer-DINO MLP) is the real best vs human; GEAL-agreement actively misled architecture choices; fine-tuning on 120 in-distribution objects does not exceed the teacher. NEXT (highest leverage): active-learning human labeling + held-out-object human test + (engineering) a fast full-FT path; treat human GT as the metric of record.
+
+## CPU-ONLY TESTS (no model/GPU; run under box contention) 2026-06-27 20:34
+TEST 1 — TEACHER ERROR MAP (GEAL pseudolabel vs HUMAN AUPRC per verb; low = GEAL wrong = headroom):
+  lift 0.085 | open 0.282 | press 0.323 | grasp 0.472 | contain 0.488 | sit 0.534 | move 0.651 | display 0.669 | pour 0.737 | OVERALL 0.530 (410 pairs). GEAL worst on novel verbs + grasp/contain; best on pour.
+TEST 2 — HUMAN cross-verb DISTINCTNESS (the ideal target): median corr -0.148, top10%-IoU 0.028 (232 pairs) — humans paint near-DISJOINT regions per verb. vs models: MLP 0.002 (closest), GNN+geom 0.09, MLP+geom 0.62, GNN-alone 0.94. -> MLP structurally right; geometry/GNN collapse genuinely off-target.
+TEST 3 — CONTAIN UNDER-SEGMENTATION: GEAL marks containment at ~6.5-8.4x SMALLER region than humans, UNIFORMLY across all container categories (human posrate ~0.39-0.50 = full interior; GEAL ~0.06-0.075 = tiny patch). Massive systematic teacher bias.
+IMPLICATION: clearest place to BEAT THE TEACHER = CONTAIN (biggest systematic GEAL error + most labels, 157) -> human-FT should win big on contain IF FT mechanism works. Then grasp + novel verbs (lift/press/open: huge GEAL error, few labels). Queued learning curve will quantify.
+
