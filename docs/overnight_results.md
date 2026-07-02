@@ -199,3 +199,54 @@ TEST 2 — HUMAN cross-verb DISTINCTNESS (the ideal target): median corr -0.148,
 TEST 3 — CONTAIN UNDER-SEGMENTATION: GEAL marks containment at ~6.5-8.4x SMALLER region than humans, UNIFORMLY across all container categories (human posrate ~0.39-0.50 = full interior; GEAL ~0.06-0.075 = tiny patch). Massive systematic teacher bias.
 IMPLICATION: clearest place to BEAT THE TEACHER = CONTAIN (biggest systematic GEAL error + most labels, 157) -> human-FT should win big on contain IF FT mechanism works. Then grasp + novel verbs (lift/press/open: huge GEAL error, few labels). Queued learning curve will quantify.
 
+## GEOMETRY directly predicts HUMAN affordances (CPU test) 21:45 — REFRAMES 'geometry hurts'
+Single raw geom-channel AUPRC vs human (best sign), per verb:
+  contain normal_up 0.727 (concavity 0.606) | sit normal_up 0.694 | pour height_up 0.847 | move height_up 0.806 | lift height_up 0.578 | press normal_up 0.544 | grasp radial 0.434 (weakest) | display height_up 0.307
+KEY: gravity-aligned geometry (height_up, normal_up) is HIGHLY predictive of HUMAN affordances; a SINGLE geom channel rivals/BEATS the trained models vs human on pour (0.85 vs ~0.70), contain (0.73 vs 0.55), move (0.81 vs ~0.67).
+IMPLICATION: geometry is NOT useless. Earlier 'geometry hurts vs human' was GEAL-MEDIATED (model distilled GEAL's biased labels, entangling geometry). Geometry vs HUMAN is excellent => geometry + HUMAN supervision is PROMISING; RE-TEST geometry+GNN with human-FT (do not abandon). Caveat: single-channel best-sign (mild optimism), base rates vary per verb.
+
+## NEW-SCALE val baselines (58-obj val, vs human) 06-28 04:29
+  MLP base: trained 0.580 / unseen 0.077 / overall 0.532 | GEAL: trained 0.593 / unseen 0.243 / overall 0.534
+  Crossover target for FT = beat GEAL 0.593 (and MLP 0.580) trained-mean.
+
+## ★ LEARNING CURVE — HUMAN LABELS BEAT THE GEAL TEACHER 06-28 07:19
+Head-only FT (freeze CLIP+DINO backbone, train verb_proj+out only) on human GT, trained-verb mean AUPRC vs HUMAN (58-obj val):
+  #train-objects :   0(base)   50      100        | teacher
+  trained-mean   :   0.580   0.593   **0.613**    | GEAL 0.593
+  -> N=50 REACHES teacher parity (0.593); N=100 EXCEEDS it (+0.020). Monotonic rise. (n172 abandoned: box read 172-obj fine-DINO too slowly to finish epoch-1 within the 50min timeout — contention artifact, not a result.)
+SLOPE ~ +0.013/50obj then +0.020/50obj (≈ +0.0003–0.0004 per labeled object) over 0→100; accelerating, not yet saturating at 100.
+PROJECTION (linear, optimistic — needs n≥150 to confirm): ~50 labels = GEAL parity, ~100 = clearly beat teacher, ~200 ≈ 0.65, ~300 ≈ 0.69. Saturation point unknown (box-blocked above 100).
+PER-VERB gain (base → head-FT@100, vs human): contain 0.552→0.619 (+0.067) | sit 0.717→0.779 (+0.062) | move 0.603→0.645 (+0.042) | pour 0.644→0.685 (+0.041) | display 0.556→0.550 (flat) | grasp 0.410→0.401 (flat). FT lifts the densely-labeled geometric/containment verbs; grasp/display (sparse: n=12/8) stay flat = next labeling priority. Open-vocab unseen verbs unaffected (lift 0.112/open 0.004/press 0.285, mean 0.134).
+
+## GEOMETRY+HUMAN-FT verdict — geometry HURTS human-correctness (confirms GEAL-overfit illusion) 06-28 07:19
+geom+human-FT@N=100 (head-only FT from outputs/mlp_geom GEAL-trained geom-trunk): trained-mean **0.446** — far BELOW plain head-FT@100 (0.613) and even below base (0.580).
+  Per-verb: contain 0.662 (HIGHER than plain 0.619 — geometry DOES help the geometric affordance) but display 0.212 (COLLAPSED vs 0.550) — geometry tanks semantic verbs. Net strongly negative.
+VERDICT: the GEAL-trained geometry trunk is a WORSE base for human-FT than plain finer-DINO. Geometry helps geometric verbs (contain/sit) but is useless/harmful for semantic ones (display/grasp); on balance plain CLIP+DINO wins. Confirms earlier "geometry/GNN gains were GEAL-overfit illusions." CAVEAT/confound: the geom trunk also uses COARSER (16×16) DINO, so part of the 0.613→0.446 gap is the DINO downgrade, not geometry alone — a clean test would add geom to the 32×32-DINO model. But the practical conclusion holds: do NOT route through the geom trunk for human-correctness.
+
+## RECOMMENDATION (settled, 06-28)
+1. **Drop GEAL as the target.** It is now the FLOOR, not the ceiling — head-only FT on ~100 human-labeled objects beats it (0.613 vs 0.593).
+2. **Recipe: head-only FT** (freeze CLIP+DINO finer-32×32 backbone, train verb_proj+out) on human GT. ~50 labels = teacher parity, ~100 = clear win. Cheap: ~40s/epoch when box uncontended, 82k trainable params.
+3. **Label budget: 100→200 objects**, prioritizing **grasp & display** (flat under FT, sparsely labeled) and novel/open-vocab verbs (lift/press/open, near-zero).
+4. **Geometry: not on the critical path** for human-correctness. Keep only if a clean 32×32-DINO+geom test later shows a contain/sit gain worth the semantic-verb cost.
+5. Engineering: cache features in RAM / decimate meshes so >100-object FT runs survive shared-box PCIe contention (the n172/full-FT runs were blocked purely by slow cold-cache feature reads, not by the method).
+
+## ★ 5-FOLD CV — the headline, made rigorous 06-28 18:43
+Single 172/58 split was NOT significant: gap +0.020, bootstrap 95% CI [-0.041,+0.077], P(FT>GEAL)=0.75 (small val: n=7 sit/move). Redid as 5-fold CV over all 225 labeled objects (each scored by the fold that held it out, ~180 train/fold, fixed 40ep, eval last.pt — no early-stop peeking):
+  verb        n     FT    GEAL    gap
+  contain   157  0.748  0.488  +0.260
+  sit        29  0.817  0.534  +0.283
+  pour       63  0.762  0.737  +0.025
+  move       29  0.705  0.651  +0.055
+  display    37  0.543  0.669  -0.126
+  grasp      51  0.321  0.472  -0.151
+  TRAINED-MEAN   0.650  0.592  +0.058   bootstrap 95% CI [+0.030,+0.085]  P(FT>GEAL)=1.00
+VERDICT: human-FT beats GEAL SIGNIFICANTLY (+0.058) — but the win is concentrated in contain/sit (high-volume, well-rendered) and FT LOSES grasp/display (coverage-limited; GEAL's full-geometry PointNet++ wins there). The +0.058 reflects both lower noise AND more train data (~180/fold vs single-split 100) — both legitimate, consistent with the rising curve.
+METHOD NOTE: single-split deltas at this scale (n=7-15/verb) are within noise — ALWAYS CV/bootstrap. We have 225 labeled objects (contain 157, pour 63, grasp 51, display 37, sit/move 29 each); reallocating to a bigger val isn't needed — k-fold uses every object as held-out once.
+NEXT: Tier 2 (wider camera band, currently 25-60deg upper-hemisphere only -> ~36% verts invisible -> grasp 64% of missing positives are down-facing) + full retrain, targets grasp. Tier 3 geometry-fallback for contain/sit interior occlusions. Still UNBENCHMARKED vs recognized baselines (needed for field-level SOTA claim).
+
+## TIER-2 (wider camera band) — PROTOTYPED then DROPPED 06-29 00:45
+camera_sampling.py made env-overridable (AFFORD_ELEV_MIN/MAX_DEG; default 25/60 unchanged). Prototype: re-extracted wideband CLIP+DINO (rings -52,-33,33,52 = upper band + lower mirror, 32 views) for 6 grasp objects (bottle/cup/handbag).
+RESULT: lower-hemisphere views recover only 20% of previously-invisible grasp positives (per-obj 1-33%; handbag handles best 30-33%, bottle bodies worst 1-10%); whole-object visible% rises just +2-8pp. The other 80% of invisible grasp surface is deep self-occlusion / single-image-unobserved (SAM3D hallucinates it) — no external camera reaches it.
+KILL-SHOT: grasp's invisible positives were only ~14% of grasp positives anyway, and on the VISIBLE 86% the model already scores AUPRC 0.389 < GEAL 0.472. So grasp is APPEARANCE-hard even where seen; coverage was never the bottleneck. Even perfect coverage caps grasp ~0.39 << GEAL 0.47. Wider views CANNOT close the grasp/display gap.
+VERDICT: Tier 2 not worth the heavy full-extraction+CV (days of gated GPU for a gain provably below GEAL). The grasp/display deficit is a FEATURE-TYPE problem (appearance vs geometry) -> GEAL's PointNet++ geometry wins there. Correct lever = TIER 3 (geometry as a complementary channel; mesh is complete regardless of visibility). Wideband prototype features left as vertex_semantics_wideband.pt/vertex_dino_wideband.pt on 6 objects only.
+

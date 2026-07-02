@@ -1,6 +1,31 @@
 # Verb-conditioned affordance head — results summary (2026-06-24)
 
-All numbers are **per-verb AUPRC** from `eval_verb_conditioning.py` (~50 multi-verb objects), which is
+## ★ HEADLINE (2026-06-28): HUMAN LABELS BEAT THE GEAL TEACHER — cross-validated, significant
+Measured vs **HUMAN GT** (`eval_human_gt.py`, trained-verb mean AUPRC). GEAL-agreement is misleading (teacher-mimicry), so all numbers are vs human. **Head-only fine-tuning** = freeze CLIP+DINO backbone, train verb_proj+out on human labels.
+
+**5-fold cross-validation over all 225 labeled objects** (each object scored by the fold model that held it out; ~180 train/fold) — the trustworthy headline:
+
+| verb | n | FT | GEAL | gap |
+|---|--:|--:|--:|--:|
+| contain | 157 | 0.748 | 0.488 | **+0.260** |
+| sit | 29 | 0.817 | 0.534 | **+0.283** |
+| pour | 63 | 0.762 | 0.737 | +0.025 |
+| move | 29 | 0.705 | 0.651 | +0.055 |
+| display | 37 | 0.543 | 0.669 | **−0.126** |
+| grasp | 51 | 0.321 | 0.472 | **−0.151** |
+| **trained-mean** | | **0.650** | **0.592** | **+0.058** |
+
+**Bootstrap 95% CI on the gap = [+0.030, +0.085], P(FT>GEAL)=1.00.** The win is statistically solid.
+
+- **Significance matters here:** a single 172/58 split gave a *misleading* +0.020 (CI [−0.041,+0.077], P=0.75 — not significant), because the small val had only n=7 sit/move. Scoring every object via 5-fold CV (sit/move on 29, grasp on 51) is what made the result trustworthy. **Always CV / bootstrap — single-split deltas at this scale are within noise.**
+- **The win is concentrated:** FT dominates the high-volume, well-rendered verbs (**contain +0.26, sit +0.28**) but **LOSES grasp (−0.15) and display (−0.13)** to GEAL — exactly the coverage-limited verbs (handles/screens on under/occluded surfaces). GEAL's full-geometry PointNet++ has no visibility hole there.
+- **Coverage is the diagnosed limiter for the loss verbs:** ~36% of vertices are invisible to the 25–60° upper-hemisphere camera policy; the model is near-blind there (AUPRC ~chance), and grasp's missing positives are 64% down-facing. Inpainting confirmed grasp is recoverable (+0.09) but head-only FT on guessed features can't net-convert it (frozen trunk). → real fix = **wider camera band + full retrain (Tier 2)**; interiors (contain/sit occlusions) → **geometry fallback (Tier 3)**.
+- **Geometry trunk does NOT help under human-FT:** geom-trunk + human-FT = 0.446 (≪ plain). Helps geometric verbs, collapses semantic ones. Use geometry only as a targeted interior fallback, not a global trunk.
+- **Caveats / open work:** all wins are vs our own GEAL teacher on our own human labels — **not yet benchmarked against recognized baselines** (required to claim field-level SOTA). Project goal is max accuracy (real-time infeasible — SAM3D dominates latency). Full detail in `docs/overnight_results.md`.
+
+---
+
+All numbers below are **per-verb AUPRC** from `eval_verb_conditioning.py` (~50 multi-verb objects, vs **GEAL** — pre-human-GT era), which is
 **deterministic** and is the headline metric. Training-val *aggregate* AUPRC is misleading (high aggregate
 ≠ high per-verb) and is not used for conclusions. All models share: clean multi-view render + CLIP +
 per-vertex DINOv2 + no contrastive loss + SLAT(8) + normals; trained on GEAL pseudolabels.
