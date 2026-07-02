@@ -66,10 +66,17 @@ def main() -> None:
     spec: dict[str, list[str]] = json.loads(Path(args.spec).read_text()) if args.spec else CURATED
 
     ck = torch.load(args.ckpt, map_location="cpu", weights_only=False)
-    cfg = mlp_head_config_from_model_cfg(ck["model_cfg"])
+    mcfg = ck["model_cfg"]
+    backbone = mcfg.get("backbone", "mlp")
+    if backbone == "gnn":
+        from models.gnn_head import AffordanceGNN, gnn_head_config_from_model_cfg
+        cfg = gnn_head_config_from_model_cfg(mcfg)
+        model = AffordanceGNN(cfg)
+    else:
+        cfg = mlp_head_config_from_model_cfg(mcfg)
+        model = AffordanceMLP(cfg)
     if cfg.verb_embedding != "text":
         raise SystemExit(f"--ckpt is verb_embedding={cfg.verb_embedding!r}; need an open-vocab 'text' model")
-    model = AffordanceMLP(cfg)
     model.load_state_dict(ck["model"])
     model.eval()
 
@@ -79,7 +86,9 @@ def main() -> None:
     emb_of = {p: embs[i] for i, p in enumerate(phrases)}
 
     ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=False, load_vertex_semantics_eager=True,
-                         load_vertex_dino=int(cfg.dino_vertex_dim) > 0, dino_filename=cfg.dino_filename)
+                         load_vertex_dino=int(cfg.dino_vertex_dim) > 0, dino_filename=cfg.dino_filename,
+                         load_vertex_knn=(backbone == "gnn"), knn_filename=f"vertex_knn_k{int(mcfg.get('knn_k', 8))}.pt",
+                         load_vertex_geom=int(getattr(cfg, "geom_dim", 0)) > 0, geom_filename=getattr(cfg, "geom_filename", "vertex_geom.pt"))
     pick: dict[str, int] = {}
     for i, r in enumerate(ds.rows):
         cat = r.sample_id.split("__")[0]
@@ -102,7 +111,11 @@ def main() -> None:
         kw = dict(slat_vertex=_f(it.get("slat_vertex_features")), vlm_features=_f(it.get("vertex_features")),
                   dino_cls=_f(it.get("dino_cls")), ss_dino_cls=_f(it.get("ss_dino_cls")),
                   vertex_normals=_f(it.get("vertex_normals")), vertex_positions=None,
-                  dino_vertex=_f(it.get("dino_vertex_features")))
+                  dino_vertex=_f(it.get("dino_vertex_features")), vertex_geom=_f(it.get("vertex_geom")))
+        if backbone == "gnn":  # GNN needs the kNN graph (precomputed; positions as on-the-fly fallback)
+            kn = it.get("vertex_knn")
+            kw["knn_idx"] = kn.long() if kn is not None else None
+            kw["vertex_positions"] = _f(it.get("vertex_positions"))
         for ci, (verb, role) in enumerate(spec[cat]):
             with torch.no_grad():
                 p = torch.sigmoid(model(emb_of[verb], **kw)).numpy()

@@ -67,8 +67,10 @@ def compute_metrics(
             def _to(t):
                 return t.float().to(device) if t is not None else None
 
-            logits = model(
-                verb_to_idx[item["verb"]],
+            def _to_long(t):
+                return t.long().to(device) if t is not None else None
+
+            _kwargs = dict(
                 slat_vertex=_to(item.get("slat_vertex_features")),
                 vlm_features=_to(item.get("vertex_features")),
                 dino_cls=_to(item.get("dino_cls")),
@@ -76,7 +78,12 @@ def compute_metrics(
                 vertex_normals=_to(item.get("vertex_normals")),
                 vertex_positions=_to(item.get("vertex_positions")),
                 dino_vertex=_to(item.get("dino_vertex_features")),
+                vertex_geom=_to(item.get("vertex_geom")),
             )
+            # GNN backbone: pass the precomputed kNN graph (None → built on-the-fly from positions).
+            if type(model).__name__ == "AffordanceGNN":
+                _kwargs["knn_idx"] = _to_long(item.get("vertex_knn"))
+            logits = model(verb_to_idx[item["verb"]], **_kwargs)
             probs = torch.sigmoid(logits).cpu()
             per_obj_std.append(float(probs.std()))   # before masking: variation of the full predicted field
 
@@ -129,6 +136,10 @@ def load_split(
     verbs: list[str] | None = None,
     load_vertex_dino: bool = False,
     dino_filename: str = "vertex_dino.pt",
+    load_vertex_knn: bool = False,
+    knn_filename: str = "vertex_knn_k8.pt",
+    load_vertex_geom: bool = False,
+    geom_filename: str = "vertex_geom.pt",
 ) -> DataRootDataset:
     cat_set = set(categories) if categories else None
     verb_set = set(verbs) if verbs else None
@@ -152,6 +163,10 @@ def load_split(
         load_vertex_semantics_eager=True,  # load per-vertex CLIP features (vertex_semantics_path) for vlm_dim>0
         load_vertex_dino=load_vertex_dino,  # per-vertex DINO channel when dino_vertex_dim>0
         dino_filename=dino_filename,
+        load_vertex_knn=load_vertex_knn,    # precomputed kNN graph for the GNN backbone
+        knn_filename=knn_filename,
+        load_vertex_geom=load_vertex_geom,  # per-vertex 3D geometry channel when geom_dim>0
+        geom_filename=geom_filename,
         row_filter=_filter,
     )
 
@@ -181,22 +196,31 @@ def save_checkpoint(
             "val_losses": val_losses,
             "val_metrics": val_metrics,
             "best_auprc": best_auprc,
+            # Use getattr so the same helper serializes both the MLP and GNN configs (fields the other
+            # backbone lacks fall back to a sensible default; gnn_* fields appended below).
             "model_cfg": {
+                "backbone": "gnn" if type(model).__name__ == "AffordanceGNN" else "mlp",
                 "vlm_dim": model.cfg.vlm_dim,
                 "verb_dim": model.cfg.verb_dim,
                 "num_verbs": model.cfg.num_verbs,
                 "sam3d_dim": model.cfg.sam3d_dim,
-                "dino_cls_dim": model.cfg.dino_cls_dim,
-                "ss_dino_cls_dim": model.cfg.ss_dino_cls_dim,
+                "dino_cls_dim": getattr(model.cfg, "dino_cls_dim", 0),
+                "ss_dino_cls_dim": getattr(model.cfg, "ss_dino_cls_dim", 0),
                 "normals_dim": model.cfg.normals_dim,
                 "pos_dim": model.cfg.pos_dim,
                 "dino_vertex_dim": model.cfg.dino_vertex_dim,
                 "dino_filename": model.cfg.dino_filename,
-                "cond_dim": model.cfg.cond_dim,
-                "hidden_dims": list(model.cfg.hidden_dims),
+                "geom_dim": getattr(model.cfg, "geom_dim", 0),
+                "geom_filename": getattr(model.cfg, "geom_filename", "vertex_geom.pt"),
+                "cond_dim": getattr(model.cfg, "cond_dim", 128),
+                "hidden_dims": list(getattr(model.cfg, "hidden_dims", ())),
                 "dropout": model.cfg.dropout,
-                "verb_conditioning": model.cfg.verb_conditioning,
-                "input_layernorm": model.cfg.input_layernorm,
+                "verb_conditioning": getattr(model.cfg, "verb_conditioning", "concat"),
+                "input_layernorm": getattr(model.cfg, "input_layernorm", True),
+                "gnn_hidden": getattr(model.cfg, "gnn_hidden", 0),
+                "gnn_layers": getattr(model.cfg, "gnn_layers", 0),
+                "knn_k": getattr(model.cfg, "knn_k", 0),
+                "verb_in_backbone": getattr(model.cfg, "verb_in_backbone", True),
                 "verb_embedding": model.cfg.verb_embedding,
                 "verb_text_dim": model.cfg.verb_text_dim,
                 "verb_proj_deep": model.cfg.verb_proj_deep,
@@ -252,7 +276,14 @@ def main() -> None:
     p.add_argument("--vlm_dim", type=int, default=None, help="Override model.vlm_dim (per-vertex CLIP feature dim; requires vertex_semantics_path in the manifest)")
     p.add_argument("--dino_vertex_dim", type=int, default=None, help="Per-vertex DINOv2 channel dim (128); requires the dino file in each recon dir. 0/None = CLIP-only.")
     p.add_argument("--dino_filename", default="vertex_dino.pt", help="per-recon-dir DINO feature file (e.g. vertex_dino_large.pt). Must match --dino_vertex_dim.")
+    p.add_argument("--geom_dim", type=int, default=None, help="Per-vertex 3D geometry channel dim (5); requires the geom file in each recon dir (precompute_geom.py). 0/None = off.")
+    p.add_argument("--geom_filename", default="vertex_geom.pt", help="per-recon-dir geometry feature file (precompute_geom.py output). Must match --geom_dim.")
     p.add_argument("--sam3d_dim", type=int, default=None, help="Override model.sam3d_dim (0 drops the per-vertex SLAT channel; ablation)")
+    p.add_argument("--backbone", default="mlp", choices=["mlp", "gnn"],
+                   help="Per-vertex head architecture: mlp = FiLM/concat MLP (default); gnn = EdgeConv kNN-graph message passing.")
+    p.add_argument("--knn_k", type=int, default=8, help="GNN backbone: neighbours per vertex (loads vertex_knn_k{K}.pt; built on-the-fly if absent).")
+    p.add_argument("--gnn_hidden", type=int, default=128, help="GNN backbone: hidden channel width.")
+    p.add_argument("--gnn_layers", type=int, default=3, help="GNN backbone: number of EdgeConv message-passing layers.")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -278,8 +309,11 @@ def main() -> None:
     # ── Datasets ──────────────────────────────────────────────────────────────
     log.info("Loading datasets …")
     _want_dino = bool(args.dino_vertex_dim and args.dino_vertex_dim > 0)
-    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename)
-    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename)
+    _want_knn = args.backbone == "gnn"
+    _want_geom = bool(args.geom_dim and args.geom_dim > 0)
+    _knn_filename = f"vertex_knn_k{args.knn_k}.pt"
+    ds_train = load_split(args.manifest, "train", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename, load_vertex_knn=_want_knn, knn_filename=_knn_filename, load_vertex_geom=_want_geom, geom_filename=args.geom_filename)
+    ds_val   = None if args.no_val else load_split(args.manifest, "val", cfg, categories=args.categories, verbs=args.verbs, load_vertex_dino=_want_dino, dino_filename=args.dino_filename, load_vertex_knn=_want_knn, knn_filename=_knn_filename, load_vertex_geom=_want_geom, geom_filename=args.geom_filename)
     log.info("train: %d samples  val: %s", len(ds_train), len(ds_val) if ds_val else "—")
 
     # ── Verbs (learned embedding table inside the model) ────────────────────────
@@ -300,6 +334,9 @@ def main() -> None:
     if args.dino_vertex_dim is not None:
         model_cfg_raw["dino_vertex_dim"] = args.dino_vertex_dim
         model_cfg_raw["dino_filename"] = args.dino_filename
+    if args.geom_dim is not None:
+        model_cfg_raw["geom_dim"] = args.geom_dim
+        model_cfg_raw["geom_filename"] = args.geom_filename
     if args.sam3d_dim is not None:
         model_cfg_raw["sam3d_dim"] = args.sam3d_dim
     model_cfg_raw["num_verbs"] = len(verbs)
@@ -311,6 +348,10 @@ def main() -> None:
         model_cfg_raw["verb_conditioning"] = args.verb_conditioning
     if args.hidden_dims is not None:
         model_cfg_raw["hidden_dims"] = list(args.hidden_dims)
+    if args.backbone == "gnn":
+        model_cfg_raw["gnn_hidden"] = args.gnn_hidden
+        model_cfg_raw["gnn_layers"] = args.gnn_layers
+        model_cfg_raw["knn_k"] = args.knn_k
     cfg = {**cfg, "model": model_cfg_raw}
 
     # ── Model ─────────────────────────────────────────────────────────────────
@@ -325,7 +366,12 @@ def main() -> None:
         verb_text_emb = VLMWrapper(build_vlm_config(cfg)).encode_text(prompts)
         log.info("Open-vocab verbs: CLIP text emb %s for %s", tuple(verb_text_emb.shape), verbs)
 
-    model = build_affordance_mlp(cfg, verb_text_embeddings=verb_text_emb).to(device)
+    if args.backbone == "gnn":
+        from models.gnn_head import build_affordance_gnn
+        model = build_affordance_gnn(cfg, verb_text_embeddings=verb_text_emb).to(device)
+        log.info("Backbone=gnn  hidden=%d layers=%d knn_k=%d", args.gnn_hidden, args.gnn_layers, args.knn_k)
+    else:
+        model = build_affordance_mlp(cfg, verb_text_embeddings=verb_text_emb).to(device)
     log.info("Model input_dim=%d  params=%s", model.cfg.input_dim,
              f"{sum(p.numel() for p in model.parameters()):,}")
 

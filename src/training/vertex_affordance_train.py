@@ -20,6 +20,7 @@ def _item_to_device(item: dict[str, Any], device: torch.device) -> dict[str, Any
     for key in (
         "vertex_features",
         "dino_vertex_features",
+        "vertex_geom",
         "vertex_affordance",
         "slat_vertex_features",
         "vertex_normals",
@@ -32,6 +33,9 @@ def _item_to_device(item: dict[str, Any], device: torch.device) -> dict[str, Any
     # Keep mask as bool
     if out.get("vertex_visible_mask") is not None:
         out["vertex_visible_mask"] = out["vertex_visible_mask"].bool().to(device)
+    # GNN kNN graph: keep as long (indices), move to device
+    if out.get("vertex_knn") is not None:
+        out["vertex_knn"] = out["vertex_knn"].long().to(device)
     return out
 
 
@@ -43,6 +47,7 @@ def _check_required_features(
     checks = [
         ("vlm_dim", "vertex_features"),
         ("dino_vertex_dim", "dino_vertex_features"),
+        ("geom_dim", "vertex_geom"),
         ("sam3d_dim", "slat_vertex_features"),
         ("dino_cls_dim", "dino_cls"),
         ("ss_dino_cls_dim", "ss_dino_cls"),
@@ -82,8 +87,7 @@ def _forward(
     item: dict[str, Any],
     verb_idx: int | None,
 ) -> torch.Tensor:
-    return model(
-        verb_idx,
+    kwargs: dict[str, Any] = dict(
         slat_vertex=item.get("slat_vertex_features"),
         vlm_features=item.get("vertex_features"),
         dino_cls=item.get("dino_cls"),
@@ -91,7 +95,14 @@ def _forward(
         vertex_normals=item.get("vertex_normals"),
         vertex_positions=item.get("vertex_positions"),
         dino_vertex=item.get("dino_vertex_features"),
+        vertex_geom=item.get("vertex_geom"),
     )
+    # GNN backbone: thread the precomputed kNN graph (None → built on-the-fly from positions).
+    # The MLP head does not accept knn_idx, so only pass it when the model is a GNN.
+    # (_item_to_device has already moved vertex_knn to the right device as a long tensor.)
+    if type(model).__name__ == "AffordanceGNN":
+        kwargs["knn_idx"] = item.get("vertex_knn")
+    return model(verb_idx, **kwargs)
 
 
 def training_epoch_vertex_bce(

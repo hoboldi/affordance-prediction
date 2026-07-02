@@ -16,6 +16,8 @@ class MLPHeadConfig:
     pos_dim: int = 0             # set to 3 to include normalized per-vertex xyz position
     dino_vertex_dim: int = 0     # set to 128 for per-vertex DINOv2 patch features (alongside CLIP vlm)
     dino_filename: str = "vertex_dino.pt"  # which per-recon-dir DINO file feeds dino_vertex (metadata; the dataset reads it)
+    geom_dim: int = 0            # set to 5 for per-vertex 3D geometry features (precompute_geom.py: height/concavity/curvature/normal_up/radial)
+    geom_filename: str = "vertex_geom.pt"  # which per-recon-dir geom file feeds vertex_geom (metadata; the dataset reads it)
 
     # Global (per-mesh constant) inputs — modulate the geometry stream via FiLM
     verb_dim: int = 512
@@ -50,7 +52,7 @@ class MLPHeadConfig:
 
     @property
     def per_vertex_dim(self) -> int:
-        d = self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim + self.dino_vertex_dim
+        d = self.vlm_dim + self.sam3d_dim + self.normals_dim + self.pos_dim + self.dino_vertex_dim + self.geom_dim
         return d + (self.verb_dim if self._verb_in_vertex else 0)
 
     @property
@@ -169,11 +171,13 @@ class AffordanceMLP(nn.Module):
         vertex_normals: torch.Tensor | None,
         vertex_positions: torch.Tensor | None,
         dino_vertex: torch.Tensor | None = None,
+        vertex_geom: torch.Tensor | None = None,
     ) -> torch.Tensor:
         parts: list[torch.Tensor] = []
         for t, dim, name in [
             (vlm_features, self.cfg.vlm_dim, "vlm_features"),
             (dino_vertex, self.cfg.dino_vertex_dim, "dino_vertex"),
+            (vertex_geom, self.cfg.geom_dim, "vertex_geom"),
             (slat_vertex, self.cfg.sam3d_dim, "slat_vertex"),
             (vertex_normals, self.cfg.normals_dim, "vertex_normals"),
             (vertex_positions, self.cfg.pos_dim, "vertex_positions"),
@@ -225,8 +229,9 @@ class AffordanceMLP(nn.Module):
         vertex_normals: torch.Tensor | None = None,
         vertex_positions: torch.Tensor | None = None,
         dino_vertex: torch.Tensor | None = None,
+        vertex_geom: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions, dino_vertex)  # (V, per_vertex_dim)
+        h = self._per_vertex_input(verb_idx, slat_vertex, vlm_features, vertex_normals, vertex_positions, dino_vertex, vertex_geom)  # (V, per_vertex_dim)
         if self.in_norm is not None:
             h = self.in_norm(h)
 
@@ -292,6 +297,8 @@ def mlp_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> MLPHeadConfig:
         pos_dim=int(model_cfg.get("pos_dim", 0)),
         dino_vertex_dim=int(model_cfg.get("dino_vertex_dim", 0)),
         dino_filename=str(model_cfg.get("dino_filename", "vertex_dino.pt")),
+        geom_dim=int(model_cfg.get("geom_dim", 0)),
+        geom_filename=str(model_cfg.get("geom_filename", "vertex_geom.pt")),
         verb_dim=int(model_cfg.get("verb_dim", 512)),
         num_verbs=int(model_cfg.get("num_verbs", 0)),
         dino_cls_dim=int(model_cfg.get("dino_cls_dim", 0)),

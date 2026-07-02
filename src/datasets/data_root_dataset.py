@@ -223,6 +223,10 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         load_vertex_semantics_eager: bool | None = None,
         load_vertex_dino: bool = False,
         dino_filename: str = "vertex_dino.pt",
+        load_vertex_knn: bool = False,
+        knn_filename: str = "vertex_knn_k8.pt",
+        load_vertex_geom: bool = False,
+        geom_filename: str = "vertex_geom.pt",
         row_filter: Callable[[ManifestRow], bool] | None = None,
     ) -> None:
         cfg = cfg if cfg is not None else load_config()
@@ -249,6 +253,10 @@ class DataRootDataset(Dataset[dict[str, Any]]):
         self._load_vertex_semantics_eager = bool(load_vertex_semantics_eager)
         self._load_vertex_dino = bool(load_vertex_dino)
         self._dino_filename = str(dino_filename)
+        self._load_vertex_knn = bool(load_vertex_knn)
+        self._knn_filename = str(knn_filename)
+        self._load_vertex_geom = bool(load_vertex_geom)
+        self._geom_filename = str(geom_filename)
         self._row_filter = row_filter
 
         rows = load_manifest_rows(self._manifest_path, data_root=self._data_root, split=split)
@@ -357,6 +365,27 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             else:
                 out["dino_vertex_features"] = None
 
+            if self._load_vertex_knn:
+                _knn_pt = row.sam3d_reconstruction_dir / self._knn_filename
+                if _knn_pt.is_file():
+                    out["vertex_knn"] = torch.load(_knn_pt, map_location="cpu", weights_only=True).long()
+                else:
+                    out["vertex_knn"] = None
+            else:
+                out["vertex_knn"] = None
+
+            # Per-vertex 3D geometry features (precompute_geom.py). Already a derived feature in the
+            # canonical frame (the precompute applies canonical_rotation), so it is NOT re-rotated below.
+            if self._load_vertex_geom:
+                _geom_pt = row.sam3d_reconstruction_dir / self._geom_filename
+                if _geom_pt.is_file():
+                    _g = torch.load(_geom_pt, map_location="cpu", weights_only=True)
+                    out["vertex_geom"] = (_g["features"].float() if isinstance(_g, dict) and "features" in _g else _g.float())
+                else:
+                    out["vertex_geom"] = None
+            else:
+                out["vertex_geom"] = None
+
             # Canonicalize orientation so per-vertex positions/normals share an upright frame across
             # objects (GEAL labelled at this same orientation). R from generate_geal_pseudolabels;
             # canonical coords = X @ R.T (matches the points fed to GEAL).
@@ -375,5 +404,7 @@ class DataRootDataset(Dataset[dict[str, Any]]):
             out["ss_dino_cls"] = None
             out["vertex_normals"] = None
             out["vertex_positions"] = None
+            out["vertex_knn"] = None
+            out["vertex_geom"] = None
 
         return out

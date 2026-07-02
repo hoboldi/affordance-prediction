@@ -31,6 +31,7 @@ from sklearn.metrics import average_precision_score
 
 from datasets.data_root_dataset import DataRootDataset  # noqa: E402
 from models.mlp_head import AffordanceMLP, mlp_head_config_from_model_cfg  # noqa: E402
+from models.gnn_head import AffordanceGNN, gnn_head_config_from_model_cfg  # noqa: E402
 
 LEARNABLE = {"contain", "pour", "sit", "move"}  # densely-labeled verbs (grasp/wrap_grasp teacher-capped)
 
@@ -42,9 +43,14 @@ def _topk_mask(p: np.ndarray, frac: float = 0.1) -> np.ndarray:
     return m
 
 
-def _predict(model, v2i, it) -> np.ndarray:
+def _predict(model, v2i, it, device: torch.device = torch.device("cpu")) -> np.ndarray:
     def _f(t):
-        return t.float() if t is not None else None
+        return t.float().to(device) if t is not None else None
+
+    kw = {}
+    if isinstance(model, AffordanceGNN):  # GNN needs the kNN graph (or builds it on the fly from positions)
+        kn = it.get("vertex_knn")
+        kw["knn_idx"] = kn.long().to(device) if kn is not None else None
 
     with torch.no_grad():
         logits = model(
@@ -56,8 +62,10 @@ def _predict(model, v2i, it) -> np.ndarray:
             vertex_normals=_f(it.get("vertex_normals")),
             vertex_positions=_f(it.get("vertex_positions")),
             dino_vertex=_f(it.get("dino_vertex_features")),
+            vertex_geom=_f(it.get("vertex_geom")),
+            **kw,
         )
-    return torch.sigmoid(logits).numpy()
+    return torch.sigmoid(logits).cpu().numpy()
 
 
 def main() -> None:
@@ -65,16 +73,27 @@ def main() -> None:
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--max_objects", type=int, default=50, help="deterministic subsample of multi-verb objects")
+    ap.add_argument("--device", default="cpu", help="cpu | cuda | cuda:0 — GNN evals run much faster on GPU")
     args = ap.parse_args()
 
+    device = torch.device(args.device)
+
     ck = torch.load(args.ckpt, map_location="cpu", weights_only=False)
-    model = AffordanceMLP(mlp_head_config_from_model_cfg(ck["model_cfg"]))
+    mcfg = ck["model_cfg"]
+    backbone = mcfg.get("backbone", "mlp")
+    if backbone == "gnn":
+        model = AffordanceGNN(gnn_head_config_from_model_cfg(mcfg))
+    else:
+        model = AffordanceMLP(mlp_head_config_from_model_cfg(mcfg))
     model.load_state_dict(ck["model"])
     model.eval()
+    model.to(device)
     v2i = ck["verb_to_idx"]
-    _use_dino = int(ck["model_cfg"].get("dino_vertex_dim", 0)) > 0
+    _use_dino = int(mcfg.get("dino_vertex_dim", 0)) > 0
+    _use_geom = int(mcfg.get("geom_dim", 0)) > 0
+    _knn_k = int(mcfg.get("knn_k", 8))
 
-    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=_use_dino, dino_filename=ck["model_cfg"].get("dino_filename", "vertex_dino.pt"))
+    ds = DataRootDataset(manifest_path=args.manifest, load_vertex_labels_eager=True, load_vertex_semantics_eager=True, load_vertex_dino=_use_dino, dino_filename=mcfg.get("dino_filename", "vertex_dino.pt"), load_vertex_knn=(backbone == "gnn"), knn_filename=f"vertex_knn_k{_knn_k}.pt", load_vertex_geom=_use_geom, geom_filename=mcfg.get("geom_filename", "vertex_geom.pt"))
 
     # Group manifest rows by object (reconstruction dir) -> {verb: row_index}
     by_obj: dict[str, dict[str, int]] = collections.defaultdict(dict)
@@ -95,7 +114,7 @@ def main() -> None:
         preds: dict[str, np.ndarray] = {}
         for verb, idx in by_obj[od].items():
             it = ds[idx]
-            p = _predict(model, v2i, it)
+            p = _predict(model, v2i, it, device)
             y = it["vertex_affordance"].numpy()
             preds[verb] = p
             per_verb_std[verb].append(float(p.std()))
