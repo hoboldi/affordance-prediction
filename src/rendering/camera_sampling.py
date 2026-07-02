@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -70,8 +71,10 @@ def clamp_elevation_deg(
 
 # Strict orbit policy: polar angle (from the azimuth ring plane toward +orbit_axis) never leaves
 # this band — avoids ~0° “flat” horizon views and extreme top-down; exposes tops, openings, and handles for VLMs / SAM.
-POLICY_ELEVATION_MIN_DEG = 25.0
-POLICY_ELEVATION_MAX_DEG = 60.0
+# Defaults preserve the production band (25–60°). Override via env for wider-coverage experiments
+# (e.g. Tier-2 lower-hemisphere re-extraction): AFFORD_ELEV_MIN_DEG / AFFORD_ELEV_MAX_DEG.
+POLICY_ELEVATION_MIN_DEG = float(os.environ.get("AFFORD_ELEV_MIN_DEG", "25.0"))
+POLICY_ELEVATION_MAX_DEG = float(os.environ.get("AFFORD_ELEV_MAX_DEG", "60.0"))
 
 
 def orbit_plane_basis(axis: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
