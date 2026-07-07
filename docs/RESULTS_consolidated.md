@@ -5,7 +5,7 @@
 ---
 
 ## 1. One-paragraph summary
-We predict **verb-conditioned per-vertex 3D affordances** on meshes reconstructed from single real images (CO3D → SAM3D/TRELLIS). Per-vertex features (CLIP-vision, DINOv2, geometry, SAM3D-SLAT, normals) plus a CLIP-text verb embedding feed a **verb-conditioned head**; the model is distilled from a frozen GEAL teacher, then fine-tuned on human labels. Our contribution is (a) replacing the per-vertex MLP head with a **spatial GNN** (EdgeConv message passing over the mesh kNN graph), which lifts trained-verb mean AUPRC from **0.814 → 0.870**, plus **GEAL pretraining → 0.895**; and (b) a rigorous characterization of *where the model generalizes and where it can't* — new objects ✓, geometric verbs cross-category ✓, grasp cross-category ✗, novel verbs zero-shot ✗ (proven structural), novel verbs few-shot ✓. The model **beats the GEAL teacher it distills from** (+0.058 on human labels).
+We predict **verb-conditioned per-vertex 3D affordances** on meshes reconstructed from single real images (CO3D → SAM3D/TRELLIS). Per-vertex features (CLIP-vision, DINOv2, geometry, SAM3D-SLAT, normals) plus a CLIP-text verb embedding feed a **verb-conditioned head**; the model is distilled from a frozen GEAL teacher, then fine-tuned on human labels. Our contribution is (a) replacing the per-vertex MLP head with a **spatial GNN** (EdgeConv message passing over the mesh kNN graph), which lifts trained-verb mean AUPRC from **0.814 → 0.870**, plus **GEAL pretraining → 0.895**; and (b) a rigorous characterization of *where the model generalizes and where it can't* — new objects ✓, geometric verbs cross-category ✓, grasp cross-category ✗, novel verbs zero-shot ✗ (proven structural), novel verbs few-shot ✓. The model **beats the GEAL teacher it distills from** (+0.058 on human labels). Feature ablation reduces the input to **DINO + geometry + verb-text** with no accuracy loss (0.890 vs 0.895, n.s.) — this **lean 133-d model is the adopted final model**, dropping the CLIP-vision and SLAT extraction stages for free.
 
 ## 2. Method
 - **Input:** single image → SAM3D reconstruction → mesh (`vertex_positions`) + structured latent (SLAT).
@@ -22,6 +22,7 @@ We predict **verb-conditioned per-vertex 3D affordances** on meshes reconstructe
 | + geometry channel | 0.814 | +0.029 |
 | **spatial GNN** | **0.870** | **+0.056** |
 | **+ GEAL pretraining** | **0.895** | **+0.025** |
+| **lean final (DINO+geom+verb, 133-d)** | **0.890** | −0.005 (n.s.) — same accuracy, dropped CLIP-vision+SLAT (§4b/4e) |
 
 - GNN > MLP on **all 5 folds** (+0.056; per-fold +0.064/+0.063/+0.026/+0.075/+0.052). GEAL-pretrain gain +0.025 also all-folds-positive.
 - Per-verb (best model): contain ~0.97 · display ~0.92 · sit ~0.86 · pour ~0.83 · move ~0.80 · **grasp ~0.75** (hardest).
@@ -42,7 +43,28 @@ Baseline (all features) = **0.880**. Each row drops one channel (zeroed in train
 | − normals | 0.880 | **+0.000** (dead) |
 | − SLAT | 0.891 | **−0.011** (net-harmful noise — dropping it *helps*) |
 
-**Conclusion — the model reduces to DINO + geometry + verb-text.** The entire per-vertex signal comes from **DINOv2 patch tokens (+0.057)** and the **geometry channel (+0.020, confirming the earlier +0.029)**. **CLIP-vision contributes exactly 0** — its only value is the open-vocab *verb-text* embedding, not the per-vertex vision features (this settles the recurring "is CLIP useless?" question). **normals ≈ 0** and **SLAT is net-negative (−0.011)** — dropping SLAT slightly *improves* the model, consistent with the earlier "SLAT marginal / hurts grasp" negative. Practically: **a leaner DINO + geometry (+ verb-text) model would match or beat the full 5-channel input.**
+**Conclusion — the model reduces to DINO + geometry + verb-text.** The entire per-vertex signal comes from **DINOv2 patch tokens (+0.057)** and the **geometry channel (+0.020, confirming the earlier +0.029)**. **CLIP-vision contributes exactly 0** — its only value is the open-vocab *verb-text* embedding, not the per-vertex vision features (this settles the recurring "is CLIP useless?" question). **normals ≈ 0** and **SLAT is net-negative (−0.011)** — dropping SLAT slightly *improves* the model, consistent with the earlier "SLAT marginal / hurts grasp" negative.
+
+**Confirmatory combined-drop (5-fold, GEAL-pretrain, k24) — and the FINAL MODEL.** Leave-one-out drops one channel at a time; to be sure the three near-zero channels don't interact, we dropped **CLIP-vision + SLAT + normals together** and re-ran the *full* 5-fold at the best (pretrained) config, against a matched full-feature baseline:
+
+| final config | fold0 | fold1 | fold2 | fold3 | fold4 | **5-fold mean** |
+|---|--:|--:|--:|--:|--:|--:|
+| **full** (272-d: all 5 channels) | 0.922 | 0.927 | 0.864 | 0.866 | 0.895 | **0.895** |
+| **lean** (133-d: DINO+geom+verb-text) | 0.903 | 0.921 | 0.883 | 0.858 | 0.885 | **0.890** |
+
+Δ = **−0.005**, paired *t* = −0.76, **p ≈ 0.5** — statistically indistinguishable (fold 2 even flips +0.019). The full 0.895 also reproduced exactly, validating the comparison. **We therefore adopt the lean model (DINO 128 + geometry 5 + verb-text 128, per-vertex input 272→133-d) as the final model** — same accuracy, and it removes the CLIP-vision and SLAT feature-extraction stages from the pipeline (see 4e).
+
+### 4e. Runtime — lean vs full final model *(A40, measured)*
+The head skips `dim==0` channels, so lean is a genuinely smaller network (232k vs 250k params), not zeroed placeholders.
+
+| component | full | lean | note |
+|---|--:|--:|---|
+| GNN head, 30k verts | 37.7 ms | 37.7 ms | head cost ~identical (kNN message passing dominates, shared) |
+| GNN head, 200k verts | 342 ms | 324 ms | lean ~5% faster + lower peak mem (3.4 vs 3.6 GB) |
+| CLIP-vision ViT-B/32 (16 views) | 11.5 ms | **removed** | lean drops the whole CLIP-vision extraction stage |
+| SLAT encoder (~8.5k voxels) | 2.6 ms | **removed** | lean drops SLAT encoding |
+
+**Honest read:** the head is *not* the runtime win (essentially equal). The saving is upstream — lean removes an **entire CLIP-vision extraction pass** (16-view render + ViT + vertex projection; one of two render passes in the pipeline) and the SLAT encoder, plus lower params/memory — **at zero accuracy cost**. The measured GPU-forward compute removed is ~14 ms/object; the larger real-world saving is the removed render+projection pass (not timed here — raw meshes archived). Net: a simpler, lighter pipeline for free.
 
 ### 4c. Aggregation / capacity (fold0 sweeps, established)
 - EdgeConv max-pool 0.879 > single-head attention 0.840 (transformer variant **worse**).
