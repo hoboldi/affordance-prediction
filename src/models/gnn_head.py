@@ -50,6 +50,20 @@ class AffordanceGNNConfig:
     gnn_hidden: int = 128
     gnn_layers: int = 3
     knn_k: int = 8
+    # Neighbour aggregation: "max" = EdgeConv max-pool (permutation-invariant, default) |
+    #   "attn" = single-head graph attention (transformer-style) — each neighbour weighted by a
+    #   learned query·key score, so the message passing can attend to the relevant neighbours per verb.
+    agg: str = "max"
+    # Augment EdgeConv messages (agg="max") with GEOMETRIC edge features: per neighbour, the relative
+    # position (3), edge length (1) and surface-normal agreement (1) — scale-normalized by the object's
+    # median nearest-neighbour distance. Gives the message passing explicit surface structure to reason
+    # with (sharper region boundaries; targets the over-smoothed thin grasp band). Needs vertex_positions
+    # + vertex_normals at forward. 5 extra input dims to each edge MLP.
+    edge_geom: bool = False
+
+    @property
+    def edge_feat_dim(self) -> int:
+        return 5 if (self.edge_geom and self.agg == "max") else 0
     # Memory bounding: EdgeConv messages are computed in row-chunks of this many vertices, and each
     # EdgeConv layer is gradient-checkpointed (activations recomputed in backward). This bounds peak
     # memory at O(gnn_chunk * k * C) regardless of total V (meshes here run up to ~1M+ vertices).
@@ -111,10 +125,18 @@ class AffordanceGNN(nn.Module):
         self.in_norm = nn.LayerNorm(cfg.proj_in_dim)
         self.in_proj = nn.Linear(cfg.proj_in_dim, C)
 
-        # EdgeConv message MLPs + residual LayerNorms (one per layer).
-        self.edge_mlps = nn.ModuleList(
-            nn.Sequential(nn.Linear(2 * C, C), nn.ReLU()) for _ in range(cfg.gnn_layers)
-        )
+        # Neighbour-aggregation parameters (one set per layer) + residual LayerNorms.
+        #   "max"  — EdgeConv message MLP: Linear(2C->C), ReLU, then amax over neighbours.
+        #   "attn" — single-head graph attention: per-layer query/key/value projections; neighbours
+        #            weighted by softmax(q·k/sqrt(C)) then value-summed (transformer-style aggregation).
+        if cfg.agg == "attn":
+            self.attn_q = nn.ModuleList(nn.Linear(C, C) for _ in range(cfg.gnn_layers))
+            self.attn_k = nn.ModuleList(nn.Linear(C, C) for _ in range(cfg.gnn_layers))
+            self.attn_v = nn.ModuleList(nn.Linear(C, C) for _ in range(cfg.gnn_layers))
+        else:
+            self.edge_mlps = nn.ModuleList(
+                nn.Sequential(nn.Linear(2 * C + cfg.edge_feat_dim, C), nn.ReLU()) for _ in range(cfg.gnn_layers)
+            )
         self.layer_norms = nn.ModuleList(nn.LayerNorm(C) for _ in range(cfg.gnn_layers))
         self.drop = nn.Dropout(cfg.dropout)
 
@@ -195,35 +217,53 @@ class AffordanceGNN(nn.Module):
                 parts.append(t)
         return torch.cat(parts, dim=-1)  # (V, per_vertex_dim) — verb NOT appended here
 
-    def _edge_conv_layer(
+    def _mp_layer(
         self,
         h: torch.Tensor,        # (V, C)
         knn_idx: torch.Tensor,  # (V, k) long
-        edge_mlp: nn.Module,
-        ln: nn.Module,
+        li: int,                # layer index (picks per-layer modules)
     ) -> torch.Tensor:
-        """One EdgeConv layer, computed in row-chunks over vertices to bound peak memory.
+        """One message-passing layer, computed in row-chunks over vertices to bound peak memory.
 
-        Math is identical to the un-chunked form:
+        agg="max" (EdgeConv, identical to the un-chunked form):
             hj  = h[knn]                                  # (chunk, k, C)
             msg = edge_mlp(cat[center, hj - center])      # (chunk, k, C)
             agg = msg.amax(dim=1)                         # (chunk, C)
-            out = ln(h + dropout(agg))                    # residual + norm
-        Only the (chunk, k, 2C) intermediate is materialized at a time, so peak is O(chunk*k*C)
-        instead of O(V*k*C). Designed to run inside gradient checkpointing (backward recomputes
-        these chunked activations).
+        agg="attn" (single-head graph attention over the k neighbours):
+            q=Wq(center); kk=Wk(hj); vv=Wv(hj)
+            a   = softmax(sum(q*kk,-1)/sqrt(C), dim=1)    # (chunk, k)
+            agg = sum(a*vv, dim=1)                         # (chunk, C)
+        Then residual: out = ln(h + dropout(agg)). Only the (chunk, k, ·) intermediate is
+        materialized at a time, so peak is O(chunk*k*C). Designed to run inside gradient checkpointing.
         """
         V, C = h.shape
         k = knn_idx.shape[1]
+        ln = self.layer_norms[li]
         chunk = self.cfg.gnn_chunk if self.cfg.gnn_chunk and self.cfg.gnn_chunk > 0 else V
         agg = h.new_empty((V, C))
+        attn = self.cfg.agg == "attn"
         for s in range(0, V, chunk):
             e = min(s + chunk, V)
             hc = h[s:e]                                              # (m, C)
             hj = h[knn_idx[s:e]]                                     # (m, k, C)
             center = hc.unsqueeze(1).expand(-1, k, -1)               # (m, k, C)
-            msg = edge_mlp(torch.cat([center, hj - center], dim=-1)) # (m, k, C)
-            agg[s:e] = msg.amax(dim=1)                               # (m, C)
+            if attn:
+                q = self.attn_q[li](hc).unsqueeze(1)                 # (m, 1, C)
+                kk = self.attn_k[li](hj)                             # (m, k, C)
+                vv = self.attn_v[li](hj)                             # (m, k, C)
+                a = torch.softmax((q * kk).sum(-1) / (C ** 0.5), dim=1)  # (m, k)
+                agg[s:e] = (a.unsqueeze(-1) * vv).sum(1)             # (m, C)
+            else:
+                parts = [center, hj - center]
+                if self.cfg.edge_feat_dim:                           # geometric edge features
+                    pc = self._epos[s:e]; pj = self._epos[knn_idx[s:e]]         # (m,C? no: m,3)/(m,k,3)
+                    rel = (pj - pc.unsqueeze(1)) / self._escale                 # (m,k,3) scale-normalized
+                    dist = rel.norm(dim=-1, keepdim=True)                       # (m,k,1)
+                    nc = self._enrm[s:e]; nj = self._enrm[knn_idx[s:e]]
+                    ndot = (nc.unsqueeze(1) * nj).sum(-1, keepdim=True)         # (m,k,1) normal agreement
+                    parts += [rel, dist, ndot]
+                msg = self.edge_mlps[li](torch.cat(parts, dim=-1))  # (m, k, 2C[+5])
+                agg[s:e] = msg.amax(dim=1)                           # (m, C)
         return ln(h + self.drop(agg))                                # residual + LayerNorm
 
     @staticmethod
@@ -274,15 +314,24 @@ class AffordanceGNN(nn.Module):
         else:
             knn_idx = knn_idx.to(device=h.device, dtype=torch.long)
 
+        # geometric edge features (scale-normalized): stash positions/normals + median edge length for _mp_layer
+        if self.cfg.edge_feat_dim:
+            if vertex_positions is None or vertex_normals is None:
+                raise ValueError("edge_geom=True requires vertex_positions and vertex_normals at forward")
+            self._epos = vertex_positions.to(device=h.device, dtype=torch.float32)
+            nrm = vertex_normals.to(device=h.device, dtype=torch.float32)
+            self._enrm = nrm / (nrm.norm(dim=-1, keepdim=True) + 1e-8)
+            self._escale = (self._epos[knn_idx[:, 0]] - self._epos).norm(dim=-1).median().clamp(min=1e-6)
+
         # (d) EdgeConv-style message passing — each layer is computed in row-chunks (bounds the
         # (chunk,k,2C) intermediate) and gradient-checkpointed (the (chunk,k,2C) activations are
         # recomputed in backward rather than stored), so peak memory is bounded regardless of V.
         use_ckpt = torch.is_grad_enabled() and h.requires_grad
-        for edge_mlp, ln in zip(self.edge_mlps, self.layer_norms):
+        for li in range(self.cfg.gnn_layers):
             if use_ckpt:
-                h = cp.checkpoint(self._edge_conv_layer, h, knn_idx, edge_mlp, ln, use_reentrant=False)
+                h = cp.checkpoint(self._mp_layer, h, knn_idx, li, use_reentrant=False)
             else:
-                h = self._edge_conv_layer(h, knn_idx, edge_mlp, ln)
+                h = self._mp_layer(h, knn_idx, li)
 
         # (e) output head. When the verb is already in the backbone, the head is verb-free; otherwise
         # concat the verb here (legacy shallow conditioning).
@@ -312,6 +361,8 @@ def gnn_head_config_from_model_cfg(model_cfg: dict[str, Any]) -> AffordanceGNNCo
         gnn_hidden=int(model_cfg.get("gnn_hidden", 128)),
         gnn_layers=int(model_cfg.get("gnn_layers", 3)),
         knn_k=int(model_cfg.get("knn_k", 8)),
+        agg=str(model_cfg.get("agg", "max")),
+        edge_geom=bool(model_cfg.get("edge_geom", False)),
         gnn_chunk=int(model_cfg.get("gnn_chunk", 32768)),
     )
 
