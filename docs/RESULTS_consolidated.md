@@ -7,6 +7,20 @@
 ## 1. One-paragraph summary
 We predict **verb-conditioned per-vertex 3D affordances** on meshes reconstructed from single real images (CO3D → SAM3D/TRELLIS). Per-vertex features (CLIP-vision, DINOv2, geometry, SAM3D-SLAT, normals) plus a CLIP-text verb embedding feed a **verb-conditioned head**; the model is distilled from a frozen GEAL teacher, then fine-tuned on human labels. Our contribution is (a) replacing the per-vertex MLP head with a **spatial GNN** (EdgeConv message passing over the mesh kNN graph), which lifts trained-verb mean AUPRC from **0.814 → 0.870**, plus **GEAL pretraining → 0.895**; and (b) a rigorous characterization of *where the model generalizes and where it can't* — new objects ✓, geometric verbs cross-category ✓, grasp cross-category ✗, novel verbs zero-shot ✗ (proven structural), novel verbs few-shot ✓. The model **beats the GEAL teacher it distills from** (+0.058 on human labels). Feature ablation reduces the input to **DINO + geometry + verb-text** with no accuracy loss (0.890 vs 0.895, n.s.) — this **lean 133-d model is the adopted final model**, dropping the CLIP-vision and SLAT extraction stages for free.
 
+## 1b. The organizing finding — two classes of affordance verb
+Every result below reduces to one dichotomy. Affordance verbs split by **what determines their region**, and the two classes behave oppositely on every axis we tested:
+
+| axis | **Geometric verbs** (contain, pour, sit, move) | **Appearance verbs** (grasp, display) |
+|---|---|---|
+| determined by | shape (the geometry channel) | learned appearance (DINO) |
+| drop DINO | −0.02 … −0.11 | **−0.31 / −0.33** |
+| labels to saturate | ~10 objects | grasp still rising at 172 (label-starved) |
+| views needed | 1 view fine | grasp needs 4–8 (occlusion) |
+| cross-category transfer | **✓ transfers** | grasp ✗ (category-bound) |
+| needs verb conditioning | weak (contain barely) | yes |
+
+This is the spine of the project: the model is **strong where affordance is shape-determined** (and those verbs are cheap on data, views, and transfer), and the **frontier is the appearance verbs** — grasp above all, which is simultaneously DINO-dependent, label-starved, occlusion-sensitive, and non-transferable. The high 6-verb mean (0.89) is substantially geometry solving the geometric verbs; grasp (~0.75) is where the real difficulty and the future work live.
+
 ## 2. Method
 - **Input:** single image → SAM3D reconstruction → mesh (`vertex_positions`) + structured latent (SLAT).
 - **Per-vertex features (272-d):** CLIP-vision 128 · DINOv2 (fine 32×32 patches, multi-view facing-weighted mean fusion) 128 · geometry 5 (height/concavity/curvature/normal-up/radial) · SLAT 8 · normals 3. (position not used.)
@@ -66,6 +80,17 @@ The head skips `dim==0` channels, so lean is a genuinely smaller network (232k v
 
 **Honest read:** the head is *not* the runtime win (essentially equal). The saving is upstream — lean removes an **entire CLIP-vision extraction pass** (16-view render + ViT + vertex projection; one of two render passes in the pipeline) and the SLAT encoder, plus lower params/memory — **at zero accuracy cost**. The measured GPU-forward compute removed is ~14 ms/object; the larger real-world saving is the removed render+projection pass (not timed here — raw meshes archived). Net: a simpler, lighter pipeline for free.
 
+### 4f. Ablate the FINAL model's own components (5-fold, clean) — the poster ablation
+Unlike 4b (which ablates channels the final model no longer uses), this removes each component the **lean model actually ships with**, so every delta is a real, matched difference. `figure: ablation_components.png`
+| component removed | AUPRC | Δ vs lean (0.890) |
+|---|--:|--:|
+| **− verb conditioning** (constant embedding) | 0.551 | **−0.339** |
+| **− DINOv2** | 0.747 | **−0.143** |
+| − spatial GNN (→ matched per-vertex MLP, `gnn_layers=0`) | 0.841 | −0.049 |
+| − geometry | 0.857 | −0.033 |
+
+Ordering: **verb ≫ DINO ≫ GNN ≈ geometry.** The **− verb** row is the striking one — removing verb conditioning collapses the model to **0.551**, right at the nonsense-verb floor (0.584): the head genuinely routes on the verb, it is not a verb-agnostic saliency prior. The **− GNN** row is the matched isolation (same inputs/conditioning/warm-start, message passing off): spatial reasoning is worth **+0.049** on the lean model. *(CLIP-vision/SLAT/normals were already removed in 4b at ≈0 cost — hence absent here.)*
+
 ### 4c. Aggregation / capacity (fold0 sweeps, established)
 - EdgeConv max-pool 0.879 > single-head attention 0.840 (transformer variant **worse**).
 - Larger neighborhood k24 (0.898) > k16 (0.894) > k8 (0.879); wider/deeper (bigk24) saturates.
@@ -73,8 +98,30 @@ The head skips `dim==0` channels, so lean is a genuinely smaller network (232k v
 - SLAT multi-latent voxel→vertex aggregation flat; DINO fusion mean > max/smax.
 - **bigk24 (best config) 5-fold ≈ k24 → plateau ~0.895; capacity gain does not compound.**
 
-### 4d. Pretraining
-GEAL pretrain +0.025 (all folds). Pure-GEAL (0 manual) on human = 0.613 → manual FT +0.28. So pretraining is a *warm start* (huge convergence speedup: ep1 0.83 vs 0.41 scratch), not the source of performance.
+### 4d. Pretraining & label efficiency
+GEAL pretrain +0.025 (full-feature 5-fold, all folds). Pure-GEAL (0 manual) on human = 0.613 → manual FT +0.28. Pretraining is a **warm start**, not the source of performance — and its value is *label efficiency*, quantified by a train-size sweep (lean model, fixed val=58): `figure: label_efficiency.png`
+| # train objects | scratch | GEAL-pretrained | gap |
+|--:|--:|--:|--:|
+| 10 | 0.414 | 0.667 | **+0.25** |
+| 25 | 0.577 | 0.715 | +0.14 |
+| 50 | 0.751 | 0.836 | +0.085 |
+| 100 | 0.806 | 0.849 | +0.043 |
+| 172 (full) | 0.866 | 0.858 | −0.008 |
+
+The pretraining advantage is **huge when labels are scarce (+0.25 at n=10) and vanishes at full data** — the honest framing is "GEAL pretraining lets you reach strong accuracy with a fraction of the labels," not "it raises the ceiling."
+
+### 4g. DINO view-count — geometric verbs view-independent, grasp needs coverage
+DINO per-vertex features are fused over multi-view renders. Re-extracting at fewer views (identical 448px/128-d/seed-0 settings; a 16-view re-extract reproduces the deployed features at cosine 1.0000) gives a **mean** curve that looks saturated by ~4 views — but the mean is misleading, and the per-verb split is the real story: `figure: view_count.png`
+*(3-fold means; visible frac = fraction of mesh vertices seen by the view set.)*
+| # views (visible frac) | contain | sit | move | display | pour | **grasp** | mean |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| 1 (0.33) | 0.964 | 0.938 | 0.898 | 0.896 | 0.841 | **0.622** | 0.860 |
+| 2 (~0.45) | 0.972 | 0.934 | 0.895 | 0.925 | 0.876 | **0.702** | 0.884 |
+| 4 (~0.50) | 0.981 | 0.932 | 0.897 | 0.925 | 0.878 | **0.750** | 0.894 |
+| 8 (0.62) | 0.985 | 0.940 | 0.899 | 0.939 | 0.879 | **0.762** | 0.901 |
+| 16 (deployed) | 0.982 | 0.921 | 0.866 | 0.908 | 0.889 | **0.773** | ~0.89 |
+
+**The geometric verbs (contain/sit/move) are genuinely view-independent** — carried by the geometry channel — so they hold at ~0.9 even from a single view. **grasp is the exception: it drops −0.17 (0.855 → 0.689) at 1 view and climbs monotonically with coverage**, because it is appearance/occlusion-sensitive (you must actually see the handle; 1 view sees only 33% of the mesh). So the honest finding is **not** "1 view suffices" — it's that *most verbs need almost no views, but grasp needs ~4–8*. The mean saturating by ~4 is driven almost entirely by grasp recovering. *(≤3 views use one elevation ring since 2 rings can't split below 4 views.)*
 
 ## 5. Generalization (the nuanced, honest story)
 | axis | result | evidence |
@@ -146,6 +193,9 @@ Best as an **affordance-region proposer for known object types & functional verb
 - `fewshot_progression.png` — 0→5-shot on a new verb. **(few-shot Fig)**
 - `verb_overlap_heatmap.png` — verb regions mutually near-disjoint (max IoU 0.06); novel verbs boxed. **(cross-verb-impossibility Fig)** ✓ rendered
 - `one_bottle_grasp.png` — label-ambiguity / model-finds-handle qualitative.
+- `ablation_components.png` — **contribution of each final-model component** (verb −0.34 ≫ DINO −0.14 ≫ GNN −0.05 ≈ geom −0.03). **(poster ablation — the one to use)**
+- `label_efficiency.png` — pretrain vs scratch vs #labels (gap +0.25 at n=10 → 0 at full). **(label-efficiency Fig)**
+- `view_count.png` — per-verb vs #views: geometric verbs flat, **grasp climbs 0.62→0.77** (needs coverage). **(view-count Fig — per-verb, not mean)**
 
 ## 13. Talk outline (10–15 min)
 1. Problem: verb-conditioned 3D affordance from a real image (1 slide).
