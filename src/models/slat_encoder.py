@@ -30,6 +30,11 @@ class SlatEncoderConfig:
     knn_k: int = 8           # neighbours in the voxel graph
     dropout: float = 0.1
     use_coords: bool = True  # append normalized voxel xyz to the input latent
+    # voxel->vertex aggregation: how to combine the MULTIPLE SLAT latents near a mesh vertex.
+    # "nearest" = single closest voxel (original); "mean"/"max"/"wsum" pool the kv nearest voxels
+    # ("wsum" = distance-softmax weighted, ~trilinear). Needs a (V,kv) index map + (V,kv) weights.
+    vertex_agg: str = "nearest"
+    vertex_kv: int = 8       # #voxels aggregated per vertex when vertex_agg != "nearest"
 
 
 def build_slat_knn(slat_coords: torch.Tensor, k: int = 8) -> torch.Tensor:
@@ -55,6 +60,29 @@ def build_vertex_to_slat(vertex_positions: torch.Tensor, slat_coords: torch.Tens
 
     _, idx = cKDTree(slat_coords.detach().cpu().numpy()).query(vertex_positions.detach().cpu().numpy(), k=1)
     return torch.as_tensor(idx, dtype=torch.long)
+
+
+def build_vertex_to_slat_knn(vertex_positions: torch.Tensor, slat_coords: torch.Tensor, kv: int = 8):
+    """Multi-latent voxel→vertex map: for each mesh vertex, the kv nearest SLAT voxels and distance-softmax
+    weights. Returns (idx (V_mesh, kv) long, weights (V_mesh, kv) float, summing to 1 per vertex). The
+    temperature is the per-cloud median nearest-voxel distance (object-scale adaptive), so weights behave
+    like a soft/trilinear interpolation of the latents surrounding a vertex rather than a hard pick.
+    """
+    from scipy.spatial import cKDTree
+
+    pos_s = slat_coords.detach().cpu().numpy()
+    kk = min(kv, len(pos_s))
+    dist, idx = cKDTree(pos_s).query(vertex_positions.detach().cpu().numpy(), k=kk)
+    if kk == 1:
+        dist, idx = dist[:, None], idx[:, None]
+    idx = torch.as_tensor(idx, dtype=torch.long)
+    dist = torch.as_tensor(dist, dtype=torch.float32)
+    tau = dist[:, 0].median().clamp_min(1e-6)
+    w = torch.softmax(-dist / tau, dim=1)
+    if kk < kv:                                                   # tiny cloud: pad (zero weight)
+        idx = torch.cat([idx, idx[:, -1:].expand(-1, kv - kk)], dim=1)
+        w = torch.cat([w, torch.zeros(w.shape[0], kv - kk)], dim=1)
+    return idx, w
 
 
 class SlatEncoder(nn.Module):
@@ -95,7 +123,8 @@ class SlatEncoder(nn.Module):
         slat_feats: torch.Tensor,       # (Vv, in_dim)
         slat_coords: torch.Tensor,      # (Vv, 3)
         slat_knn: torch.Tensor,         # (Vv, k) long  — precomputed voxel graph
-        vertex_to_slat: torch.Tensor,   # (V_mesh,) long — nearest voxel per mesh vertex
+        vertex_to_slat: torch.Tensor,   # (V_mesh,) long [nearest] OR (V_mesh, kv) long [multi-latent]
+        vertex_weights: torch.Tensor | None = None,   # (V_mesh, kv) — required for vertex_agg="wsum"
     ) -> torch.Tensor:
         x = slat_feats.float()
         if self.cfg.use_coords:
@@ -105,4 +134,15 @@ class SlatEncoder(nn.Module):
         for edge_mlp, ln in zip(self.edge_mlps, self.norms):
             h = self._edge_conv(h, knn, edge_mlp, ln)
         z = self.out_proj(h)                                     # (Vv, out_dim) encoded voxel features
-        return z[vertex_to_slat.to(z.device, torch.long)]       # (V_mesh, out_dim) gathered to vertices
+        v2s = vertex_to_slat.to(z.device, torch.long)
+        if v2s.dim() == 1:                                       # nearest (original path)
+            return z[v2s]
+        gathered = z[v2s]                                        # (V_mesh, kv, out_dim) — the multiple latents
+        agg = self.cfg.vertex_agg
+        if agg == "mean":
+            return gathered.mean(dim=1)
+        if agg == "max":
+            return gathered.amax(dim=1)
+        # "wsum": distance-softmax weighted (~trilinear interpolation of the surrounding latents)
+        w = vertex_weights.to(z.device).unsqueeze(-1)           # (V_mesh, kv, 1)
+        return (gathered * w).sum(dim=1)

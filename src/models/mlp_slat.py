@@ -45,6 +45,7 @@ class AffordanceMLPSlat(nn.Module):
         slat_coords: torch.Tensor,
         slat_knn: torch.Tensor,
         vertex_to_slat: torch.Tensor,
+        vertex_weights: torch.Tensor | None = None,
         vlm_features: torch.Tensor | None = None,
         dino_cls: torch.Tensor | None = None,
         ss_dino_cls: torch.Tensor | None = None,
@@ -53,7 +54,7 @@ class AffordanceMLPSlat(nn.Module):
         dino_vertex: torch.Tensor | None = None,
         vertex_geom: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        slat_enc = self.slat_encoder(slat_feats, slat_coords, slat_knn, vertex_to_slat)  # (V, out_dim)
+        slat_enc = self.slat_encoder(slat_feats, slat_coords, slat_knn, vertex_to_slat, vertex_weights)  # (V, out_dim)
         return self.mlp(
             verb_idx,
             slat_vertex=slat_enc,

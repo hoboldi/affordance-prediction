@@ -53,6 +53,58 @@ def _load_human_label(path: Path) -> torch.Tensor | None:
     return y.float() if torch.is_tensor(y) else None
 
 
+# Verb augmentation: paraphrases per trained verb. During training we condition on a randomly sampled
+# paraphrase (encoded via CLIP-text) while keeping the canonical verb's human labels, so the head learns a
+# SMOOTH function over verb-embedding space -> a novel verb landing nearby transfers better. Sets are kept
+# DISJOINT (no shared word maps to conflicting labels).
+VERB_SYN = {
+    "contain": ["contain", "store", "fill", "hold things inside"],
+    "sit":     ["sit", "sit on", "be seated on", "perch on"],
+    "pour":    ["pour", "pour out", "tip out", "empty"],
+    "move":    ["move", "push", "drag", "relocate"],
+    "display": ["display", "show", "present", "exhibit"],
+    "grasp":   ["grasp", "grab", "grip", "pick up"],
+}
+
+# Richer verb encoding (--verb_desc): condition on an affordance DESCRIPTION of the verb (CLIP-text) rather
+# than the bare word, so a novel verb whose description shares vocabulary with a trained verb lands near it
+# (e.g. "lift: grip and raise..." shares "grip" with grasp -> cos 0.80->0.95). Used for BOTH training and
+# validation/eval. Novel-verb descriptions are general (describe the action, not the answer region).
+VERB_DESC = {
+    "contain": "put things inside this object to hold or store them",
+    "sit":     "sit down and rest your weight on this object",
+    "pour":    "pour liquid out through the opening of this object",
+    "move":    "push or grab this object to move it somewhere else",
+    "display": "show or present content on the front of this object",
+    "grasp":   "grip and hold this object in your hand",
+    "lift":    "grip and raise this object up off the surface",
+    "open":    "open this object by moving its lid or door",
+    "press":   "press down on the surface of this object with a finger",
+}
+
+
+def _load_expand_geom(model, base_sd, insert_at: int, add: int) -> None:
+    """Warm-start a model whose per-vertex input grew by `add` geometry channels inserted at `insert_at`
+    (after vlm+dino). Expands in_norm.weight/bias and geom_layers.0.weight along the per-vertex axis; the
+    new geom slots are zero-init (LayerNorm weight=1, bias=0) so geometry starts inert and is learned during
+    (full-)FT. All other params load unchanged. Mirrors the SLAT-encoder input-reshape warm-start."""
+    sd = dict(base_sd)
+
+    def insert(w, dim, fill):
+        pre = w.narrow(dim, 0, insert_at)
+        post = w.narrow(dim, insert_at, w.shape[dim] - insert_at)
+        shape = list(w.shape); shape[dim] = add
+        return torch.cat([pre, torch.full(shape, fill, dtype=w.dtype), post], dim=dim)
+
+    if "in_norm.weight" in sd:
+        sd["in_norm.weight"] = insert(sd["in_norm.weight"], 0, 1.0)
+        sd["in_norm.bias"] = insert(sd["in_norm.bias"], 0, 0.0)
+    sd["geom_layers.0.weight"] = insert(sd["geom_layers.0.weight"], 1, 0.0)  # [hidden0, per_vertex_dim] -> cols
+    missing, unexpected = model.load_state_dict(sd, strict=False)
+    assert not unexpected, f"unexpected keys after geom expand: {unexpected}"
+    assert not missing, f"missing keys after geom expand: {missing}"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Fine-tune a pretrained affordance ckpt on human labels")
     ap.add_argument("--ckpt", required=True, help="pretrained base checkpoint")
@@ -82,6 +134,28 @@ def main() -> None:
     ap.add_argument("--exclude_verb", default=None,
                     help="hold this verb OUT of training (leave-one-verb-out CV): its labels are skipped "
                          "so transfer to it can be measured zero-shot via the CLIP-text embedding")
+    ap.add_argument("--geom_dim", type=int, default=-1,
+                    help="add per-vertex geometry channels (5 = height/concavity/curvature/normal_up/radial). "
+                         "If > the ckpt's geom_dim, the input layer is surgically expanded (base channels kept, "
+                         "geom slots zero-init) and geometry is learned during (full-)FT. Reads vertex_geom.pt.")
+    ap.add_argument("--verb_aug", action="store_true",
+                    help="verb augmentation: condition each training pair on a random paraphrase of its verb "
+                         "(CLIP-text encoded) to smooth the verb-embedding->affordance map for better novel-verb "
+                         "generalization. Labels unchanged; validation uses the canonical verb.")
+    ap.add_argument("--verb_mix", type=float, default=0.0,
+                    help="verb MIXUP prob [0..1]: with this prob, blend a training pair's verb with ANOTHER verb "
+                         "on the SAME object — mix their CLIP-text embeddings (a*v1+(1-a)*v2) AND their soft labels "
+                         "— so the head learns the region BETWEEN verbs (widens the capture radius for novel verbs "
+                         "that land between trained verbs, e.g. lift~grasp/move). Validation uses canonical verbs.")
+    ap.add_argument("--verb_desc", action="store_true",
+                    help="richer verb encoding: condition on a CLIP-text-encoded affordance DESCRIPTION of each "
+                         "verb (VERB_DESC) instead of the bare word, for both training and eval, so novel verbs "
+                         "whose description shares vocabulary with a trained verb land near it.")
+    ap.add_argument("--verb_jitter", type=float, default=0.0,
+                    help="verb-embedding JITTER: each step, add isotropic Gaussian noise of magnitude "
+                         "sigma*||emb|| to the verb's CLIP embedding, so the head learns a smooth neighborhood "
+                         "AROUND each trained verb (widens the capture radius in every direction, unlike mixup's "
+                         "on-a-line blend). Labels unchanged; validation uses the clean verb.")
     args = ap.parse_args()
 
     random.seed(args.seed)
@@ -103,8 +177,23 @@ def main() -> None:
         model = AffordanceGNN(cfg)
     else:
         cfg = mlp_head_config_from_model_cfg(mcfg)
+        _old_geom = int(getattr(cfg, "geom_dim", 0))
+        _add_geom = args.geom_dim >= 0 and args.geom_dim != _old_geom
+        if _add_geom:
+            import dataclasses
+            cfg = dataclasses.replace(cfg, geom_dim=args.geom_dim)
         model = AffordanceMLP(cfg)
-    model.load_state_dict(ck["model"])
+        if _add_geom:
+            _load_expand_geom(model, ck["model"], insert_at=int(cfg.vlm_dim + cfg.dino_vertex_dim),
+                              add=args.geom_dim - _old_geom)
+            mcfg = {**mcfg, "geom_dim": args.geom_dim,
+                    "geom_filename": (mcfg.get("geom_filename") or "vertex_geom.pt")}
+            print(f"  + geometry channel: geom_dim {_old_geom}->{args.geom_dim} "
+                  f"(input expanded at idx {int(cfg.vlm_dim + cfg.dino_vertex_dim)})")
+        else:
+            model.load_state_dict(ck["model"])
+    if backbone == "gnn":
+        model.load_state_dict(ck["model"])
     model.to(device)
     v2i = ck["verb_to_idx"]
 
@@ -150,24 +239,30 @@ def main() -> None:
     # CLIP text encoder for unseen verbs (open-vocab), built lazily.
     _clip: dict = {}
 
-    def _verb_input(verb: str):
-        if verb in v2i:
-            return v2i[verb]
+    def _clip_text(s: str):
         if "enc" not in _clip:
             from vlm.vlm_wrapper import VLMWrapper, VLMConfig
             _clip["enc"] = VLMWrapper(VLMConfig(device="cpu"))
             _clip["cache"] = {}
-        if verb not in _clip["cache"]:
-            _clip["cache"][verb] = _clip["enc"].encode_text([verb.replace("_", " ")])[0]
-        return _clip["cache"][verb].to(device)
+        if s not in _clip["cache"]:
+            _clip["cache"][s] = _clip["enc"].encode_text([s])[0]
+        return _clip["cache"][s].to(device)
+
+    def _verb_input(verb: str):
+        if args.verb_desc:                                   # richer encoding: condition on the description
+            return _clip_text(VERB_DESC.get(verb, verb.replace("_", " ")))
+        if verb in v2i:
+            return v2i[verb]
+        return _clip_text(verb.replace("_", " "))
 
     def _f(t):
         return t.float().to(device) if t is not None else None
 
-    def _forward_logits(item: dict, verb: str, sub: torch.Tensor | None = None) -> torch.Tensor:
+    def _forward_logits(item: dict, verb: str, sub: torch.Tensor | None = None, verb_emb=None) -> torch.Tensor:
         """Logits for one object/verb. If `sub` (long vertex indices on `device`) is given, the
         per-vertex inputs are restricted to that subset (MLP-only path; the verb vector is per-object
-        and unaffected). GNN is never subsampled (would break the kNN graph)."""
+        and unaffected). GNN is never subsampled (would break the kNN graph). If `verb_emb` (a
+        verb_text_dim float tensor) is given, condition on it directly (used for verb-mixup blends)."""
         def _fs(t):
             if t is None:
                 return None
@@ -179,7 +274,7 @@ def main() -> None:
             kn = item.get("vertex_knn")
             kw["knn_idx"] = kn.long().to(device) if kn is not None else None
         return model(
-            _verb_input(verb),
+            verb_emb if verb_emb is not None else _verb_input(verb),
             slat_vertex=_fs(item.get("slat_vertex_features")),
             vlm_features=_fs(item.get("vertex_features")),
             dino_cls=_f(item.get("dino_cls")),          # global (per-object), never subsampled
@@ -207,6 +302,10 @@ def main() -> None:
 
     train_pairs = _pairs(split["train"])
     val_pairs = _pairs(split["val"])
+    # object -> {verb: label_path}, for verb-mixup (needs two verbs' labels on the same object)
+    obj_verb_lf: dict[str, dict[str, Path]] = collections.defaultdict(dict)
+    for _b, _v, _lf in train_pairs:
+        obj_verb_lf[_b][_v] = _lf
     n_train_obj = len({b for b, _, _ in train_pairs})
     n_val_obj = len({b for b, _, _ in val_pairs})
     print(f"  train: {len(train_pairs)} (obj,verb) pairs over {n_train_obj} objects")
@@ -286,9 +385,33 @@ def main() -> None:
                 g = torch.Generator(device="cpu").manual_seed(args.seed * 1_000_003 + ep * 9973 + (hash(base) & 0xFFFFF))
                 sub = torch.randperm(V, generator=g)[: args.max_vertices].to(device)
 
-            logits = _forward_logits(item, verb, sub=sub)
-            if sub is not None:
-                tgt = tgt[sub]
+            # Verb MIXUP: with prob --verb_mix, blend this verb with another verb on the SAME object —
+            # mix CLIP-text embeddings AND soft labels — so the head learns the region BETWEEN verbs.
+            mixed = False
+            if args.verb_mix > 0.0 and verb in v2i and rng.random() < args.verb_mix:
+                others = [v for v in obj_verb_lf.get(base, {}) if v != verb and v in v2i]
+                if others:
+                    v2 = rng.choice(others)
+                    y2 = _load_human_label(obj_verb_lf[base][v2])
+                    if y2 is not None and y2.shape[0] == V:
+                        a = rng.uniform(0.15, 0.85)
+                        vemb = a * model.verb_text[v2i[verb]] + (1.0 - a) * model.verb_text[v2i[v2]]
+                        logits = _forward_logits(item, verb, sub=sub, verb_emb=vemb)
+                        tgt = (a * tgt + (1.0 - a) * y2.to(device))
+                        tgt = tgt[sub] if sub is not None else tgt
+                        mixed = True
+            if not mixed and args.verb_jitter > 0.0 and verb in v2i:
+                e0 = model.verb_text[v2i[verb]]
+                nz = torch.randn_like(e0); nz = nz / (nz.norm() + 1e-8) * e0.norm() * args.verb_jitter
+                logits = _forward_logits(item, verb, sub=sub, verb_emb=e0 + nz)
+                if sub is not None:
+                    tgt = tgt[sub]
+                mixed = True
+            if not mixed:
+                cond_verb = rng.choice(VERB_SYN.get(verb, [verb])) if args.verb_aug else verb
+                logits = _forward_logits(item, cond_verb, sub=sub)
+                if sub is not None:
+                    tgt = tgt[sub]
             if logits.shape[0] != tgt.shape[0]:
                 continue
             loss = bce(logits, tgt)
