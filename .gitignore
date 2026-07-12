@@ -46,3 +46,6 @@ outputs/**
 # Exports (directory tracked via .gitkeep)
 exports/**
 !exports/.gitkeep
+
+# Vendored robot models / external repos
+third_party/
