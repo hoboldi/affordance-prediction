@@ -36,3 +36,9 @@ data/omniobject3d/
 # transient SAM3D camera scratch (not for merge)
 tmp_cam_input/
 tmp_cam_out/
+
+# untracked binaries/data (kept on disk, out of git)
+*.zip
+*.ply
+*.glb
+!data/sample.glb
