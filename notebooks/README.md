@@ -1,28 +1,18 @@
-# Stage testing notebooks
+# Notebooks
 
-Full requirements: [docs/implementation_order.md](../docs/implementation_order.md#stage-testing-notebooks-required).
+## `reverb_demo.ipynb`
 
-**Legend:** ✅ done · 🟡 partial · ⬜ not started · 🚫 blocked
+A minimal, end-to-end demo of **ReVerb**: load a trained model and a pre-reconstructed object, predict a
+**verb-conditioned per-vertex affordance map**, and visualise **verb routing** — the same object lighting up
+different, near-disjoint regions for *contain* / *pour* / *grasp*.
 
-| # | Notebook | Stage | Code ready | Status | Work on now? |
-|---|----------|--------|------------|--------|--------------|
-| 0 | `00_mesh_bootstrap.ipynb` | Mesh load / normalize | `datasets/mesh_loading.py` | ✅ | Run to verify locally |
-| 2 | `02_rendering_mesh_debug.ipynb` | Novel views (mesh) | `rendering/mesh_renderer.py` | ✅ | Run to verify locally |
-| 3 | `03_rendering_gaussian_splat.ipynb` | Novel views (3DGS / gsplat) | `gaussian_gsplat_renderer.py` | ✅ | PNG/JPEG → **`exports/gaussian_splat/`** (visible; `outputs/` is gitignored) |
-| 4 | `04_vlm_features_debug.ipynb` | VLM patches | `vlm/` (CLIP) | ✅ | After **02** caches (or re-render inline) |
-| 5 | `05_projection_debug.ipynb` | 2D→3D | `projection/project_to_mesh.py` | ✅ | After **02** + **04** caches |
-| 6 | `06_affordance_head_debug.ipynb` | MLP head | `models/mlp_head.py`, `training/affordance_fit.py`, `try_load_cached_global_latent` | 🟡 | **Yes** — optional `global_latent.pt` via `SAM3D_RUN_DIR` / `SAM3D_GLOBAL_LATENT_PATH` / `SAM3D_OBJECT_STEM` |
-| 7 | `07_training_evaluation_debug.ipynb` | Train/val loop | `training/vertex_affordance_train.py`, `DataRootDataset` | 🟡 | **Yes** — toy `examples/data_manifest` + `scripts/build_example_training_fixtures.py` |
-| 8 | `08_ablation_analysis.ipynb` | Ablations | — | ⬜ | Phase 2+ |
+Run it from the repo root (the first cell adds `src/` to the path). The paths at the top
+(`RECON_DIR`, `CKPT`) are environment-specific — point them at your own reconstructions and a trained fold
+checkpoint.
 
-**Note:** SAM3D reconstruction (`01_reconstruction_debug.ipynb`) is still planned once checkpoints are available. OmniObject3D ingestion + GEAL pseudolabels run via `scripts/` (see the repo README), not notebooks.
+To predict on a **new image**: reconstruct it with `scripts/generate_sam3d.py`, compute per-vertex features
+with `scripts/generate_vertex_dino.py` and `scripts/precompute_geom.py`, then run the notebook's prediction
+cells.
 
-**Typical run order (MVP):** `00` → `02` → `03` (optional gsplat) → `04` → `05` → `06` → **`07`** (manifest train/val; run fixture script first).
-
-```bash
-pip install -e ".[notebooks]"
-jupyter lab notebooks/00_mesh_bootstrap.ipynb
-jupyter lab notebooks/02_rendering_mesh_debug.ipynb
-```
-
-Caches: `outputs/notebooks/<stage>/` (e.g. `02_rendering`, `04_vlm`, `05_projection`).
+For the method, results, and analyses, see [`docs/RESULTS_consolidated.md`](../docs/RESULTS_consolidated.md)
+and [`docs/OVERNIGHT_FINDINGS.md`](../docs/OVERNIGHT_FINDINGS.md).
