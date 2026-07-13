@@ -1,0 +1,2837 @@
+[
+ {
+  "obj": "chair__106_12688_26450__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.138,
+  "gnn": 0.848,
+  "gap": 0.71,
+  "posfrac": 0.076
+ },
+ {
+  "obj": "handbag__30_1093_3177__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.283,
+  "gnn": 0.966,
+  "gap": 0.683,
+  "posfrac": 0.057
+ },
+ {
+  "obj": "cup__14_158_900__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.289,
+  "gnn": 0.937,
+  "gap": 0.647,
+  "posfrac": 0.147
+ },
+ {
+  "obj": "vase__101_11767_21644__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.272,
+  "gnn": 0.812,
+  "gap": 0.54,
+  "posfrac": 0.022
+ },
+ {
+  "obj": "handbag__30_1121_3297__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.422,
+  "gnn": 0.956,
+  "gap": 0.534,
+  "posfrac": 0.132
+ },
+ {
+  "obj": "cup__14_169_943__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.202,
+  "gnn": 0.694,
+  "gap": 0.492,
+  "posfrac": 0.189
+ },
+ {
+  "obj": "cup__14_164_1113__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.488,
+  "gnn": 0.961,
+  "gap": 0.473,
+  "posfrac": 0.045
+ },
+ {
+  "obj": "handbag__30_1103_3130__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.506,
+  "gnn": 0.972,
+  "gap": 0.466,
+  "posfrac": 0.094
+ },
+ {
+  "obj": "handbag__20_698_1364__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.558,
+  "gnn": 0.994,
+  "gap": 0.437,
+  "posfrac": 0.035
+ },
+ {
+  "obj": "laptop__122_14277_28317__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.628,
+  "gnn": 0.997,
+  "gap": 0.369,
+  "posfrac": 0.164
+ },
+ {
+  "obj": "vase__118_13865_29004__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.413,
+  "gnn": 0.756,
+  "gap": 0.343,
+  "posfrac": 0.155
+ },
+ {
+  "obj": "chair__106_12688_26450__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.292,
+  "gnn": 0.633,
+  "gap": 0.341,
+  "posfrac": 0.095
+ },
+ {
+  "obj": "cup__14_182_1006__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.613,
+  "gnn": 0.941,
+  "gap": 0.327,
+  "posfrac": 0.056
+ },
+ {
+  "obj": "laptop__112_13303_25265__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.673,
+  "gnn": 0.988,
+  "gap": 0.315,
+  "posfrac": 0.183
+ },
+ {
+  "obj": "laptop__122_14254_27531__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.696,
+  "gnn": 0.991,
+  "gap": 0.296,
+  "posfrac": 0.151
+ },
+ {
+  "obj": "cup__14_171_1141__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.432,
+  "gnn": 0.727,
+  "gap": 0.295,
+  "posfrac": 0.165
+ },
+ {
+  "obj": "laptop__140_16055_30860__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.697,
+  "gnn": 0.984,
+  "gap": 0.287,
+  "posfrac": 0.153
+ },
+ {
+  "obj": "handbag__28_956_2782__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.679,
+  "gnn": 0.949,
+  "gap": 0.271,
+  "posfrac": 0.102
+ },
+ {
+  "obj": "bottle__34_1420_4409__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.579,
+  "gnn": 0.845,
+  "gap": 0.267,
+  "posfrac": 0.153
+ },
+ {
+  "obj": "cup__12_100_593__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.617,
+  "gnn": 0.875,
+  "gap": 0.258,
+  "posfrac": 0.109
+ },
+ {
+  "obj": "chair__58_3366_10279__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.6,
+  "gnn": 0.847,
+  "gap": 0.246,
+  "posfrac": 0.136
+ },
+ {
+  "obj": "chair__108_12861_22663__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.631,
+  "gnn": 0.865,
+  "gap": 0.234,
+  "posfrac": 0.11
+ },
+ {
+  "obj": "vase__159_17479_33284__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.698,
+  "gnn": 0.932,
+  "gap": 0.233,
+  "posfrac": 0.339
+ },
+ {
+  "obj": "chair__108_12876_24774__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.654,
+  "gnn": 0.886,
+  "gap": 0.232,
+  "posfrac": 0.077
+ },
+ {
+  "obj": "vase__149_16584_32097__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.758,
+  "gnn": 0.986,
+  "gap": 0.228,
+  "posfrac": 0.353
+ },
+ {
+  "obj": "handbag__28_996_2872__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.726,
+  "gnn": 0.949,
+  "gap": 0.223,
+  "posfrac": 0.378
+ },
+ {
+  "obj": "handbag__28_993_3008__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.665,
+  "gnn": 0.886,
+  "gap": 0.221,
+  "posfrac": 0.253
+ },
+ {
+  "obj": "handbag__20_717_1427__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.519,
+  "gnn": 0.732,
+  "gap": 0.213,
+  "posfrac": 0.121
+ },
+ {
+  "obj": "handbag__30_1123_3363__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.764,
+  "gnn": 0.975,
+  "gap": 0.211,
+  "posfrac": 0.476
+ },
+ {
+  "obj": "bottle__34_1442_4480__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.578,
+  "gnn": 0.784,
+  "gap": 0.207,
+  "posfrac": 0.121
+ },
+ {
+  "obj": "cup__20_692_1363__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.739,
+  "gnn": 0.939,
+  "gap": 0.2,
+  "posfrac": 0.089
+ },
+ {
+  "obj": "bottle__34_1432_4568__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.696,
+  "gnn": 0.895,
+  "gap": 0.198,
+  "posfrac": 0.105
+ },
+ {
+  "obj": "bottle__34_1438_4509__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.721,
+  "gnn": 0.918,
+  "gap": 0.198,
+  "posfrac": 0.091
+ },
+ {
+  "obj": "cup__20_733_1376__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.12,
+  "gnn": 0.314,
+  "gap": 0.194,
+  "posfrac": 0.019
+ },
+ {
+  "obj": "chair__101_11753_20727__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.732,
+  "gnn": 0.918,
+  "gap": 0.187,
+  "posfrac": 0.159
+ },
+ {
+  "obj": "handbag__28_979_2845__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.607,
+  "gnn": 0.792,
+  "gap": 0.185,
+  "posfrac": 0.031
+ },
+ {
+  "obj": "handbag__30_1117_3275__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.748,
+  "gnn": 0.933,
+  "gap": 0.185,
+  "posfrac": 0.402
+ },
+ {
+  "obj": "handbag__30_1093_3177__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.761,
+  "gnn": 0.939,
+  "gap": 0.178,
+  "posfrac": 0.351
+ },
+ {
+  "obj": "handbag__30_1103_3130__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.726,
+  "gnn": 0.893,
+  "gap": 0.168,
+  "posfrac": 0.412
+ },
+ {
+  "obj": "chair__136_15651_30575__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.787,
+  "gnn": 0.951,
+  "gap": 0.165,
+  "posfrac": 0.114
+ },
+ {
+  "obj": "handbag__20_698_1364__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.605,
+  "gnn": 0.769,
+  "gap": 0.164,
+  "posfrac": 0.318
+ },
+ {
+  "obj": "chair__108_12863_22484__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.794,
+  "gnn": 0.952,
+  "gap": 0.157,
+  "posfrac": 0.101
+ },
+ {
+  "obj": "bottle__34_1433_4388__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.749,
+  "gnn": 0.896,
+  "gap": 0.147,
+  "posfrac": 0.146
+ },
+ {
+  "obj": "handbag__20_743_1438__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.846,
+  "gnn": 0.985,
+  "gap": 0.139,
+  "posfrac": 0.042
+ },
+ {
+  "obj": "handbag__28_996_2872__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.591,
+  "gnn": 0.73,
+  "gap": 0.139,
+  "posfrac": 0.098
+ },
+ {
+  "obj": "chair__58_3605_10332__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.23,
+  "gnn": 0.364,
+  "gap": 0.134,
+  "posfrac": 0.18
+ },
+ {
+  "obj": "handbag__20_743_1438__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.841,
+  "gnn": 0.975,
+  "gap": 0.134,
+  "posfrac": 0.443
+ },
+ {
+  "obj": "bottle__34_1435_4403__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.643,
+  "gnn": 0.776,
+  "gap": 0.133,
+  "posfrac": 0.109
+ },
+ {
+  "obj": "bottle__34_1431_4507__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.77,
+  "gnn": 0.902,
+  "gap": 0.131,
+  "posfrac": 0.13
+ },
+ {
+  "obj": "handbag__28_993_3008__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.442,
+  "gnn": 0.573,
+  "gap": 0.131,
+  "posfrac": 0.111
+ },
+ {
+  "obj": "handbag__28_979_2845__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.843,
+  "gnn": 0.972,
+  "gap": 0.129,
+  "posfrac": 0.467
+ },
+ {
+  "obj": "handbag__30_1121_3297__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.826,
+  "gnn": 0.955,
+  "gap": 0.129,
+  "posfrac": 0.377
+ },
+ {
+  "obj": "chair__108_12851_22786__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.834,
+  "gnn": 0.962,
+  "gap": 0.128,
+  "posfrac": 0.104
+ },
+ {
+  "obj": "chair__58_3353_10266__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.35,
+  "gnn": 0.478,
+  "gap": 0.128,
+  "posfrac": 0.306
+ },
+ {
+  "obj": "chair__555_79602_154353__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.755,
+  "gnn": 0.882,
+  "gap": 0.127,
+  "posfrac": 0.108
+ },
+ {
+  "obj": "chair__108_12851_22786__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.823,
+  "gnn": 0.949,
+  "gap": 0.126,
+  "posfrac": 0.091
+ },
+ {
+  "obj": "cup__14_171_1141__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.759,
+  "gnn": 0.885,
+  "gap": 0.126,
+  "posfrac": 0.074
+ },
+ {
+  "obj": "cup__20_685_1352__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.87,
+  "gnn": 0.995,
+  "gap": 0.125,
+  "posfrac": 0.048
+ },
+ {
+  "obj": "bottle__34_1411_4529__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.795,
+  "gnn": 0.918,
+  "gap": 0.123,
+  "posfrac": 0.128
+ },
+ {
+  "obj": "cup__20_726_1368__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.8,
+  "gnn": 0.924,
+  "gap": 0.123,
+  "posfrac": 0.081
+ },
+ {
+  "obj": "chair__108_12868_22877__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.821,
+  "gnn": 0.942,
+  "gap": 0.12,
+  "posfrac": 0.184
+ },
+ {
+  "obj": "chair__58_3377_10290__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.797,
+  "gnn": 0.917,
+  "gap": 0.12,
+  "posfrac": 0.104
+ },
+ {
+  "obj": "bottle__34_1432_4568__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.795,
+  "gnn": 0.915,
+  "gap": 0.119,
+  "posfrac": 0.031
+ },
+ {
+  "obj": "cup__14_158_900__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.859,
+  "gnn": 0.978,
+  "gap": 0.119,
+  "posfrac": 0.073
+ },
+ {
+  "obj": "bottle__34_1412_4313__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.828,
+  "gnn": 0.946,
+  "gap": 0.118,
+  "posfrac": 0.037
+ },
+ {
+  "obj": "bottle__34_1444_4486__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.802,
+  "gnn": 0.918,
+  "gap": 0.116,
+  "posfrac": 0.133
+ },
+ {
+  "obj": "chair__62_4316_10649__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.572,
+  "gnn": 0.688,
+  "gap": 0.116,
+  "posfrac": 0.184
+ },
+ {
+  "obj": "bottle__34_1409_4467__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.715,
+  "gnn": 0.828,
+  "gap": 0.114,
+  "posfrac": 0.203
+ },
+ {
+  "obj": "bottle__34_1397_4376__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.887,
+  "gnn": 0.999,
+  "gap": 0.111,
+  "posfrac": 0.289
+ },
+ {
+  "obj": "chair__149_16582_32137__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.808,
+  "gnn": 0.909,
+  "gap": 0.101,
+  "posfrac": 0.138
+ },
+ {
+  "obj": "bottle__34_1409_4467__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.853,
+  "gnn": 0.952,
+  "gap": 0.099,
+  "posfrac": 0.03
+ },
+ {
+  "obj": "chair__108_12848_23561__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.861,
+  "gnn": 0.958,
+  "gap": 0.098,
+  "posfrac": 0.117
+ },
+ {
+  "obj": "vase__149_16568_31914__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.895,
+  "gnn": 0.992,
+  "gap": 0.097,
+  "posfrac": 0.066
+ },
+ {
+  "obj": "chair__108_12859_23648__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.892,
+  "gnn": 0.988,
+  "gap": 0.096,
+  "posfrac": 0.101
+ },
+ {
+  "obj": "chair__127_14765_29670__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.753,
+  "gnn": 0.848,
+  "gap": 0.095,
+  "posfrac": 0.093
+ },
+ {
+  "obj": "cup__12_100_593__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.873,
+  "gnn": 0.967,
+  "gap": 0.095,
+  "posfrac": 0.04
+ },
+ {
+  "obj": "chair__108_12876_24774__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.69,
+  "gnn": 0.784,
+  "gap": 0.094,
+  "posfrac": 0.11
+ },
+ {
+  "obj": "bottle__34_1460_4582__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.602,
+  "gnn": 0.695,
+  "gap": 0.093,
+  "posfrac": 0.142
+ },
+ {
+  "obj": "tv__398_50497_99070__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.869,
+  "gnn": 0.962,
+  "gap": 0.093,
+  "posfrac": 0.462
+ },
+ {
+  "obj": "chair__101_11753_20727__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.832,
+  "gnn": 0.923,
+  "gap": 0.09,
+  "posfrac": 0.146
+ },
+ {
+  "obj": "bottle__34_1417_4447__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.911,
+  "gnn": 1.0,
+  "gap": 0.089,
+  "posfrac": 0.343
+ },
+ {
+  "obj": "bottle__34_1438_4509__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.108,
+  "gnn": 0.194,
+  "gap": 0.086,
+  "posfrac": 0.077
+ },
+ {
+  "obj": "bottle__34_1444_4486__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.909,
+  "gnn": 0.994,
+  "gap": 0.085,
+  "posfrac": 0.388
+ },
+ {
+  "obj": "cup__20_731_1374__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.76,
+  "gnn": 0.845,
+  "gap": 0.085,
+  "posfrac": 0.04
+ },
+ {
+  "obj": "bottle__34_1444_4486__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.526,
+  "gnn": 0.61,
+  "gap": 0.084,
+  "posfrac": 0.149
+ },
+ {
+  "obj": "laptop__112_13278_23665__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.909,
+  "gnn": 0.991,
+  "gap": 0.082,
+  "posfrac": 0.113
+ },
+ {
+  "obj": "chair__108_12895_27003__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.898,
+  "gnn": 0.977,
+  "gap": 0.079,
+  "posfrac": 0.23
+ },
+ {
+  "obj": "vase__101_11770_22027__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.913,
+  "gnn": 0.992,
+  "gap": 0.079,
+  "posfrac": 0.399
+ },
+ {
+  "obj": "vase__118_13872_29491__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.92,
+  "gnn": 0.998,
+  "gap": 0.078,
+  "posfrac": 0.377
+ },
+ {
+  "obj": "vase__149_16580_31753__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.908,
+  "gnn": 0.985,
+  "gap": 0.077,
+  "posfrac": 0.102
+ },
+ {
+  "obj": "cup__20_735_1524__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.88,
+  "gnn": 0.955,
+  "gap": 0.075,
+  "posfrac": 0.058
+ },
+ {
+  "obj": "bottle__34_1460_4582__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.906,
+  "gnn": 0.979,
+  "gap": 0.073,
+  "posfrac": 0.383
+ },
+ {
+  "obj": "vase__159_17483_33185__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.924,
+  "gnn": 0.998,
+  "gap": 0.073,
+  "posfrac": 0.073
+ },
+ {
+  "obj": "bottle__34_1412_4313__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.816,
+  "gnn": 0.888,
+  "gap": 0.072,
+  "posfrac": 0.201
+ },
+ {
+  "obj": "bottle__34_1418_4363__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.811,
+  "gnn": 0.882,
+  "gap": 0.072,
+  "posfrac": 0.048
+ },
+ {
+  "obj": "chair__127_14749_29921__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.904,
+  "gnn": 0.976,
+  "gap": 0.072,
+  "posfrac": 0.197
+ },
+ {
+  "obj": "bottle__34_1411_4529__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.781,
+  "gnn": 0.851,
+  "gap": 0.07,
+  "posfrac": 0.204
+ },
+ {
+  "obj": "bottle__34_1442_4480__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.902,
+  "gnn": 0.969,
+  "gap": 0.068,
+  "posfrac": 0.067
+ },
+ {
+  "obj": "chair__58_3373_10218__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.915,
+  "gnn": 0.984,
+  "gap": 0.068,
+  "posfrac": 0.128
+ },
+ {
+  "obj": "chair__108_12861_22663__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.828,
+  "gnn": 0.892,
+  "gap": 0.064,
+  "posfrac": 0.093
+ },
+ {
+  "obj": "vase__108_12883_25582__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.896,
+  "gnn": 0.959,
+  "gap": 0.063,
+  "posfrac": 0.123
+ },
+ {
+  "obj": "bottle__34_1412_4313__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.936,
+  "gnn": 0.998,
+  "gap": 0.061,
+  "posfrac": 0.453
+ },
+ {
+  "obj": "bottle__34_1438_4509__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.894,
+  "gnn": 0.955,
+  "gap": 0.061,
+  "posfrac": 0.326
+ },
+ {
+  "obj": "cup__14_182_1006__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.355,
+  "gnn": 0.417,
+  "gap": 0.061,
+  "posfrac": 0.049
+ },
+ {
+  "obj": "bottle__34_1459_4595__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.679,
+  "gnn": 0.739,
+  "gap": 0.059,
+  "posfrac": 0.12
+ },
+ {
+  "obj": "cup__14_158_900__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.88,
+  "gnn": 0.935,
+  "gap": 0.056,
+  "posfrac": 0.459
+ },
+ {
+  "obj": "vase__101_11757_21046__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.94,
+  "gnn": 0.994,
+  "gap": 0.054,
+  "posfrac": 0.136
+ },
+ {
+  "obj": "vase__149_16584_32097__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.933,
+  "gnn": 0.988,
+  "gap": 0.054,
+  "posfrac": 0.065
+ },
+ {
+  "obj": "bottle__34_1439_4477__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.826,
+  "gnn": 0.877,
+  "gap": 0.052,
+  "posfrac": 0.219
+ },
+ {
+  "obj": "bowl__69_5422_12723__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.911,
+  "gnn": 0.963,
+  "gap": 0.052,
+  "posfrac": 0.427
+ },
+ {
+  "obj": "bottle__34_1435_4403__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.921,
+  "gnn": 0.97,
+  "gap": 0.049,
+  "posfrac": 0.311
+ },
+ {
+  "obj": "laptop__131_15148_29934__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.946,
+  "gnn": 0.995,
+  "gap": 0.049,
+  "posfrac": 0.152
+ },
+ {
+  "obj": "cup__20_685_1352__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.891,
+  "gnn": 0.939,
+  "gap": 0.048,
+  "posfrac": 0.043
+ },
+ {
+  "obj": "laptop__140_16064_31443__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.937,
+  "gnn": 0.984,
+  "gap": 0.047,
+  "posfrac": 0.171
+ },
+ {
+  "obj": "vase__101_11767_21644__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.946,
+  "gnn": 0.992,
+  "gap": 0.046,
+  "posfrac": 0.314
+ },
+ {
+  "obj": "bottle__34_1409_4467__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.953,
+  "gnn": 0.998,
+  "gap": 0.045,
+  "posfrac": 0.431
+ },
+ {
+  "obj": "bottle__34_1431_4507__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.942,
+  "gnn": 0.987,
+  "gap": 0.045,
+  "posfrac": 0.42
+ },
+ {
+  "obj": "bottle__34_1448_4508__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.932,
+  "gnn": 0.977,
+  "gap": 0.045,
+  "posfrac": 0.087
+ },
+ {
+  "obj": "chair__127_14751_30004__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.563,
+  "gnn": 0.607,
+  "gap": 0.044,
+  "posfrac": 0.103
+ },
+ {
+  "obj": "vase__108_12884_25544__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.944,
+  "gnn": 0.988,
+  "gap": 0.044,
+  "posfrac": 0.045
+ },
+ {
+  "obj": "bottle__34_1460_4582__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.854,
+  "gnn": 0.897,
+  "gap": 0.043,
+  "posfrac": 0.091
+ },
+ {
+  "obj": "bowl__69_5405_12683__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.946,
+  "gnn": 0.987,
+  "gap": 0.042,
+  "posfrac": 0.413
+ },
+ {
+  "obj": "cup__12_100_593__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.955,
+  "gnn": 0.997,
+  "gap": 0.042,
+  "posfrac": 0.426
+ },
+ {
+  "obj": "vase__108_12888_25679__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.95,
+  "gnn": 0.992,
+  "gap": 0.042,
+  "posfrac": 0.247
+ },
+ {
+  "obj": "bottle__34_1433_4388__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.913,
+  "gnn": 0.955,
+  "gap": 0.041,
+  "posfrac": 0.043
+ },
+ {
+  "obj": "chair__62_4317_10388__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.815,
+  "gnn": 0.856,
+  "gap": 0.041,
+  "posfrac": 0.137
+ },
+ {
+  "obj": "bottle__34_1459_4595__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.958,
+  "gnn": 0.998,
+  "gap": 0.04,
+  "posfrac": 0.396
+ },
+ {
+  "obj": "chair__108_12868_22877__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.945,
+  "gnn": 0.984,
+  "gap": 0.039,
+  "posfrac": 0.058
+ },
+ {
+  "obj": "cup__14_171_1141__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.947,
+  "gnn": 0.985,
+  "gap": 0.038,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "bottle__34_1433_4388__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.956,
+  "gnn": 0.993,
+  "gap": 0.037,
+  "posfrac": 0.455
+ },
+ {
+  "obj": "handbag__20_717_1427__v000",
+  "cat": "handbag",
+  "verb": "contain",
+  "mlp": 0.898,
+  "gnn": 0.935,
+  "gap": 0.037,
+  "posfrac": 0.44
+ },
+ {
+  "obj": "bottle__34_1418_4363__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.96,
+  "gnn": 0.996,
+  "gap": 0.036,
+  "posfrac": 0.397
+ },
+ {
+  "obj": "chair__58_3373_10218__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.912,
+  "gnn": 0.948,
+  "gap": 0.036,
+  "posfrac": 0.131
+ },
+ {
+  "obj": "cup__20_700_1535__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.939,
+  "gnn": 0.974,
+  "gap": 0.036,
+  "posfrac": 0.177
+ },
+ {
+  "obj": "bottle__34_1459_4595__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.915,
+  "gnn": 0.95,
+  "gap": 0.035,
+  "posfrac": 0.088
+ },
+ {
+  "obj": "chair__62_4316_10649__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.94,
+  "gnn": 0.976,
+  "gap": 0.035,
+  "posfrac": 0.112
+ },
+ {
+  "obj": "tv__398_50483_99041__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.933,
+  "gnn": 0.968,
+  "gap": 0.035,
+  "posfrac": 0.072
+ },
+ {
+  "obj": "bottle__34_1461_4579__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.964,
+  "gnn": 0.998,
+  "gap": 0.034,
+  "posfrac": 0.067
+ },
+ {
+  "obj": "bottle__34_1435_4403__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.937,
+  "gnn": 0.97,
+  "gap": 0.033,
+  "posfrac": 0.137
+ },
+ {
+  "obj": "vase__159_17483_33185__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.963,
+  "gnn": 0.996,
+  "gap": 0.033,
+  "posfrac": 0.462
+ },
+ {
+  "obj": "chair__127_14751_30004__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.92,
+  "gnn": 0.952,
+  "gap": 0.032,
+  "posfrac": 0.13
+ },
+ {
+  "obj": "chair__58_3366_10279__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.964,
+  "gnn": 0.996,
+  "gap": 0.032,
+  "posfrac": 0.086
+ },
+ {
+  "obj": "chair__62_4316_10653__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.944,
+  "gnn": 0.976,
+  "gap": 0.032,
+  "posfrac": 0.198
+ },
+ {
+  "obj": "tv__396_49386_97450__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.896,
+  "gnn": 0.928,
+  "gap": 0.032,
+  "posfrac": 0.059
+ },
+ {
+  "obj": "vase__108_12884_25544__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.96,
+  "gnn": 0.992,
+  "gap": 0.032,
+  "posfrac": 0.466
+ },
+ {
+  "obj": "bottle__34_1461_4579__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.964,
+  "gnn": 0.995,
+  "gap": 0.031,
+  "posfrac": 0.403
+ },
+ {
+  "obj": "chair__127_14765_29670__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.926,
+  "gnn": 0.957,
+  "gap": 0.031,
+  "posfrac": 0.181
+ },
+ {
+  "obj": "bottle__34_1458_4773__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.966,
+  "gnn": 0.997,
+  "gap": 0.03,
+  "posfrac": 0.351
+ },
+ {
+  "obj": "cup__14_167_1083__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.964,
+  "gnn": 0.994,
+  "gap": 0.03,
+  "posfrac": 0.067
+ },
+ {
+  "obj": "bottle__34_1432_4568__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.97,
+  "gnn": 0.999,
+  "gap": 0.029,
+  "posfrac": 0.354
+ },
+ {
+  "obj": "laptop__131_15156_29825__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.956,
+  "gnn": 0.985,
+  "gap": 0.029,
+  "posfrac": 0.178
+ },
+ {
+  "obj": "chair__136_15658_31371__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.901,
+  "gnn": 0.929,
+  "gap": 0.028,
+  "posfrac": 0.133
+ },
+ {
+  "obj": "chair__149_16582_32137__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.958,
+  "gnn": 0.986,
+  "gap": 0.028,
+  "posfrac": 0.085
+ },
+ {
+  "obj": "bottle__34_1448_4508__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.969,
+  "gnn": 0.996,
+  "gap": 0.026,
+  "posfrac": 0.396
+ },
+ {
+  "obj": "bottle__34_1439_4477__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.972,
+  "gnn": 0.996,
+  "gap": 0.024,
+  "posfrac": 0.092
+ },
+ {
+  "obj": "tv__398_50447_98995__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.839,
+  "gnn": 0.861,
+  "gap": 0.023,
+  "posfrac": 0.103
+ },
+ {
+  "obj": "tv__48_2763_8316__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.91,
+  "gnn": 0.932,
+  "gap": 0.022,
+  "posfrac": 0.128
+ },
+ {
+  "obj": "vase__118_13863_29037__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.976,
+  "gnn": 0.997,
+  "gap": 0.022,
+  "posfrac": 0.42
+ },
+ {
+  "obj": "bottle__34_1397_4376__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.899,
+  "gnn": 0.92,
+  "gap": 0.02,
+  "posfrac": 0.153
+ },
+ {
+  "obj": "chair__108_12872_24156__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.865,
+  "gnn": 0.884,
+  "gap": 0.02,
+  "posfrac": 0.163
+ },
+ {
+  "obj": "chair__108_12895_27003__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.967,
+  "gnn": 0.985,
+  "gap": 0.018,
+  "posfrac": 0.07
+ },
+ {
+  "obj": "laptop__112_13316_27055__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.976,
+  "gnn": 0.994,
+  "gap": 0.018,
+  "posfrac": 0.133
+ },
+ {
+  "obj": "bottle__34_1420_4409__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.983,
+  "gnn": 0.999,
+  "gap": 0.017,
+  "posfrac": 0.389
+ },
+ {
+  "obj": "laptop__112_13287_23940__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.977,
+  "gnn": 0.995,
+  "gap": 0.017,
+  "posfrac": 0.138
+ },
+ {
+  "obj": "vase__118_13872_29491__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.979,
+  "gnn": 0.996,
+  "gap": 0.017,
+  "posfrac": 0.086
+ },
+ {
+  "obj": "bottle__34_1420_4409__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.982,
+  "gnn": 0.998,
+  "gap": 0.016,
+  "posfrac": 0.058
+ },
+ {
+  "obj": "bottle__34_1456_4567__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.984,
+  "gnn": 0.999,
+  "gap": 0.016,
+  "posfrac": 0.077
+ },
+ {
+  "obj": "cup__14_164_1113__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.982,
+  "gnn": 0.998,
+  "gap": 0.016,
+  "posfrac": 0.423
+ },
+ {
+  "obj": "vase__101_11754_20739__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.981,
+  "gnn": 0.997,
+  "gap": 0.016,
+  "posfrac": 0.239
+ },
+ {
+  "obj": "vase__118_13865_29004__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.967,
+  "gnn": 0.983,
+  "gap": 0.016,
+  "posfrac": 0.463
+ },
+ {
+  "obj": "bowl__69_5383_12656__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.981,
+  "gnn": 0.996,
+  "gap": 0.015,
+  "posfrac": 0.502
+ },
+ {
+  "obj": "chair__108_12873_24431__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.907,
+  "gnn": 0.922,
+  "gap": 0.015,
+  "posfrac": 0.113
+ },
+ {
+  "obj": "cup__20_735_1524__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.908,
+  "gnn": 0.923,
+  "gap": 0.015,
+  "posfrac": 0.051
+ },
+ {
+  "obj": "vase__101_11757_21046__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.983,
+  "gnn": 0.999,
+  "gap": 0.015,
+  "posfrac": 0.499
+ },
+ {
+  "obj": "cup__14_201_1176__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.891,
+  "gnn": 0.905,
+  "gap": 0.014,
+  "posfrac": 0.053
+ },
+ {
+  "obj": "laptop__122_14291_29271__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.987,
+  "gnn": 0.999,
+  "gap": 0.013,
+  "posfrac": 0.174
+ },
+ {
+  "obj": "tv__401_52103_102180__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.945,
+  "gnn": 0.958,
+  "gap": 0.013,
+  "posfrac": 0.101
+ },
+ {
+  "obj": "vase__108_12867_22800__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.984,
+  "gnn": 0.997,
+  "gap": 0.013,
+  "posfrac": 0.143
+ },
+ {
+  "obj": "chair__108_12873_24431__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.944,
+  "gnn": 0.956,
+  "gap": 0.012,
+  "posfrac": 0.135
+ },
+ {
+  "obj": "chair__58_3363_10302__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.968,
+  "gnn": 0.98,
+  "gap": 0.012,
+  "posfrac": 0.179
+ },
+ {
+  "obj": "vase__149_16568_31914__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.985,
+  "gnn": 0.997,
+  "gap": 0.012,
+  "posfrac": 0.418
+ },
+ {
+  "obj": "chair__108_12863_22484__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.971,
+  "gnn": 0.982,
+  "gap": 0.011,
+  "posfrac": 0.124
+ },
+ {
+  "obj": "chair__136_15651_30575__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.914,
+  "gnn": 0.926,
+  "gap": 0.011,
+  "posfrac": 0.181
+ },
+ {
+  "obj": "chair__136_15658_31371__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.937,
+  "gnn": 0.948,
+  "gap": 0.011,
+  "posfrac": 0.091
+ },
+ {
+  "obj": "cup__20_700_1535__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.976,
+  "gnn": 0.988,
+  "gap": 0.011,
+  "posfrac": 0.098
+ },
+ {
+  "obj": "vase__108_12883_25582__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.986,
+  "gnn": 0.997,
+  "gap": 0.011,
+  "posfrac": 0.458
+ },
+ {
+  "obj": "cup__20_735_1524__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.99,
+  "gnn": 1.0,
+  "gap": 0.01,
+  "posfrac": 0.452
+ },
+ {
+  "obj": "vase__118_13863_29037__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.988,
+  "gnn": 0.997,
+  "gap": 0.009,
+  "posfrac": 0.07
+ },
+ {
+  "obj": "bowl__69_5403_12681__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.978,
+  "gnn": 0.985,
+  "gap": 0.007,
+  "posfrac": 0.484
+ },
+ {
+  "obj": "cup__14_201_1176__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.99,
+  "gnn": 0.997,
+  "gap": 0.007,
+  "posfrac": 0.485
+ },
+ {
+  "obj": "tv__397_50126_98564__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.914,
+  "gnn": 0.921,
+  "gap": 0.007,
+  "posfrac": 0.045
+ },
+ {
+  "obj": "cup__14_164_1113__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.694,
+  "gnn": 0.7,
+  "gap": 0.006,
+  "posfrac": 0.09
+ },
+ {
+  "obj": "vase__101_11762_21582__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.991,
+  "gnn": 0.997,
+  "gap": 0.006,
+  "posfrac": 0.468
+ },
+ {
+  "obj": "vase__136_15659_31379__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.979,
+  "gnn": 0.985,
+  "gap": 0.006,
+  "posfrac": 0.387
+ },
+ {
+  "obj": "bottle__34_1456_4567__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.994,
+  "gnn": 0.999,
+  "gap": 0.005,
+  "posfrac": 0.394
+ },
+ {
+  "obj": "bottle__34_1461_4579__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.815,
+  "gnn": 0.82,
+  "gap": 0.005,
+  "posfrac": 0.096
+ },
+ {
+  "obj": "chair__62_4317_10388__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.988,
+  "gnn": 0.993,
+  "gap": 0.005,
+  "posfrac": 0.199
+ },
+ {
+  "obj": "microwave__34_1470_4676__v000",
+  "cat": "microwave",
+  "verb": "contain",
+  "mlp": 0.818,
+  "gnn": 0.823,
+  "gap": 0.005,
+  "posfrac": 0.492
+ },
+ {
+  "obj": "vase__101_11754_20739__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.99,
+  "gnn": 0.995,
+  "gap": 0.005,
+  "posfrac": 0.477
+ },
+ {
+  "obj": "bowl__69_5523_12890__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.996,
+  "gnn": 1.0,
+  "gap": 0.004,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "cup__20_692_1363__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.995,
+  "gnn": 0.999,
+  "gap": 0.004,
+  "posfrac": 0.439
+ },
+ {
+  "obj": "cup__14_169_943__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.992,
+  "gnn": 0.995,
+  "gap": 0.003,
+  "posfrac": 0.132
+ },
+ {
+  "obj": "cup__20_726_1368__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.996,
+  "gnn": 0.999,
+  "gap": 0.003,
+  "posfrac": 0.456
+ },
+ {
+  "obj": "cup__20_733_1376__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.995,
+  "gnn": 0.997,
+  "gap": 0.003,
+  "posfrac": 0.429
+ },
+ {
+  "obj": "vase__169_18373_33932__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.995,
+  "gnn": 0.998,
+  "gap": 0.003,
+  "posfrac": 0.471
+ },
+ {
+  "obj": "bowl__69_5475_12824__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.997,
+  "gnn": 0.999,
+  "gap": 0.002,
+  "posfrac": 0.501
+ },
+ {
+  "obj": "bowl__69_5503_12867__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 1.0,
+  "gap": 0.002,
+  "posfrac": 0.503
+ },
+ {
+  "obj": "cup__20_685_1352__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 1.0,
+  "gap": 0.002,
+  "posfrac": 0.468
+ },
+ {
+  "obj": "bottle__34_1439_4477__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 0.999,
+  "gap": 0.001,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "bowl__66_4878_11834__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.485
+ },
+ {
+  "obj": "bowl__69_5376_12833__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.473
+ },
+ {
+  "obj": "bowl__69_5400_12679__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.471
+ },
+ {
+  "obj": "bowl__69_5407_12685__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "bowl__69_5423_12766__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.471
+ },
+ {
+  "obj": "bowl__69_5504_12869__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 0.999,
+  "gap": 0.001,
+  "posfrac": 0.508
+ },
+ {
+  "obj": "bowl__69_5507_12872__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.505
+ },
+ {
+  "obj": "cup__14_169_943__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "cup__20_686_1362__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.997,
+  "gnn": 0.999,
+  "gap": 0.001,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "cup__20_700_1535__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 0.999,
+  "gap": 0.001,
+  "posfrac": 0.481
+ },
+ {
+  "obj": "cup__20_722_1367__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 1.0,
+  "gap": 0.001,
+  "posfrac": 0.486
+ },
+ {
+  "obj": "cup__20_731_1374__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.998,
+  "gnn": 0.999,
+  "gap": 0.001,
+  "posfrac": 0.462
+ },
+ {
+  "obj": "bowl__602_93517_186985__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.481
+ },
+ {
+  "obj": "bowl__66_4892_11828__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.495
+ },
+ {
+  "obj": "bowl__66_4893_11829__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "bowl__66_4894_11831__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.489
+ },
+ {
+  "obj": "bowl__66_4895_11832__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.478
+ },
+ {
+  "obj": "bowl__69_5382_12746__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "bowl__69_5391_12675__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.474
+ },
+ {
+  "obj": "bowl__69_5398_12677__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.482
+ },
+ {
+  "obj": "bowl__69_5399_12678__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.477
+ },
+ {
+  "obj": "bowl__69_5402_12680__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.47
+ },
+ {
+  "obj": "bowl__69_5406_12684__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.49
+ },
+ {
+  "obj": "bowl__69_5418_12829__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.475
+ },
+ {
+  "obj": "bowl__69_5444_12838__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.474
+ },
+ {
+  "obj": "bowl__69_5448_12791__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.488
+ },
+ {
+  "obj": "bowl__69_5452_12798__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.496
+ },
+ {
+  "obj": "bowl__69_5455_12801__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.489
+ },
+ {
+  "obj": "bowl__69_5460_12809__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.496
+ },
+ {
+  "obj": "bowl__69_5464_12863__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.475
+ },
+ {
+  "obj": "bowl__69_5465_12831__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "bowl__69_5467_12815__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.486
+ },
+ {
+  "obj": "bowl__69_5478_12827__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "bowl__69_5480_12841__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.996,
+  "gnn": 0.996,
+  "gap": -0.0,
+  "posfrac": 0.509
+ },
+ {
+  "obj": "bowl__69_5484_12848__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.993,
+  "gnn": 0.993,
+  "gap": 0.0,
+  "posfrac": 0.551
+ },
+ {
+  "obj": "bowl__69_5486_12849__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.485
+ },
+ {
+  "obj": "bowl__69_5487_12850__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "bowl__69_5488_12851__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.484
+ },
+ {
+  "obj": "bowl__69_5489_12852__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.49
+ },
+ {
+  "obj": "bowl__69_5490_12853__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.475
+ },
+ {
+  "obj": "bowl__69_5491_12854__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "bowl__69_5492_12855__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.471
+ },
+ {
+  "obj": "bowl__69_5493_12856__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "bowl__69_5494_12857__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.47
+ },
+ {
+  "obj": "bowl__69_5495_12858__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.474
+ },
+ {
+  "obj": "bowl__69_5496_12859__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.476
+ },
+ {
+  "obj": "bowl__69_5498_12861__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.473
+ },
+ {
+  "obj": "bowl__69_5499_12862__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.48
+ },
+ {
+  "obj": "bowl__69_5500_12864__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "bowl__69_5501_12865__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.474
+ },
+ {
+  "obj": "bowl__69_5502_12866__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "bowl__69_5511_12876__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.498
+ },
+ {
+  "obj": "bowl__69_5512_12880__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.47
+ },
+ {
+  "obj": "bowl__69_5513_12879__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.495
+ },
+ {
+  "obj": "bowl__69_5515_12882__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.49
+ },
+ {
+  "obj": "bowl__69_5516_12883__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "bowl__69_5517_12884__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.497
+ },
+ {
+  "obj": "bowl__69_5519_12886__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.501
+ },
+ {
+  "obj": "bowl__69_5520_12887__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.494
+ },
+ {
+  "obj": "bowl__69_5521_12888__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.492
+ },
+ {
+  "obj": "bowl__69_5522_12891__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.49
+ },
+ {
+  "obj": "bowl__69_5524_12892__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.492
+ },
+ {
+  "obj": "cup__14_167_1083__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "cup__14_202_1205__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": 0.0,
+  "posfrac": 0.479
+ },
+ {
+  "obj": "vase__108_12892_26679__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 0.999,
+  "gap": -0.0,
+  "posfrac": 0.472
+ },
+ {
+  "obj": "vase__159_17498_33532__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.997,
+  "gnn": 0.998,
+  "gap": 0.0,
+  "posfrac": 0.487
+ },
+ {
+  "obj": "vase__159_17501_33574__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 1.0,
+  "gnn": 1.0,
+  "gap": -0.0,
+  "posfrac": 0.474
+ },
+ {
+  "obj": "vase__169_18383_34308__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.96,
+  "gnn": 0.96,
+  "gap": 0.0,
+  "posfrac": 0.492
+ },
+ {
+  "obj": "bowl__69_5404_12682__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.997,
+  "gnn": 0.996,
+  "gap": -0.001,
+  "posfrac": 0.506
+ },
+ {
+  "obj": "bowl__69_5479_12832__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 0.998,
+  "gap": -0.001,
+  "posfrac": 0.489
+ },
+ {
+  "obj": "bowl__69_5483_12844__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.995,
+  "gnn": 0.994,
+  "gap": -0.001,
+  "posfrac": 0.552
+ },
+ {
+  "obj": "bottle__34_1411_4529__v000",
+  "cat": "bottle",
+  "verb": "contain",
+  "mlp": 0.993,
+  "gnn": 0.991,
+  "gap": -0.002,
+  "posfrac": 0.385
+ },
+ {
+  "obj": "chair__58_3353_10266__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.945,
+  "gnn": 0.943,
+  "gap": -0.002,
+  "posfrac": 0.266
+ },
+ {
+  "obj": "cup__14_182_1006__v000",
+  "cat": "cup",
+  "verb": "contain",
+  "mlp": 0.989,
+  "gnn": 0.987,
+  "gap": -0.002,
+  "posfrac": 0.423
+ },
+ {
+  "obj": "bowl__69_5505_12870__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.999,
+  "gnn": 0.996,
+  "gap": -0.003,
+  "posfrac": 0.504
+ },
+ {
+  "obj": "chair__62_4316_10653__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.977,
+  "gnn": 0.974,
+  "gap": -0.003,
+  "posfrac": 0.122
+ },
+ {
+  "obj": "bottle__34_1417_4447__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.784,
+  "gnn": 0.779,
+  "gap": -0.004,
+  "posfrac": 0.154
+ },
+ {
+  "obj": "chair__118_13857_28226__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.99,
+  "gnn": 0.986,
+  "gap": -0.004,
+  "posfrac": 0.189
+ },
+ {
+  "obj": "cup__14_167_1083__v000",
+  "cat": "cup",
+  "verb": "grasp",
+  "mlp": 0.789,
+  "gnn": 0.784,
+  "gap": -0.004,
+  "posfrac": 0.161
+ },
+ {
+  "obj": "tv__398_50419_98956__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.88,
+  "gnn": 0.876,
+  "gap": -0.004,
+  "posfrac": 0.241
+ },
+ {
+  "obj": "tv__28_940_2112__v000",
+  "cat": "tv",
+  "verb": "display",
+  "mlp": 0.937,
+  "gnn": 0.93,
+  "gap": -0.007,
+  "posfrac": 0.356
+ },
+ {
+  "obj": "bottle__34_1417_4447__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.077,
+  "gnn": 0.068,
+  "gap": -0.008,
+  "posfrac": 0.014
+ },
+ {
+  "obj": "vase__108_12888_25679__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.996,
+  "gnn": 0.985,
+  "gap": -0.011,
+  "posfrac": 0.482
+ },
+ {
+  "obj": "vase__136_15659_31379__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.996,
+  "gnn": 0.986,
+  "gap": -0.011,
+  "posfrac": 0.148
+ },
+ {
+  "obj": "bottle__34_1458_4773__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.613,
+  "gnn": 0.601,
+  "gap": -0.012,
+  "posfrac": 0.049
+ },
+ {
+  "obj": "chair__108_12872_24156__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.98,
+  "gnn": 0.965,
+  "gap": -0.016,
+  "posfrac": 0.203
+ },
+ {
+  "obj": "chair__555_79602_154353__v000",
+  "cat": "chair",
+  "verb": "sit",
+  "mlp": 0.937,
+  "gnn": 0.921,
+  "gap": -0.016,
+  "posfrac": 0.206
+ },
+ {
+  "obj": "vase__159_17488_33294__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.983,
+  "gnn": 0.967,
+  "gap": -0.016,
+  "posfrac": 0.056
+ },
+ {
+  "obj": "bottle__34_1431_4507__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.915,
+  "gnn": 0.898,
+  "gap": -0.017,
+  "posfrac": 0.05
+ },
+ {
+  "obj": "chair__118_13857_28226__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.688,
+  "gnn": 0.668,
+  "gap": -0.02,
+  "posfrac": 0.111
+ },
+ {
+  "obj": "chair__58_3363_10302__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.875,
+  "gnn": 0.854,
+  "gap": -0.021,
+  "posfrac": 0.12
+ },
+ {
+  "obj": "vase__108_12892_26679__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.996,
+  "gnn": 0.974,
+  "gap": -0.022,
+  "posfrac": 0.072
+ },
+ {
+  "obj": "chair__58_3605_10332__v000",
+  "cat": "chair",
+  "verb": "move",
+  "mlp": 0.575,
+  "gnn": 0.552,
+  "gap": -0.023,
+  "posfrac": 0.113
+ },
+ {
+  "obj": "bowl__69_5485_12846__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.997,
+  "gnn": 0.972,
+  "gap": -0.025,
+  "posfrac": 0.505
+ },
+ {
+  "obj": "bottle__34_1456_4567__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.888,
+  "gnn": 0.856,
+  "gap": -0.032,
+  "posfrac": 0.189
+ },
+ {
+  "obj": "vase__118_13864_29182__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.887,
+  "gnn": 0.851,
+  "gap": -0.037,
+  "posfrac": 0.056
+ },
+ {
+  "obj": "bottle__34_1448_4508__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.303,
+  "gnn": 0.265,
+  "gap": -0.038,
+  "posfrac": 0.14
+ },
+ {
+  "obj": "cup__14_202_1205__v000",
+  "cat": "cup",
+  "verb": "pour",
+  "mlp": 0.935,
+  "gnn": 0.877,
+  "gap": -0.058,
+  "posfrac": 0.037
+ },
+ {
+  "obj": "bottle__34_1397_4376__v000",
+  "cat": "bottle",
+  "verb": "pour",
+  "mlp": 0.152,
+  "gnn": 0.088,
+  "gap": -0.064,
+  "posfrac": 0.025
+ },
+ {
+  "obj": "vase__101_11770_22027__v000",
+  "cat": "vase",
+  "verb": "pour",
+  "mlp": 0.976,
+  "gnn": 0.907,
+  "gap": -0.068,
+  "posfrac": 0.077
+ },
+ {
+  "obj": "vase__149_16580_31753__v000",
+  "cat": "vase",
+  "verb": "contain",
+  "mlp": 0.979,
+  "gnn": 0.897,
+  "gap": -0.082,
+  "posfrac": 0.35
+ },
+ {
+  "obj": "bottle__34_1458_4773__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.612,
+  "gnn": 0.508,
+  "gap": -0.104,
+  "posfrac": 0.183
+ },
+ {
+  "obj": "bottle__34_1418_4363__v000",
+  "cat": "bottle",
+  "verb": "grasp",
+  "mlp": 0.358,
+  "gnn": 0.245,
+  "gap": -0.113,
+  "posfrac": 0.152
+ },
+ {
+  "obj": "laptop__112_13299_24910__v000",
+  "cat": "laptop",
+  "verb": "display",
+  "mlp": 0.498,
+  "gnn": 0.32,
+  "gap": -0.178,
+  "posfrac": 0.242
+ },
+ {
+  "obj": "handbag__30_1117_3275__v000",
+  "cat": "handbag",
+  "verb": "grasp",
+  "mlp": 0.532,
+  "gnn": 0.304,
+  "gap": -0.228,
+  "posfrac": 0.065
+ },
+ {
+  "obj": "bowl__69_5508_12873__v000",
+  "cat": "bowl",
+  "verb": "contain",
+  "mlp": 0.921,
+  "gnn": 0.486,
+  "gap": -0.434,
+  "posfrac": 0.265
+ }
+]
