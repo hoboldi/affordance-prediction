@@ -42,3 +42,4 @@ tmp_cam_out/
 *.ply
 *.glb
 !data/sample.glb
+/human_annotation
