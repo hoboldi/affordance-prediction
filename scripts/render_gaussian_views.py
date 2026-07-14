@@ -17,14 +17,14 @@ Example (full splat, GPU)::
 
     PYTHONPATH=src python scripts/render_gaussian_views.py \\
         --backend gsplat \\
-        --splat_path examples/gaussian_splat/tiny_gaussians.ply \\
+        --splat_path path/to/your_splat.ply \\
         --output_dir outputs/gaussian_renders/demo
 
 Example (centre preview only, CPU/EGL)::
 
     PYTHONPATH=src python scripts/render_gaussian_views.py \\
         --backend preview \\
-        --splat_path examples/gaussian_splat/tiny_gaussians.ply \\
+        --splat_path path/to/your_splat.ply \\
         --output_dir outputs/gaussian_renders/demo
 """
 

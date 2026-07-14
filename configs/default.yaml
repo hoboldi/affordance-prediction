@@ -63,11 +63,11 @@ rendering:
   depth_tolerance: 0.05
   depth_relative_tolerance: 0.03
   # mesh | gaussian | both — gaussian/both use splat RGB when splat_path exists (else mesh RGB).
-  # For coherent appearance + vertex projection, point mesh_path and splat_path at the same
-  # SAM3D reconstruction (see cfg_with_sam3d_reconstruction). Example ply alone is for smoke tests.
-  backend: gaussian
-  mesh_path: data/sample.glb
-  splat_path: examples/gaussian_splat/tiny_gaussians.ply
+  # Point mesh_path (and optionally splat_path) at your SAM3D reconstruction; the pipeline sets
+  # them per object via cfg_with_sam3d_reconstruction.
+  backend: mesh
+  mesh_path: null
+  splat_path: null
 
 projection:
   clip_image_size: 224  # CLIP input side length (ViT-B/32)

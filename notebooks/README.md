@@ -14,5 +14,4 @@ To predict on a **new image**: reconstruct it with `scripts/generate_sam3d.py`, 
 with `scripts/generate_vertex_dino.py` and `scripts/precompute_geom.py`, then run the notebook's prediction
 cells.
 
-For the method, results, and analyses, see [`docs/RESULTS_consolidated.md`](../docs/RESULTS_consolidated.md)
-and [`docs/OVERNIGHT_FINDINGS.md`](../docs/OVERNIGHT_FINDINGS.md).
+For the method, results, and analyses, see [`docs/RESULTS.md`](../docs/RESULTS.md).

@@ -97,8 +97,8 @@ For **Hopper (H100)**, you may need `9.0a+PTX` or `9.0+PTX` depending on your Py
 1. Install the **Dev Containers** extension (VS Code) or use Cursor’s built-in dev-container support.
 2. From the repo root: Command Palette → **Dev Containers: Reopen in Container** (or **Rebuild and Reopen in Container** after a Dockerfile change).
 3. Wait for Compose to start the **`autonomous-pipeline`** service; the workspace folder is **`/workspace`** (your bind-mounted repo).
-4. Open a notebook under **`notebooks/`** → **Select Kernel** → **`/opt/conda/envs/sam3d/bin/python`** (or *Python Environments…* → that interpreter). `.vscode/settings.json` already points `python.defaultInterpreterPath` there when you are inside the container.
-5. Optional: start Jupyter in a terminal and use port **8888** (forwarded by `.devcontainer/devcontainer.json`):
+4. Open a notebook under **`notebooks/`** → **Select Kernel** → **`/opt/conda/envs/sam3d/bin/python`** (or *Python Environments…* → that interpreter).
+5. Optional: start Jupyter in a terminal and forward port **8888**:
 
    ```bash
    jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
@@ -118,8 +118,8 @@ In VS Code: Command Palette → **Dev Containers: Attach to Running Container** 
 
 ## VS Code / Cursor: “Python not found” in the container
 
-1. **Workspace settings** — this repo includes **`.vscode/settings.json`** so the Python extension uses  
-   **`/opt/conda/envs/sam3d/bin/python`** and the integrated terminal gets the same **`PATH`** / conda env vars after attach. **Reload the window** once after attach: Command Palette → **Developer: Reload Window**.
+1. **Workspace settings** — set the Python extension interpreter to  
+   **`/opt/conda/envs/sam3d/bin/python`** so the integrated terminal gets the same **`PATH`** / conda env vars after attach. **Reload the window** once after attach: Command Palette → **Developer: Reload Window**.
 
 2. **Interpreter** — Command Palette → **Python: Select Interpreter** → choose **Enter interpreter path** →  
    **`/opt/conda/envs/sam3d/bin/python`**

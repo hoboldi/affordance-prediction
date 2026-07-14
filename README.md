@@ -70,7 +70,7 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 | GEAL teacher pseudo-labels | `scripts/generate_geal_pseudolabels.py` |
 | Stage 1 — distillation pretrain | `experiments/cv_harness/train_gnn_pretrain.py` |
 | Stage 2 — 5-fold finetune on human labels | `experiments/cv_harness/train_gnn_cv.py` |
-| Evaluation / generalization | `scripts/eval_human_gt.py`, `scripts/eval_generalization.py` |
+| Evaluation | `scripts/eval_human_gt.py`, `scripts/eval_verb_conditioning.py` |
 
 ## Repository layout
 

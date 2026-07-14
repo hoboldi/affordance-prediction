@@ -6,8 +6,6 @@ A minimal **train/val** manifest with `vertex_semantics_path` lives at [`manifes
 python scripts/build_example_training_fixtures.py
 ```
 
-Then open [`notebooks/07_training_evaluation_debug.ipynb`](../../notebooks/07_training_evaluation_debug.ipynb).
-
 From the repository root, with `PYTHONPATH=src`:
 
 ```python
