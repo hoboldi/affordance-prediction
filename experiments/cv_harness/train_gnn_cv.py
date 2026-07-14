@@ -14,7 +14,7 @@ from models.mlp_head import mlp_head_config_from_model_cfg
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
 
-SCR = "/tmp/claude-16174/-home-kraum-Prototype/dd7a2b0b-3d51-4195-87d9-1e117f8ee71b/scratchpad"
+SCR = "experiments/cv_harness"
 TRAINED = ["contain", "sit", "pour", "move", "display", "grasp", "press", "lift"]
 BASE = "outputs/ov_concat_finepatch/best.pt"
 MLP_FOLD0 = 0.838  # full-FT + geom MLP, fold0 trained-mean (the bar)

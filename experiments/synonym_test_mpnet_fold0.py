@@ -6,7 +6,7 @@ import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
-SCR = "/tmp/claude-16174/-home-kraum-Prototype/dd7a2b0b-3d51-4195-87d9-1e117f8ee71b/scratchpad"
+SCR = "experiments/cv_harness"
 SEEN={"grasp":"grip","sit":"sit down","pour":"pour out","display":"show","move":"slide","press":"tap","lift":"raise","contain":"store"}
 HELD={"grasp":"seize","sit":"rest on","pour":"decant","display":"showcase","move":"reposition","press":"click","lift":"elevate","contain":"keep inside"}
 def seed_of(o): return int(hashlib.md5(o.encode()).hexdigest()[:8],16)

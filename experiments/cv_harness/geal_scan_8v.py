@@ -7,7 +7,7 @@ from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR="/tmp/claude-16174/-home-kraum-Prototype/dd7a2b0b-3d51-4195-87d9-1e117f8ee71b/scratchpad"
+SCR="experiments/cv_harness"
 DR="/home/datasets/customDatasets/cmr2/reconstructions"
 V=["contain","pour","sit","move","display","grasp","press","lift"]
 GEO=["contain","pour","sit","move","lift"]; APP=["display","grasp","press"]

@@ -5,7 +5,7 @@ import sys, os, json, glob, argparse
 sys.path.insert(0, "src")
 import numpy as np, trimesh
 from scipy.spatial import cKDTree
-SCR = "/tmp/claude-16174/-home-kraum-Prototype/dd7a2b0b-3d51-4195-87d9-1e117f8ee71b/scratchpad"
+SCR = "experiments/cv_harness"
 SRC = "/home/datasets/customDatasets/cmr2/source"
 DR  = "/home/datasets/customDatasets/cmr2/reconstructions"
 NPTS = 12000; TAU = 0.05

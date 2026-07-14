@@ -2,7 +2,7 @@
 (original features) for a light eager-load. Writes cv_fold{0..4}.json and manifest.cv.jsonl."""
 import json, glob, collections, numpy as np
 ROOT = "/home/datasets/customDatasets/cmr2"
-SCR = "/tmp/claude-16174/-home-kraum-Prototype/dd7a2b0b-3d51-4195-87d9-1e117f8ee71b/scratchpad"
+SCR = "experiments/cv_harness"
 K = 5
 
 # manifest objects (must have features)
