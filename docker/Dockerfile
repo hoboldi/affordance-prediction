@@ -108,7 +108,6 @@ COPY pyproject.toml README.md /workspace/
 COPY configs /workspace/configs
 COPY scripts /workspace/scripts
 COPY src /workspace/src
-COPY dataset_pipeline.py /workspace/dataset_pipeline.py
 COPY notebooks /workspace/notebooks
 COPY tests /workspace/tests
 

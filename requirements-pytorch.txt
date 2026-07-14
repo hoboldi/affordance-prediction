@@ -7,5 +7,6 @@
 #   pip uninstall -y torch torchvision torchaudio
 #   pip install -r requirements-pytorch.txt
 
-torch>=2.6
-torchvision>=0.21
+# Match the SAM3D Docker stack (torch 2.5.1+cu121); do not upgrade to 2.6+ (breaks xformers/torchaudio).
+torch>=2.5.1,<2.6
+torchvision>=0.20,<0.21

@@ -10,13 +10,11 @@ import numpy as np, torch
 import torch.nn.functional as Fn
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
-from models.mlp_head import mlp_head_config_from_model_cfg
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
 
 SCR = "experiments/cv_harness"
 TRAINED = ["contain", "sit", "pour", "move", "display", "grasp", "press", "lift"]
-BASE = "outputs/ov_concat_finepatch/best.pt"
 MLP_FOLD0 = 0.838  # full-FT + geom MLP, fold0 trained-mean (the bar)
 
 ap = argparse.ArgumentParser()
@@ -49,8 +47,6 @@ if DROP: print(f"ABLATION: zeroing features {sorted(DROP)}", flush=True)
 dev = torch.device(args.device); rng = np.random.default_rng(0)
 print(f"device={dev} agg={args.agg} layers={args.gnn_layers} hidden={args.gnn_hidden} k={args.knn_k}", flush=True)
 
-base_ck = torch.load(BASE, map_location="cpu", weights_only=False)
-base_cfg = mlp_head_config_from_model_cfg(base_ck["model_cfg"])
 vlm = VLMWrapper(VLMConfig(device="cpu")); emb = {v: vlm.encode_text([v])[0].to(dev) for v in TRAINED}
 if args.no_verb:  # verb-agnostic ablation: same constant embedding for every verb -> head cannot route
     _z = torch.zeros_like(next(iter(emb.values()))); emb = {v: _z for v in TRAINED}
