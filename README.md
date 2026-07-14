@@ -79,7 +79,6 @@ src/                 model, dataset, projection, rendering, VLM wrappers
 scripts/             data-generation, training, evaluation, and rendering scripts
 experiments/         5-fold CV harness (cv_harness/) + analysis scripts
 notebooks/           reverb_demo.ipynb — runnable verb-routing demo
-final_figures/       curated figures
 docs/                data_layout.md, RESULTS.md
 tests/               unit tests
 configs/             rendering / pipeline configuration
