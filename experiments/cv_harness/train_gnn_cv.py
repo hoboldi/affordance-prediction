@@ -4,7 +4,7 @@ per-vertex MLP (full-FT+geom, fold0=0.838)? Same inputs (vlm/dino/geom/slat/norm
 human-GT protocol. Fixed per-object subsample so the rebuilt kNN graph is cached once. Reports per-verb
 + trained-mean. NOTE: GNN trains on human GT only (no GEAL-distillation pretraining the MLP got) — a
 positive result is strong; a modest gap is confounded by pretraining (documented)."""
-import os, sys, json, argparse, time, collections
+import os, sys, json, argparse, time, collections, hashlib
 sys.path.insert(0, "src")
 import numpy as np, torch
 import torch.nn.functional as Fn
@@ -102,7 +102,7 @@ sub_cache = {}
 def get_sub(o):
     if o not in sub_cache:
         it = ds[obj2row[o]]; V = len(it["vertex_positions"])
-        r = np.random.default_rng(hash(o) % (2**32))
+        r = np.random.default_rng(int(hashlib.md5(o.encode()).hexdigest()[:8], 16))  # stable across runs (matches eval harness)
         sel = r.choice(V, min(args.sub, V), replace=False)
         sel = torch.as_tensor(np.sort(sel), dtype=torch.long)
         pos = it["vertex_positions"].float()[sel]

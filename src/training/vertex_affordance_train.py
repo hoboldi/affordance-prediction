@@ -114,7 +114,6 @@ def training_epoch_vertex_bce(
     device: torch.device,
     max_samples: int | None = None,
     progress: Callable[[range], Any] | None = None,
-    pos_weight: float = 5.0,
     n_vertices_per_class: int = 2048,
     grad_accum: int = 8,
     conf_weight: float = 0.0,
@@ -148,7 +147,7 @@ def training_epoch_vertex_bce(
         y = item["vertex_affordance"]
 
         idx = _balanced_vertex_sample(y, n_vertices_per_class, item.get("vertex_visible_mask"))
-        # pos_weight=1.0 — balanced sampling already equalises classes
+        # balanced sampling already equalises classes, so no positive up-weighting is applied
         loss = affordance_bce_loss(logits[idx], y[idx], pos_weight=1.0, conf_weight=conf_weight)
         (loss / grad_accum).backward()
         pending += 1
@@ -194,7 +193,6 @@ def training_epoch_vertex_contrastive(
     device: torch.device,
     max_samples: int | None = None,
     progress: Callable[[range], Any] | None = None,
-    pos_weight: float = 5.0,
     n_vertices_per_class: int = 2048,
     grad_accum: int = 8,
     contrastive_weight: float = 1.0,

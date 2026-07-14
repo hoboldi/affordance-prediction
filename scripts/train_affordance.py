@@ -146,9 +146,9 @@ def load_split(
 
     def _filter(row) -> bool:
         if cat_set is not None:
-            # sample_id looks like "Seen/train/<category>/GS_xxxx/<verb>"
-            parts = str(row.sample_id).split("/")
-            if len(parts) < 3 or parts[2] not in cat_set:
+            # sample_id looks like "<category>__<sequence>__v000#<verb>"
+            category = str(row.sample_id).split("__")[0]
+            if category not in cat_set:
                 return False
         if verb_set is not None and row.verb not in verb_set:
             return False
@@ -417,7 +417,6 @@ def main() -> None:
             verb_to_idx=verb_to_idx,
             device=device,
             max_samples=args.max_train_samples,
-            pos_weight=pos_weight,
             grad_accum=args.grad_accum,
             conf_weight=args.confidence_weight,
             progress=lambda r: tqdm(r, desc=f"train {ep+1}/{n_epochs}", leave=False),

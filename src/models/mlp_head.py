@@ -22,8 +22,8 @@ class MLPHeadConfig:
     # Global (per-mesh constant) inputs — modulate the geometry stream via FiLM
     verb_dim: int = 512
     num_verbs: int = 0           # size of the learned verb embedding table (required if verb_dim > 0)
-    dino_cls_dim: int = 0        # set to 1024 for SLAT-stage DINOv2 CLS token
-    ss_dino_cls_dim: int = 0     # set to 1024 for SS-stage DINOv2 CLS token
+    dino_cls_dim: int = 0        # SLAT-stage DINOv2 CLS token dim (768 for ViT-base, 1024 for ViT-large)
+    ss_dino_cls_dim: int = 0     # SS-stage DINOv2 CLS token dim (768 for ViT-base, 1024 for ViT-large)
 
     cond_dim: int = 128          # global (conditioning) encoder output dim
     hidden_dims: tuple[int, ...] = field(default_factory=lambda: (256, 128))  # FiLM-modulated geometry trunk

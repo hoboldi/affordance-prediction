@@ -2,7 +2,7 @@
 made, then human-FT warm-starts from this. Memory-safe: LAZY dataset (no eager preload); on first touch
 per object, subsample to --sub verts + build kNN + cache features in fp16 (~21 GB for the full set), reused
 across epochs. Saves {model, cfg} to --out for train_gnn_cv.py --init_from. GPU."""
-import os, sys, json, argparse, time
+import os, sys, json, argparse, time, hashlib
 sys.path.insert(0, "src")
 import numpy as np, torch
 import torch.nn.functional as Fn
@@ -55,7 +55,7 @@ cache = {}
 def get(o):
     if o not in cache:
         it = ds[obj2row[o]]; V = len(it["vertex_positions"])
-        r = np.random.default_rng(abs(hash(o)) % (2**32))
+        r = np.random.default_rng(int(hashlib.md5(o.encode()).hexdigest()[:8], 16))  # stable across runs (matches eval harness)
         sel = np.sort(r.choice(V, min(args.sub, V), replace=False)); idx = torch.as_tensor(sel, dtype=torch.long)
         knn = AffordanceGNN._build_knn(it["vertex_positions"].float()[idx], args.knn_k)
         feat = {k: (it.get(k).float()[idx].half() if it.get(k) is not None else None)
