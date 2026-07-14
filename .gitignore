@@ -18,7 +18,6 @@ data/cache/
 data/processed/
 data/renders/
 *.pt
-!data/sample.glb
 
 .DS_Store
 .idea/
@@ -41,5 +40,4 @@ tmp_cam_out/
 *.zip
 *.ply
 *.glb
-!data/sample.glb
 /human_annotation

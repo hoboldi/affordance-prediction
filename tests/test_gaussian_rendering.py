@@ -10,6 +10,10 @@ from rendering.gaussian_point_renderer import render_gaussian_splat_views, splat
 from rendering.mesh_renderer import MeshRenderConfig
 
 
+@pytest.mark.skipif(
+    not (Path(__file__).resolve().parents[1] / "examples" / "gaussian_splat" / "tiny_gaussians.ply").exists(),
+    reason="tiny_gaussians.ply not present",
+)
 def test_load_example_tiny_gaussians_ply() -> None:
     root = Path(__file__).resolve().parents[1]
     ply_path = root / "examples" / "gaussian_splat" / "tiny_gaussians.ply"
