@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "affordance-prediction"
+name = "reverb"
 version = "0.1.0"
-description = "Open-vocabulary affordance prediction from SAM3D reconstruction and VLM features (3DAffordSplat + synthetic views)"
+description = "ReVerb: verb-conditioned 3D affordance prediction on single-image SAM3D reconstructions"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

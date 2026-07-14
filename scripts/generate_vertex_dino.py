@@ -2,8 +2,8 @@
 
 Mirrors generate_vertex_semantics.py but uses DINOv2 (facebook/dinov2-base) instead of CLIP. DINOv2 patch
 tokens are more part-aware / localization-friendly than CLIP, so this gives the affordance head a sharper
-per-vertex geometric-semantic channel (use ALONGSIDE the CLIP channel — CLIP still carries open-vocab text
-alignment). Writes ``vertex_dino.pt`` (dict: features (V,D) fp16, visible_in_any_view (V,) bool) per recon dir.
+per-vertex appearance channel for the affordance head. Writes ``vertex_dino.pt`` (dict: features (V,D) fp16,
+visible_in_any_view (V,) bool) per recon dir.
 
 Usage:
     PYTHONPATH=src python scripts/generate_vertex_dino.py \

@@ -16,7 +16,7 @@ dataset:
 
 # Supervision: per-vertex affordance pseudolabels from the frozen GEAL teacher.
 # GEAL code lives in external/geal (gitignored); weights go in external/geal/ckpt/ (fetch separately
-# from https://huggingface.co/datasets/dylanorange/geal). OmniObject3D ingestion: configs/omniobject3d.yaml.
+# from https://huggingface.co/datasets/dylanorange/geal). CO3D ingestion: configs/co3d.yaml.
 labeling:
   geal_ckpt: external/geal/ckpt/piad_seen.pt
   geal_question_csv: null    # optional Affordance-Question.csv for GEAL's canonical phrasings

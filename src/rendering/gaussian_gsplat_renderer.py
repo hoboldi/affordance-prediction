@@ -49,7 +49,7 @@ def _c2w_pyrender_gl_to_gsplat_opencv(c2w_gl: np.ndarray) -> np.ndarray:
     """
     ``spherical_camera_poses`` / pyrender use an OpenGL-style camera frame; ``gsplat`` rasterisation
     expects world-to-camera consistent with COLMAP / OpenCV (+Z into the scene). Without this flip,
-    real 3DGS PLYs (e.g. AffordSplat) often render **fully black** while synthetic tests may still look fine.
+    real 3DGS PLYs often render **fully black** while synthetic tests may still look fine.
     """
     m = np.asarray(c2w_gl, dtype=np.float64).copy()
     m[:3, :3] = m[:3, :3] @ _GL_TO_CV_ROT
@@ -199,7 +199,7 @@ def render_gaussian_splat_gsplat_views(
 
     Cameras from ``spherical_camera_poses`` are **OpenGL / pyrender** style; ``gsplat`` expects a
     **COLMAP / OpenCV** camera frame for projection. By default we convert (``convert_pyrender_camera_to_gsplat=True``).
-    Without this, many real 3DGS PLYs (e.g. AffordSplat) render **all black** while tiny test scenes may still look fine.
+    Without this, many real 3DGS PLYs render **all black** while tiny test scenes may still look fine.
     Set ``convert_pyrender_camera_to_gsplat=False`` only if you know your PLY was authored for GL-style cameras.
 
     Colours: when ``f_rest_*`` are present in the PLY, **full spherical harmonics** are passed to

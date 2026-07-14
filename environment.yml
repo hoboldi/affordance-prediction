@@ -1,4 +1,4 @@
-# Conda env for affordance-prediction (tested on macOS Apple Silicon).
+# Conda env for ReVerb.
 #
 #   conda env create -f environment.yml
 #   conda activate affordance
@@ -6,7 +6,7 @@
 # PyTorch is installed via pip so torch and torchvision stay version-matched
 # (mixing conda pytorch with pip torchvision causes import errors).
 
-name: affordance
+name: reverb
 channels:
   - conda-forge
 dependencies:

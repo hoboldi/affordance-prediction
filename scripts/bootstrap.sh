@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Fresh-server bootstrap for the affordance-prediction GEAL-pseudolabel pipeline.
+# Fresh-server bootstrap for the ReVerb pipeline.
 #
 # Re-creates everything that does NOT travel with `git clone` (gitignored / external):
 #   1. SAM3D submodule          (sam-3d-objects)
 #   2. GEAL teacher code        (external/geal)
 #   3. GEAL weights             (external/geal/ckpt/*.pt)        [only with --weights]
-#   4. prints the remaining manual steps (env, OmniObject3D, SAM3D checkpoints)
+#   4. prints the remaining manual steps (env, CO3D, SAM3D checkpoints)
 #
 # Recommended transfer: `git clone` this branch on the new server, then run this script.
 # (Do NOT copy the working dir — external/ and data/ are gitignored and are re-created here.)
@@ -49,16 +49,19 @@ fi
 
 cat <<'NEXT'
 
-==> [4/4] Remaining manual steps (need storage; see README + docs/data_strategy_geal_omniobject3d.md):
-  - Python env:     conda env create -f environment.yml  &&  conda activate affordance
+==> [4/4] Remaining manual steps (need storage; see README + docs/data_layout.md):
+  - Python env:     conda env create -f environment.yml  &&  conda activate reverb
                     pip install -r external/geal/requirements.txt   # GEAL inference deps
   - SAM3D weights:  follow sam-3d-objects/doc/setup.md  (HuggingFace facebook/sam-3d-objects)
-  - OmniObject3D:   download into data/omniobject3d/blender_renders/<category>/<object>/render/...
+  - CO3D:           download CO3D v2 sequences for the target categories
 
-Then run the pipeline (README -> "Data + supervision pipeline"):
-  PYTHONPATH=src python scripts/prepare_omniobject3d.py --config configs/omniobject3d.yaml
-  PYTHONPATH=src python scripts/generate_sam3d.py            --dataset_dir data/omniobject3d/sam3d_inputs --output_dir data/omniobject3d/reconstructions
-  PYTHONPATH=src python scripts/generate_geal_pseudolabels.py --manifest data/omniobject3d/manifest.jsonl --ckpt external/geal/ckpt/piad_seen.pt
-  PYTHONPATH=src python scripts/train_affordance.py          --manifest data/omniobject3d/manifest.pseudolabeled.jsonl --output_dir outputs/affordance_mlp
+Then run the pipeline (README -> "Pipeline"):
+  PYTHONPATH=src python scripts/prepare_co3d.py               --config configs/co3d.yaml
+  PYTHONPATH=src python scripts/generate_sam3d.py             --dataset_dir data/co3d/sam3d_inputs --output_dir data/co3d/reconstructions
+  PYTHONPATH=src python scripts/generate_vertex_dino.py       --manifest data/co3d/manifest.jsonl   # per-vertex DINOv2
+  PYTHONPATH=src python scripts/precompute_geom.py            --manifest data/co3d/manifest.jsonl   # geometry descriptors
+  PYTHONPATH=src python scripts/generate_geal_pseudolabels.py --manifest data/co3d/manifest.jsonl --ckpt external/geal/ckpt/piad_seen.pt
+  PYTHONPATH=src python experiments/cv_harness/train_gnn_pretrain.py   # Stage 1: GEAL distillation
+  PYTHONPATH=src python experiments/cv_harness/train_gnn_cv.py         # Stage 2: 5-fold human finetune
 NEXT
 echo "bootstrap done."

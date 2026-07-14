@@ -35,7 +35,7 @@ for o in sorted(objs, key=lambda o: (min(gcount[v] for v in objverbs[o]), o)):
         fold_vc[k][v] += 1
 
 # write splits + report balance
-TRAINED = ["contain", "sit", "pour", "move", "display", "grasp"]
+TRAINED = ["contain", "sit", "pour", "move", "display", "grasp", "press", "lift"]
 print(f"\nper-fold held-out (val) counts:\n{'fold':5s} {'size':>5s} " + " ".join(f"{v:>8s}" for v in TRAINED))
 for k in range(K):
     valk = sorted(o for o in objs if assign[o] == k)

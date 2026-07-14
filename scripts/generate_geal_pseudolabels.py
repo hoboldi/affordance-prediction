@@ -19,10 +19,10 @@ optional ``Affordance-Question.csv``. See ``labeling.geal_infer`` and the projec
 
 Usage:
     python scripts/generate_geal_pseudolabels.py \
-        --manifest data/omniobject3d/manifest.jsonl \
+        --manifest data/co3d/manifest.jsonl \
         --ckpt external/geal/ckpt/piad_seen.pt \
         --question_csv external/geal/ckpt/Affordance-Question.csv \
-        --out_manifest data/omniobject3d/manifest_pseudolabeled.jsonl
+        --out_manifest data/co3d/manifest_pseudolabeled.jsonl
 """
 from __future__ import annotations
 

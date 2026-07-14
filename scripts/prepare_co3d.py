@@ -5,7 +5,7 @@ Scans CO3D's per-category sequences, keeps only categories that overlap GEAL's t
 ``scripts/generate_sam3d.py`` (one canonical frame + its CO3D mask per sequence), and writes a
 training manifest with ``object_class`` + ``verb`` + per-sample ``split`` (``val_categories`` -> "val").
 
-Supersedes ``scripts/prepare_omniobject3d.py`` (synthetic renders).
+Replaces the earlier synthetic-render ingestion.
 
 Next steps (run later, need disk/GPU):
     python scripts/generate_sam3d.py --dataset_dir <data_root>/<staged_dir> --output_dir <data_root>/<recon_output_dir>

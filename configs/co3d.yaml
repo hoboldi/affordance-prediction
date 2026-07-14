@@ -1,6 +1,6 @@
 # CO3D v2 ingestion for the GEAL-pseudolabel pipeline (REAL images).
 #
-# Supersedes configs/omniobject3d.yaml (synthetic blender renders). CO3D (Common Objects in 3D, Meta)
+# Real cellphone-captured objects. CO3D (Common Objects in 3D, Meta)
 # provides real cellphone turntable captures of single objects with per-frame foreground masks — SAM3D's
 # native input domain. We use ONE RGB frame + its provided mask per sequence (object); CO3D depth maps /
 # point clouds are ignored (SAM3D estimates its own geometry).

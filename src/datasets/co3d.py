@@ -2,8 +2,8 @@
 CO3D v2 ingestion for the GEAL-pseudolabel pipeline (REAL images).
 
 CO3D (Common Objects in 3D, Meta) provides real cellphone-captured turntable videos of single objects,
-each frame paired with a foreground mask. Unlike OmniObject3D's synthetic ``blender_renders``, these are
-real photographs — SAM3D's native input domain. We use ONE RGB frame + its provided mask per sequence
+each frame paired with a foreground mask. These are real photographs (not synthetic renders) — SAM3D's
+native input domain. We use ONE RGB frame + its provided mask per sequence
 (object); CO3D's depth maps / point clouds are ignored (SAM3D estimates its own geometry).
 
 Layout (CO3D v2)::
@@ -12,8 +12,7 @@ Layout (CO3D v2)::
     <co3d_root>/<category>/<sequence_name>/masks/frame<NNNNNN>.png   # foreground mask (uint8)
     <co3d_root>/<category>/{frame_annotations.jgz, sequence_annotations.jgz, set_lists/, eval_batches/}
 
-This module mirrors :mod:`datasets.omniobject3d`: ``discover_samples`` -> ``stage_sam3d_inputs`` ->
-``write_manifest``. Only categories in ``category_map`` (CO3D folder -> GEAL class) are kept. Categories
+This module exposes ``discover_samples`` -> ``stage_sam3d_inputs`` -> ``write_manifest``. Only categories in ``category_map`` (CO3D folder -> GEAL class) are kept. Categories
 in ``val_categories`` are marked split ``"val"`` (held-out unseen-class eval); the rest are ``"train"``.
 
 Top-level imports are kept light; PIL/numpy load lazily inside the staging helpers.
