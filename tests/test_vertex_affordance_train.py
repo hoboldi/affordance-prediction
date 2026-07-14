@@ -57,14 +57,14 @@ def test_vertex_training_epoch_smoke(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cfg = {"model": {"vlm_dim": 16, "verb_dim": 16, "sam3d_dim": 4, "hidden_dims": [32], "dropout": 0.0}}
+    cfg = {"model": {"vlm_dim": 16, "verb_dim": 16, "num_verbs": 1, "sam3d_dim": 4, "hidden_dims": [32], "dropout": 0.0}}
     ds = DataRootDataset(data_root=root, manifest_path=manifest, cfg=cfg, split="train")
-    model = AffordanceMLP(MLPHeadConfig(vlm_dim=16, verb_dim=16, sam3d_dim=4, hidden_dims=(32,), dropout=0.0))
+    model = AffordanceMLP(MLPHeadConfig(vlm_dim=16, verb_dim=16, num_verbs=1, sam3d_dim=4, hidden_dims=(32,), dropout=0.0))
     opt = torch.optim.Adam(model.parameters(), lr=0.01)
-    verb_emb = {"grasp": torch.randn(16)}
+    verb_to_idx = {"grasp": 0}
     device = torch.device("cpu")
-    loss0 = training_epoch_vertex_bce(model, opt, ds, verb_embeddings=verb_emb, device=device)
-    loss1 = training_epoch_vertex_bce(model, opt, ds, verb_embeddings=verb_emb, device=device)
+    loss0 = training_epoch_vertex_bce(model, opt, ds, verb_to_idx=verb_to_idx, device=device)
+    loss1 = training_epoch_vertex_bce(model, opt, ds, verb_to_idx=verb_to_idx, device=device)
     assert loss0 > 0 and loss1 > 0
-    ev = eval_vertex_bce(model, ds, verb_embeddings=verb_emb, device=device)
+    ev = eval_vertex_bce(model, ds, verb_to_idx=verb_to_idx, device=device)
     assert ev == ev
