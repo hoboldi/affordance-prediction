@@ -15,7 +15,7 @@ One JSON object per line (JSONL). Paths are **relative to the data root** unless
 | Field | Required | Description |
 |--------|----------|-------------|
 | `sample_id` | yes | Stable string ID |
-| `verb` | no | Open-vocabulary verb for conditioning (default `grasp`) |
+| `verb` | no | Verb string for conditioning (default `grasp`) |
 | `mesh_path` | no | Mesh for rendering / projection (e.g. `meshes/foo.glb`) |
 | `splat_path` | no | Gaussian splat `.ply` if used as render backend |
 | `reference_rgb_path` | no | RGB image for SAM3D-style reconstruction |
@@ -62,30 +62,3 @@ outputs/gaussian_renders/<run_id>/
 ```
 
 Point `DataRootDataset` manifest fields (`reference_rgb_path`, …) at these paths once you wire training.
-
-## 3DAffordSplat / AffordSplat local mirror (no manifest)
-
-If you already have the **Hugging Face dataset tree** on disk (e.g. cloned or copied under **`/data`**), use [`AffordSplatLocalDataset`](../src/datasets/affordsplat_local_dataset.py). It walks **`…/Seen/<train|val|test>/<category>/Gaussian/GS_*.ply`** and pairs **`GS_anno_<id>.ply`** from sibling affordance folders (`grasp`, `contain`, … — not `Gaussian` / `PointCloud`).
-
-**Root directory** (must contain a `Seen/` folder, or use `subset=` for other top-level splits you keep):
-
-```bash
-export AFFORDANCE_AFFORDSPLAT_ROOT=/data
-```
-
-Or set `paths.affordsplat_root` in YAML (repo-relative or absolute). If neither is set, the loader tries **`AFFORDANCE_DATA_ROOT`** / config **`data_root`** when **`<that>/Seen`** exists, then **`/workspace/data`**, then **`/data`** when **`/data/Seen`** exists.
-
-Walkthrough: [`notebooks/01_affordsplat_dataloader.ipynb`](../notebooks/01_affordsplat_dataloader.ipynb) (zero-config when `/data/Seen` exists).
-
-```python
-from pathlib import Path
-from datasets import AffordSplatLocalDataset
-
-# Explicit root if your tree is not exactly /data/Seen (e.g. /data/Weizm/AffordSplat)
-ds = AffordSplatLocalDataset(affordsplat_root=Path("/data"), subset="Seen", split="train")
-sample = ds[0]
-print(sample["sample_id"], sample["verb"], sample["splat_path"])
-# extras: affordsplat_category, affordsplat_gs_anno_path (when present), …
-```
-
-Each `__getitem__` dict matches `DataRootDataset` keys where applicable (`sample_id`, `verb`, `split`, `splat_path`, `extras`, …) so you can reuse the same training loop entry point.
