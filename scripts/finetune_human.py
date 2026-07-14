@@ -10,7 +10,7 @@ eval_human_gt.py / eval_verb_conditioning.py load them unchanged.
 
 Usage:
     PYTHONPATH=src python scripts/finetune_human.py \
-        --ckpt outputs/ov_concat_finepatch/best.pt --split human_split.json \
+        --ckpt outputs/ov_concat_finepatch/best.pt --split configs/human_split.json \
         --freeze_backbone --output_dir outputs/ft_mlp_s0
 """
 from __future__ import annotations
