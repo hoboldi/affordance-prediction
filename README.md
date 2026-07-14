@@ -1,176 +1,94 @@
-# Affordance Prediction
+# ReVerb — Verb-Conditioned Affordance Prediction on Single-Image 3D Reconstructions
 
-Open-vocabulary affordance prediction by combining **SAM3D** reconstruction with frozen **VLM**
-semantic features, supervised by **affordance pseudolabels from the frozen [GEAL](https://github.com/DylanOrange/geal) teacher**.
+ReVerb predicts, for a given **action verb**, *where on a 3D object that action applies* — a
+per-vertex affordance map on geometry **reconstructed from a single RGB image**. It removes the
+usual dependence on a sensed point cloud or scan: an object is reconstructed with
+[SAM3D](https://github.com/facebookresearch/sam-3d-objects), and a verb-conditioned spatial GNN
+grounds the verb onto the reconstructed mesh.
 
-**Pipeline:** a clean single-object image (from **OmniObject3D**) → SAM3D reconstructs a mesh →
-frozen VLM patch features projected onto mesh vertices → small per-vertex MLP head. Supervision comes
-from running GEAL on the *same* reconstructed geometry, so labels are already in mesh-vertex order —
-**no cross-modal alignment is needed**. (This replaces the earlier 3DAffordSplat + ICP-alignment
-approach, which failed because SAM3D reconstructs splat renders poorly.)
+The same object routes to **different regions for different verbs** — a cup is *grasped* at the
+handle, *poured* from the rim, *contained* in the bowl.
 
-See [docs/project.md](docs/project.md) for the full pipeline, [docs/data_strategy_geal_omniobject3d.md](docs/data_strategy_geal_omniobject3d.md)
-for the data + supervision plan, and [docs/implementation_order.md](docs/implementation_order.md) for the MVP development order.
+## Method
 
-## Fresh server (start here)
-
-Recommended transfer is **`git clone` of the `geal-pseudolabels` branch** (not copying the working dir —
-`external/` and `data/` are gitignored). Then run the bootstrap, which restores everything that doesn't
-travel with git (SAM3D submodule, GEAL code, optional GEAL weights) and prints the remaining steps:
-
-```bash
-git clone -b geal-pseudolabels git@github.com:hoboldi/affordance-prediction.git
-cd affordance-prediction
-bash scripts/bootstrap.sh            # SAM3D submodule + GEAL code (light)
-bash scripts/bootstrap.sh --weights  # also fetch GEAL checkpoints (needs storage)
+```
+single RGB image ──SAM3D──▶ mesh ──▶ per-vertex features ──▶ verb-conditioned GNN ──▶ affordance map
+                                        │                          ▲
+                                        ├─ DINOv2 appearance (128-d, back-projected multi-view)
+                                        ├─ local geometry (5 descriptors)
+                                        └─ CLIP-text embedding of the verb ────────────┘
 ```
 
-Then create the env and follow [Data + supervision pipeline](#data--supervision-pipeline) below.
+- **Per-vertex representation.** DINOv2-base patch tokens rendered from multiple views and
+  back-projected to the surface (128-d after a fixed random projection), five interpretable local
+  geometric descriptors, and a CLIP-text embedding of the verb — concatenated to a 261-d input.
+- **Head.** An EdgeConv spatial GNN (k=24 kNN graph, 3 layers, width 128) with the verb injected at
+  every layer, so message passing is verb-dependent throughout. Neighbourhood aggregation yields
+  spatially coherent maps a per-vertex MLP cannot.
+- **Training.** Two stages: (1) **distill** a frozen GEAL teacher's per-vertex pseudo-labels on the
+  reconstructed meshes; (2) **finetune** on 215 human-labeled objects with class-balanced BCE.
+  Evaluation is 5-fold cross-validation over objects (macro AUPRC).
+
+CLIP-vision, SAM3D structured latents, and surface normals were evaluated and dropped — each adds
+≈0 AUPRC. CLIP enters the model only as the **text** encoder for the verb.
+
+## Key results
+
+- **0.86 macro AUPRC** under 5-fold CV on 215 human-annotated objects (8 verbs, 10 CO3D categories).
+- Affordance verbs split into two classes: **appearance** verbs (*grasp, display, press*) depend on
+  learned DINOv2 features; **geometric** verbs (*contain, pour, sit, move, lift*) do not. The split is
+  statistically robust (bootstrap CIs) and survives region-size controls and teacher removal.
+- **Cross-category transfer follows the split:** geometric verbs transfer to unseen object categories
+  (e.g. *pour* ≈0.82), appearance verbs do not (*grasp* 0.15–0.51).
+
+See [`docs/RESULTS.md`](docs/RESULTS.md) for the full result table and analyses, and
+[`notebooks/reverb_demo.ipynb`](notebooks/reverb_demo.ipynb) for a runnable demo of verb routing.
 
 ## Setup
 
-**Python 3.10–3.11 recommended.** Install **torch and torchvision as a matched pair** (≥2.6 / ≥0.21) before the rest — do not mix conda `pytorch` with pip `torchvision`.
-
-### Conda (recommended)
+`sam-3d-objects/` is a git submodule. After cloning, restore it and create the environment:
 
 ```bash
-cd affordance-prediction
-conda env create -f environment.yml
-conda activate affordance
-python -m ipykernel install --user --name affordance --display-name "affordance (conda)"
+git submodule update --init                 # SAM3D
+bash scripts/bootstrap.sh                    # SAM3D + GEAL teacher code
+conda env create -f environment.yml          # or: pip install -r requirements.txt
 ```
 
-Or manually:
+All scripts assume the repo root as the working directory with `PYTHONPATH=src`.
 
-```bash
-conda create -n affordance python=3.11 -y
-conda activate affordance
-pip uninstall -y torch torchvision torchaudio 2>/dev/null || true
-pip install -r requirements-pytorch.txt
-pip install -r requirements.txt
-pip install -e ".[notebooks,dev]"
-```
+## Pipeline
 
-Verify:
+Data (reconstructions and per-vertex features) live outside the repo; see
+[`docs/data_layout.md`](docs/data_layout.md) for the on-disk layout. To reproduce end to end:
 
-```bash
-python -c "import torch, torchvision; print(torch.__version__, torchvision.__version__)"
-PYTHONPATH=src python -c "from vlm.vlm_wrapper import VLMWrapper; VLMWrapper(); print('ok')"
-```
+| Step | Script |
+|---|---|
+| Prepare CO3D objects | `scripts/prepare_co3d.py` |
+| Reconstruct meshes (SAM3D) | `scripts/generate_sam3d.py` |
+| DINOv2 per-vertex features | `scripts/generate_vertex_dino.py` |
+| Geometry descriptors | `scripts/precompute_geom.py` |
+| GEAL teacher pseudo-labels | `scripts/generate_geal_pseudolabels.py` |
+| Stage 1 — distillation pretrain | `experiments/cv_harness/train_gnn_pretrain.py` |
+| Stage 2 — 5-fold finetune on human labels | `experiments/cv_harness/train_gnn_cv.py` |
+| Evaluation / generalization | `scripts/eval_human_gt.py`, `scripts/eval_generalization.py` |
 
-### SAM3D (reconstruction backend)
-
-```bash
-git submodule update --init sam-3d-objects
-```
-
-Checkpoints and extra CUDA deps: see the `sam-3d-objects` submodule.
-`ModuleNotFoundError: No module named 'inference'` means Python cannot see **`sam-3d-objects/notebook/inference.py`** (submodule not inited, wrong `SAM3D_OBJECTS_ROOT`, or an **empty** `sam-3d-objects/` overwriting the Docker image's clone).
-
-### GEAL teacher (pseudolabels)
-
-GEAL is used as a frozen teacher. Its **code** is cloned into `external/geal` (gitignored); its
-**weights** are fetched separately.
-
-```bash
-# code only (small) — already present if you followed setup:
-GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/DylanOrange/geal external/geal
-
-# weights (later; ~hundreds of MB) → external/geal/ckpt/
-#   from https://huggingface.co/datasets/dylanorange/geal : piad_seen.pt / piad_unseen.pt / laso_*.pt
-```
-
-Only GEAL's **3D branch** (`model.branch_3d.Branch3D`) is used at inference — a PointNet++ + RoBERTa
-model that maps a point cloud + affordance question to per-point scores in `[0, 1]`. The Gaussian-splatting
-2D branch is training-only, so **no CUDA rasterizer build is needed** for pseudolabeling.
-
-### Docker (SAM3D + full pipeline on NVIDIA GPU)
-
-```bash
-docker compose build
-docker compose run --rm autonomous-pipeline bash
-```
-
-Details, VRAM expectations, Jupyter, Hugging Face checkpoints: [docker/README.md](docker/README.md).
-
-## Data + supervision pipeline
-
-End-to-end (the data/weights steps are deferred until disk + GPU are available):
-
-```bash
-# 1. Stage OmniObject3D images for the GEAL-overlapping categories + write a manifest
-PYTHONPATH=src python scripts/prepare_omniobject3d.py --config configs/omniobject3d.yaml
-
-# 2. Reconstruct each staged image with SAM3D  (mesh.glb + SLAT latents per object)
-PYTHONPATH=src python scripts/generate_sam3d.py \
-  --dataset_dir data/omniobject3d/sam3d_inputs \
-  --output_dir  data/omniobject3d/reconstructions
-
-# 3. Generate per-vertex affordance pseudolabels with GEAL
-PYTHONPATH=src python scripts/generate_geal_pseudolabels.py \
-  --manifest data/omniobject3d/manifest.jsonl \
-  --ckpt external/geal/ckpt/piad_seen.pt
-
-# 4. Train the per-vertex affordance head on the pseudolabeled manifest
-PYTHONPATH=src python scripts/train_affordance.py \
-  --manifest data/omniobject3d/manifest.pseudolabeled.jsonl \
-  --output_dir outputs/affordance_mlp
-```
-
-GEAL only knows 3D-AffordanceNet's **23 object / 18 affordance** classes, so OmniObject3D is filtered
-to overlapping categories via `category_map` in [configs/omniobject3d.yaml](configs/omniobject3d.yaml)
-(extend it against the actual downloaded folder names). Each kept class is queried with one canonical
-affordance (`affordance_map`).
-
-### On-disk dataset (`data/`)
-
-Training samples are listed in a **`manifest.jsonl`** (default `data/omniobject3d/manifest.jsonl`, or
-`AFFORDANCE_DATA_ROOT`). Each row carries `sample_id`, `verb` (affordance), `object_class` (GEAL class),
-`sam3d_reconstruction_dir`, and `vertex_pseudolabel_path` (a `(V,)` tensor in mesh-vertex order). See
-[docs/data_layout.md](docs/data_layout.md) and `datasets.DataRootDataset`.
-
-### Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| `torchvision::nms does not exist` | `pip uninstall -y torch torchvision torchaudio` then `pip install -r requirements-pytorch.txt` |
-| `No module named 'inference'` (SAM3D) | `git submodule update --init sam-3d-objects`, or set `SAM3D_OBJECTS_ROOT` |
-| `checkpoints/hf/pipeline.yaml` missing (SAM3D) | Weights on Hugging Face ([facebook/sam-3d-objects](https://huggingface.co/facebook/sam-3d-objects)); run `sam-3d-objects/doc/setup.md` §2 |
-| GEAL `checkpoint not found` | Download weights into `external/geal/ckpt/` from [dylanorange/geal](https://huggingface.co/datasets/dylanorange/geal) |
-
-## Development without checkpoints
-
-You can work on rendering, VLM features, and projection using a mesh only:
-
-- Asset: `data/sample.glb`
-- Set `rendering.backend: mesh` or `rendering.splat_path: null` in `configs/default.yaml` for **mesh-colour** RGB without a paired `.ply`.
-- Affordance labels and projection always use mesh vertices.
-
-When SAM3D is available, each sample includes `mesh.glb` and usually `gaussian.ply`; `backend: gaussian`
-uses **splat RGB** with **mesh** depth and vertex correspondences.
-
-## Stage testing notebooks
-
-Each pipeline stage has a debug notebook under `notebooks/debug/`. See [notebooks/README.md](notebooks/README.md).
-Run `00` → `02` → `04` → `05` → `06` in order (add `03` for gsplat rendering of SAM3D output).
-
-```bash
-jupyter lab notebooks/debug/00_mesh_bootstrap.ipynb
-```
-
-## Package layout
+## Repository layout
 
 ```
-src/
-├── reconstruction/   # SAM3D wrapper, mesh I/O
-├── rendering/        # mesh + gaussian-splat (gsplat) novel-view rendering
-├── vlm/              # frozen CLIP patch + text features
-├── projection/       # 2D patch features → mesh vertices
-├── models/           # AffordanceMLP (mlp_head.py)
-├── datasets/         # DataRootDataset, OmniObject3D ingestion
-├── labeling/         # GEAL teacher wrapper (geal_infer.py)
-├── training/
-└── utils/
-scripts/              # prepare_omniobject3d, generate_sam3d, generate_geal_pseudolabels, train_affordance
-external/geal/        # GEAL clone (gitignored; code only — weights fetched separately)
+src/                 model, dataset, projection, rendering, VLM wrappers
+scripts/             data-generation, training, evaluation, and rendering scripts
+experiments/         5-fold CV harness (cv_harness/) + analysis scripts
+notebooks/           reverb_demo.ipynb — runnable verb-routing demo
+final_figures/       curated figures
+docs/                data_layout.md, RESULTS.md
+tests/               unit tests
+configs/             rendering / pipeline configuration
+examples/            tiny fixtures illustrating the data format
 ```
+
+## Acknowledgements
+
+Builds on [SAM3D](https://github.com/facebookresearch/sam-3d-objects) for single-image
+reconstruction, [GEAL](https://github.com/DylanOrange/geal) as the distillation teacher, DINOv2 for
+appearance features, and CLIP for verb-text embeddings. Objects are drawn from
+[CO3D](https://github.com/facebookresearch/co3d).
