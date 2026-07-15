@@ -335,10 +335,14 @@ class DataRootDataset(Dataset[dict[str, Any]]):
 
         if row.sam3d_reconstruction_dir is not None:
             out["sam3d_reconstruction_dir"] = row.sam3d_reconstruction_dir
-            out["slat_vertex_features"] = torch.load(
-                row.sam3d_reconstruction_dir / "slat_vertex_features.pt",
-                map_location="cpu",
-                weights_only=True,
+            # Optional, like the other per-recon files below: SLAT is not shipped with meshes-only
+            # datasets and the lean model does not use it. Consumers that need it (sam3d_dim > 0)
+            # raise a clear error instead of a bare FileNotFoundError here.
+            _slat_path = row.sam3d_reconstruction_dir / "slat_vertex_features.pt"
+            out["slat_vertex_features"] = (
+                torch.load(_slat_path, map_location="cpu", weights_only=True)
+                if _slat_path.is_file()
+                else None
             )
             _global_latent_path = row.sam3d_reconstruction_dir / "global_latent.pt"
             if _global_latent_path.is_file():

@@ -103,19 +103,20 @@ def test_dataset_getitem_lazy_and_eager(tmp_path: Path, monkeypatch: pytest.Monk
 
 
 def test_sam3d_latent_pt_dict(tmp_path: Path) -> None:
+    """The latent is read from <sam3d_reconstruction_dir>/global_latent.pt and exposed as 'global_latent'."""
     root = tmp_path / "data"
-    (root / "lat").mkdir(parents=True)
-    lat_path = root / "lat" / "g.pt"
-    torch.save({"global_latent": torch.zeros(8)}, lat_path)
+    recon = root / "recon" / "z"
+    recon.mkdir(parents=True)
+    torch.save({"global_latent": torch.zeros(8)}, recon / "global_latent.pt")
 
     _write_manifest(
         root,
-        [{"sample_id": "z", "sam3d_global_latent_path": "lat/g.pt"}],
+        [{"sample_id": "z", "sam3d_reconstruction_dir": "recon/z"}],
     )
 
     ds = DataRootDataset(data_root=root, manifest_path=root / "manifest.jsonl", cfg={}, load_vertex_labels_eager=False)
     z = ds[0]
-    assert z["sam3d_global_latent"].shape == (8,)
+    assert z["global_latent"].shape == (8,)
 
 
 def test_env_affordance_data_root_overrides_config(

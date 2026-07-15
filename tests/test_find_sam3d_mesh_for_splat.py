@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from reconstruction.mesh_utils import find_sam3d_reconstruction_mesh_for_splat
@@ -43,7 +44,7 @@ def test_find_mesh_picks_newest_when_two_runs_match(tmp_path: Path) -> None:
         )
         mesh = run / "reconstruction" / "mesh.glb"
         mesh.write_bytes(b"x")
-        Path.utime(mesh, (age, age))
+        os.utime(mesh, (age, age))
 
     got = find_sam3d_reconstruction_mesh_for_splat(ply, search_under=tmp_path)
     assert got.parent.parent.name == "new"

@@ -16,7 +16,7 @@ def test_vertex_semantics_via_dataset(tmp_path: Path) -> None:
     (root / "f").mkdir(parents=True)
     p = root / "f" / "sem.pt"
     torch.save(
-        {"features": torch.randn(5, 16), "visible_in_any_view": np.array([True, False, True, True, False])},
+        {"features": torch.randn(5, 16), "visible_in_any_view": torch.tensor([True, False, True, True, False])},
         p,
     )
     manifest = root / "manifest.jsonl"
@@ -43,7 +43,7 @@ def test_vertex_training_epoch_smoke(tmp_path: Path) -> None:
         {
             "features": torch.randn(8, 16),
             "view_counts": torch.ones(8),
-            "visible_in_any_view": np.ones(8, dtype=bool),
+            "visible_in_any_view": torch.ones(8, dtype=torch.bool),
         },
         root / "feat" / "sem.pt",
     )
@@ -57,9 +57,9 @@ def test_vertex_training_epoch_smoke(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    cfg = {"model": {"vlm_dim": 16, "verb_dim": 16, "num_verbs": 1, "sam3d_dim": 4, "hidden_dims": [32], "dropout": 0.0}}
+    cfg = {"model": {"vlm_dim": 16, "verb_dim": 16, "num_verbs": 1, "sam3d_dim": 0, "hidden_dims": [32], "dropout": 0.0}}
     ds = DataRootDataset(data_root=root, manifest_path=manifest, cfg=cfg, split="train")
-    model = AffordanceMLP(MLPHeadConfig(vlm_dim=16, verb_dim=16, num_verbs=1, sam3d_dim=4, hidden_dims=(32,), dropout=0.0))
+    model = AffordanceMLP(MLPHeadConfig(vlm_dim=16, verb_dim=16, num_verbs=1, sam3d_dim=0, hidden_dims=(32,), dropout=0.0))
     opt = torch.optim.Adam(model.parameters(), lr=0.01)
     verb_to_idx = {"grasp": 0}
     device = torch.device("cpu")
