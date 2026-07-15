@@ -2,7 +2,8 @@
 (original features) for a light eager-load. Writes cv_fold{0..4}.json and manifest.cv.jsonl."""
 import json, glob, collections, numpy as np
 ROOT = "/home/datasets/customDatasets/cmr2"
-SCR = "experiments/cv_harness"
+from pathlib import Path
+SCR = str(Path(__file__).resolve().parent)  # absolute: DataRootDataset resolves relative paths against data_root
 K = 5
 
 # manifest objects (must have features)

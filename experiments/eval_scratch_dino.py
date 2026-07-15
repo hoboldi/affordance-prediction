@@ -2,13 +2,14 @@
 Per (object,verb): AUPRC(scratch8) - AUPRC(scratchnodino8), by class + leave-one-verb-out gap.
 If App DINO-drop >> Geo DINO-drop even from scratch, the split is task-intrinsic, not inherited from GEAL. CPU."""
 import os, sys, json, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 V = ["contain","pour","sit","move","display","grasp","press","lift"]
 GEO = {"contain","pour","sit","move","lift"}; APP = {"grasp","display","press"}
 def seed_of(o): return int(hashlib.md5(o.encode()).hexdigest()[:8], 16)

@@ -1,13 +1,14 @@
 """Measured drop-both (DINO+geom removed) cell: 5-fold held-out clean macro AUPRC for gnn_leanabl8_noboth.
 Zeros clip/slat/normals AND dino/geom (verb + spatial structure only). CPU."""
 import os, sys, json, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 V = ["contain","pour","sit","move","display","grasp","press","lift"]
 def seed_of(o): return int(hashlib.md5(o.encode()).hexdigest()[:8],16)
 def human(o,v):

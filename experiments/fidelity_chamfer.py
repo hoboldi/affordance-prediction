@@ -5,7 +5,8 @@ import sys, os, json, glob, argparse
 sys.path.insert(0, "src")
 import numpy as np, trimesh
 from scipy.spatial import cKDTree
-SCR = "experiments/cv_harness"
+from pathlib import Path
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 SRC = "/home/datasets/customDatasets/cmr2/source"
 DR  = "/home/datasets/customDatasets/cmr2/reconstructions"
 NPTS = 12000; TAU = 0.05

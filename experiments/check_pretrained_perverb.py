@@ -2,13 +2,14 @@
 finetune) beat GEAL uniformly across verbs, or is the 0.46->0.52 gain driven by one/two verbs?
 Feeds the features the pretrain was trained on. Held-out clean human GT. CPU."""
 import os, sys, json, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 DR = "/home/datasets/customDatasets/cmr2/reconstructions"
 V = ["contain","pour","sit","move","display","grasp","press","lift"]
 GEO = {"contain","pour","sit","move","lift"}; APP = {"grasp","display","press"}

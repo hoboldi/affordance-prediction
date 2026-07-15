@@ -5,6 +5,7 @@ human-GT protocol. Fixed per-object subsample so the rebuilt kNN graph is cached
 + trained-mean. NOTE: GNN trains on human GT only (no GEAL-distillation pretraining the MLP got) — a
 positive result is strong; a modest gap is confounded by pretraining (documented)."""
 import os, sys, json, argparse, time, collections, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 import torch.nn.functional as Fn
@@ -13,7 +14,7 @@ from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
 
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent)  # absolute: DataRootDataset resolves relative paths against data_root
 TRAINED = ["contain", "sit", "pour", "move", "display", "grasp", "press", "lift"]
 MLP_FOLD0 = 0.838  # full-FT + geom MLP, fold0 trained-mean (the bar)
 

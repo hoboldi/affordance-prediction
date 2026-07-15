@@ -1,12 +1,13 @@
 """mpnet-verb model (fold0): do held-out synonyms now generalize? (the payoff of the encoder probe)
 Verb + synonym embeddings from experiments/verb_emb_mpnet.pt (768-d). Compare held-out drop vs CLIP's -0.25/-0.30. CPU."""
 import os, sys, json, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 SEEN={"grasp":"grip","sit":"sit down","pour":"pour out","display":"show","move":"slide","press":"tap","lift":"raise","contain":"store"}
 HELD={"grasp":"seize","sit":"rest on","pour":"decant","display":"showcase","move":"reposition","press":"click","lift":"elevate","contain":"keep inside"}
 def seed_of(o): return int(hashlib.md5(o.encode()).hexdigest()[:8],16)

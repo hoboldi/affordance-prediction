@@ -3,13 +3,14 @@ Pretrained-only head (distilled, NO human FT), full features. Per class: absolut
 (feed all vs zero DINO). Compare to finetuned lean8 (App 0.851/drop 0.245, Geo 0.870/drop 0.06).
 If pretrained App is near-chance and/or its DINO-drop is small, the reliance was learned from human labels. CPU."""
 import os, sys, json, hashlib
+from pathlib import Path
 sys.path.insert(0, "src")
 import numpy as np, torch
 from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR = "experiments/cv_harness"
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 V = ["contain","pour","sit","move","display","grasp","press","lift"]
 GEO = {"contain","pour","sit","move","lift"}; APP = {"grasp","display","press"}
 def seed_of(o): return int(hashlib.md5(o.encode()).hexdigest()[:8], 16)

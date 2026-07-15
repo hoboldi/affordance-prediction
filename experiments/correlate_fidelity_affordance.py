@@ -12,7 +12,8 @@ from sklearn.metrics import average_precision_score
 from datasets.data_root_dataset import DataRootDataset
 from models.gnn_head import AffordanceGNN, AffordanceGNNConfig
 from vlm.vlm_wrapper import VLMWrapper, VLMConfig
-SCR = "experiments/cv_harness"
+from pathlib import Path
+SCR = str(Path(__file__).resolve().parent / "cv_harness")  # absolute: DataRootDataset resolves relative paths against data_root
 SRC = "/home/datasets/customDatasets/cmr2/source"; DR = "/home/datasets/customDatasets/cmr2/reconstructions"
 V = ["contain","pour","sit","move","display","grasp","press","lift"]
 GEO = {"contain","pour","sit","move","lift"}; APP = {"grasp","display","press"}
