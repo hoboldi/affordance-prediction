@@ -39,3 +39,7 @@ tmp_cam_out/
 *.ply
 *.glb
 /human_annotation
+
+# local demo scratch (untracked)
+/cam_karahi_out/
+/cam_karahi_feat/
