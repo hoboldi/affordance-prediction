@@ -83,6 +83,7 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 
 ```
 src/                 model, dataset, projection, rendering, VLM wrappers
+src/teacher/         frozen GEAL teacher: per-vertex pseudo-label generation
 src/labelling/       browser-based manual affordance labeller (produced the human GT)
 scripts/             data-generation, training, evaluation, and rendering scripts
 experiments/         5-fold CV harness (cv_harness/) + analysis scripts

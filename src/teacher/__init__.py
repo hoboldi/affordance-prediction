@@ -1,6 +1,6 @@
 """Pseudolabel generation from frozen teacher models (currently GEAL)."""
 
-from labeling.geal_infer import (
+from teacher.geal_infer import (
     GEAL_AFFORDANCES,
     GEAL_CLASSES,
     GealLabeler,

@@ -10,12 +10,12 @@ For each manifest row pointing at a SAM3D reconstruction, this:
   5. writes ``vertex_pseudolabels.pt`` (shape ``(V,)`` float32) into the reconstruction dir, and
   6. emits an updated manifest with ``vertex_pseudolabel_path`` set per row.
 
-``object_class`` must be a GEAL/3D-AffordanceNet class (see ``labeling.GEAL_CLASSES``); ``affordance``
-(the manifest ``verb``) must be in ``labeling.GEAL_AFFORDANCES``. Provide them per-row in the manifest
+``object_class`` must be a GEAL/3D-AffordanceNet class (see ``teacher.GEAL_CLASSES``); ``affordance``
+(the manifest ``verb``) must be in ``teacher.GEAL_AFFORDANCES``. Provide them per-row in the manifest
 (``object_class`` field + ``verb``) or globally via ``--object_class`` / ``--affordance``.
 
 Runtime prerequisites (deferred): GEAL clone at ``external/geal``, weights in ``external/geal/ckpt/``,
-optional ``Affordance-Question.csv``. See ``labeling.geal_infer`` and the project README.
+optional ``Affordance-Question.csv``. See ``teacher.geal_infer`` and the project README.
 
 Usage:
     python scripts/generate_geal_pseudolabels.py \
@@ -40,8 +40,8 @@ import numpy as np
 import torch
 
 from datasets.data_root_dataset import _parse_row, resolve_data_root
-from labeling.canonicalize import find_canonical_rotation
-from labeling.geal_infer import GealLabeler
+from teacher.canonicalize import find_canonical_rotation
+from teacher.geal_infer import GealLabeler
 from utils.config import load_config
 
 logging.basicConfig(
