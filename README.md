@@ -63,7 +63,8 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 
 | Step | Script |
 |---|---|
-| Prepare CO3D objects | `scripts/prepare_co3d.py` |
+| **Get the data** (reconstructions + human labels, from HF) | `scripts/download_dataset.py` |
+| Prepare CO3D objects (from raw CO3D instead) | `scripts/prepare_co3d.py` |
 | Reconstruct meshes (SAM3D) | `scripts/generate_sam3d.py` |
 | DINOv2 per-vertex features | `scripts/generate_vertex_dino.py` |
 | Geometry descriptors | `scripts/precompute_geom.py` |
