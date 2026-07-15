@@ -68,6 +68,7 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 | DINOv2 per-vertex features | `scripts/generate_vertex_dino.py` |
 | Geometry descriptors | `scripts/precompute_geom.py` |
 | GEAL teacher pseudo-labels | `scripts/generate_geal_pseudolabels.py` |
+| Human affordance annotation (web UI) | `python -m labelling --data-root <DIR>` |
 | Stage 1 — distillation pretrain | `experiments/cv_harness/train_gnn_pretrain.py` |
 | Stage 2 — 5-fold finetune on human labels | `experiments/cv_harness/train_gnn_cv.py` |
 | Evaluation | `scripts/eval_human_gt.py`, `scripts/eval_verb_conditioning.py` |
@@ -76,6 +77,7 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 
 ```
 src/                 model, dataset, projection, rendering, VLM wrappers
+src/labelling/       browser-based manual affordance labeller (produced the human GT)
 scripts/             data-generation, training, evaluation, and rendering scripts
 experiments/         5-fold CV harness (cv_harness/) + analysis scripts
 notebooks/           reverb_demo.ipynb — runnable verb-routing demo
