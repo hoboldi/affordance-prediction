@@ -61,6 +61,11 @@ All scripts assume the repo root as the working directory with `PYTHONPATH=src`.
 Data (reconstructions and per-vertex features) live outside the repo; see
 [`docs/data_layout.md`](docs/data_layout.md) for the on-disk layout. To reproduce end to end:
 
+> The labeller serves a browser UI on `--port` (default 8765) and writes
+> `<labels-dir>/<object>/vertex_manuallabels_<verb>.pt` — the layout training/eval read. Pass
+> `--labels-dir` when your labels do not sit under the data root (as in this repo). It loads three.js
+> from a CDN, so it needs network access.
+
 | Step | Script |
 |---|---|
 | **Get the data** (reconstructions + human labels, from HF) | `scripts/download_dataset.py` |
@@ -69,7 +74,7 @@ Data (reconstructions and per-vertex features) live outside the repo; see
 | DINOv2 per-vertex features | `scripts/generate_vertex_dino.py` |
 | Geometry descriptors | `scripts/precompute_geom.py` |
 | GEAL teacher pseudo-labels | `scripts/generate_geal_pseudolabels.py` |
-| Human affordance annotation (web UI) | `python -m labelling --data-root <DIR>` |
+| Human affordance annotation (web UI) | `python -m labelling --data-root <DATA_ROOT> --labels-dir human_gt_labels` |
 | Stage 1 — distillation pretrain | `experiments/cv_harness/train_gnn_pretrain.py` |
 | Stage 2 — 5-fold finetune on human labels | `experiments/cv_harness/train_gnn_cv.py` |
 | Evaluation | `scripts/eval_human_gt.py`, `scripts/eval_verb_conditioning.py` |

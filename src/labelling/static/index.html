@@ -215,7 +215,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const API = 'http://127.0.0.1:8765';
+// Same-origin: the page is served by the labelling server itself, so relative URLs
+// follow whatever --port it was started on (a hardcoded host:port breaks --port).
+const API = '';
 
 // ── Verb descriptions ──────────────────────────────────────────────────
 const VERB_DESC = {

@@ -33,6 +33,10 @@ gsplat = ["gsplat>=1.4.0"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# the labelling tool serves its web UI from src/labelling/static/
+labelling = ["static/*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

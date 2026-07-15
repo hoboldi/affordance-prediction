@@ -13,6 +13,7 @@ import torch
 
 class _Handler(BaseHTTPRequestHandler):
     data_root: Path
+    labels_root: Path
     samples: list[dict]
 
     def log_message(self, fmt, *args):  # silence access log
@@ -94,8 +95,8 @@ class _Handler(BaseHTTPRequestHandler):
     # ------------------------------------------------------------------
 
     def _gt_path(self, stem: str, verb: str) -> Path:
-        """Canonical path for a saved GT label file."""
-        return self.data_root / "human_gt_labels" / stem / f"vertex_manuallabels_{verb}.pt"
+        """Canonical path for a saved GT label file (the layout eval/finetune read)."""
+        return self.labels_root / stem / f"vertex_manuallabels_{verb}.pt"
 
     def _serve_manual(self, stem: str, verb: str):
         """Serve manual labels from gt_labels/ folder."""
@@ -177,7 +178,7 @@ class _Handler(BaseHTTPRequestHandler):
         return s[:idx], s[idx + 1:]
 
 
-def run(data_root: Path, port: int = 8765, split: str | None = None):
+def run(data_root: Path, port: int = 8765, split: str | None = None, labels_root: Path | None = None):
     manifest = data_root / "manifest.pseudolabeled.vsem.jsonl"
     if not manifest.exists():
         manifest = data_root / "manifest.jsonl"
@@ -190,11 +191,13 @@ def run(data_root: Path, port: int = 8765, split: str | None = None):
         pass
 
     Handler.data_root = data_root
+    Handler.labels_root = labels_root or (data_root / "human_gt_labels")
     Handler.samples = samples
 
     server = HTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}"
     print(f"Labeller running at {url}  ({len(samples)} samples)")
+    print(f"  reading/writing labels in: {Handler.labels_root}")
     threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
