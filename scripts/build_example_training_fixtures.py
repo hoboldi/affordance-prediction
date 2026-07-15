@@ -30,7 +30,9 @@ def main() -> None:
         {
             "features": torch.randn(3, 512) * 0.02,
             "view_counts": torch.ones(3),
-            "visible_in_any_view": np.ones(3, dtype=bool),
+            # torch tensor, not numpy: the loader reads this bundle with weights_only=True,
+            # which rejects numpy globals on torch>=2.6 (real pipeline data stores tensors too).
+            "visible_in_any_view": torch.ones(3, dtype=torch.bool),
         },
         feat_dir / "tiny_vertex_semantic.pt",
     )

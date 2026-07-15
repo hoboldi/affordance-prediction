@@ -171,4 +171,4 @@ def test_training_manifest_with_fixtures() -> None:
     )
     item = ds[0]
     assert item["vertex_features"].shape == (3, 512)
-    assert item["sam3d_global_latent"].shape == (8,)
+    assert item["vertex_affordance"].shape == (3,)
